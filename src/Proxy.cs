@@ -44,7 +44,7 @@ namespace DiscordAccess
         internal Action<string> DiagnosticTrace;
         private readonly TraceBudget traceBudget = new TraceBudget();
         internal enum RelayStage { Admission, Ownership, HeaderRead, RequestPolicy, BackendConnect, BackendIdentity, BackendWrite, Relay }
-        internal enum RequestFailure { None, InvalidHeader, InvalidRequestLine, InvalidTarget, UnsupportedMethod, ForbiddenHost, ConflictingHost, InvalidFraming }
+        internal enum RequestFailure { None, InvalidHeader, InvalidRequestLine, InvalidTarget, UnsupportedMethod, ForbiddenHost, ConflictingHost, InvalidFraming, UnsupportedUpgrade }
         // Success chatter must never consume the failure budget. Both budgets
         // replenish so a long session still produces useful later diagnostics.
         internal sealed class TraceBudget
@@ -461,6 +461,17 @@ namespace DiscordAccess
                 if (colon < 1 || !Regex.IsMatch(lines[i].Substring(0, colon), @"\A[!#$%&'*+\-.^_`|~0-9A-Za-z]+\z") ||
                     lines[i].Any(c => c < 32 && c != '\t' || c == 127)) throw new InvalidDataException();
                 string name = lines[i].Substring(0, colon), value = lines[i].Substring(colon + 1).Trim();
+                // The backend's plain HTTP upgrade path forwards headers to
+                // the remote peer. Never send its private proxy credential on
+                // that path. HTTPS/WSS inside CONNECT remains an opaque tunnel.
+                if (!connect && (name.Equals("Upgrade", StringComparison.OrdinalIgnoreCase) ||
+                    ((name.Equals("Connection", StringComparison.OrdinalIgnoreCase) ||
+                      name.Equals("Proxy-Connection", StringComparison.OrdinalIgnoreCase)) &&
+                     value.Split(',').Any(token => token.Trim().Equals("upgrade", StringComparison.OrdinalIgnoreCase)))))
+                {
+                    refusal = RequestFailure.UnsupportedUpgrade;
+                    throw new InvalidDataException();
+                }
                 if (name.Equals("Host", StringComparison.OrdinalIgnoreCase))
                 {
                     refusal = RequestFailure.ConflictingHost;

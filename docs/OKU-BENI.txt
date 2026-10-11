@@ -1,9 +1,9 @@
-DiscordAccess v4.18 — sistem tepsisi ve dağıtım bildirimleri
+DiscordAccess v4.19 — güvenlik adayı, henüz Release olarak yayımlanmadı
 
 ZIP'i tamamen kısa, kalıcı bir yerel klasöre çıkarın. DiscordAccess.exe ile
 engine/sing-box.exe aynı pakette bulunmalıdır. Baslat.cmd kaldırıldı.
 GitHub Code > Download ZIP yalnız kaynak kodudur; hazır ZIP'i Releases'ten alın.
-https://github.com/alpertknn/DiscordAccess/releases/tag/v4.18
+https://github.com/alpertknn/DiscordAccess/releases
 
 İlk açılış:
 1. Discord'u sistem tepsisinden tamamen kapatın. Eski DiscordAccess açıksa
@@ -82,14 +82,26 @@ Başlangıç kurtarması: startup-session\journal.json (kişisel veri, paylaşma
 Windows 10/11 x64, .NET Framework 4.8 ve yazılabilir resmi Discord Stable gerekir.
 Yönetici olarak açmayın. EXE'ler Windows güvenlik değerlendirmesine tabidir.
 
-Bu revizyonda indirme hook'unun 294 sentetik kontrolü, üretim derlemesi ve
-motor çalıştırmadan yardım/paket doğrulaması kontrol edilir. Bağlantı, başlangıç
-ve sahiplik kodu v4.17 ile aynı; önceki revizyondaki canlı doğrulama sınırları
-geçerlidir. Gerçek Windows yeniden başlatması, tepsi etkileşimi ve hesap içi
-mesaj/dosya/yayın bu revizyonda yeniden sınanmadı. Önceki tam regresyonun bir
-NativeOutputChecks çocuk EXE testi Windows tarafından engellendi; tam test
-başarısı iddia edilmez.
+Bu güvenlik adayı düz HTTP Upgrade isteklerini reddeder; otomatik başlangıç
+hedefinin yazma izinlerini, tek oturum kilidini ve dosya işlemlerindeki
+çakışma davranışını sağlamlaştırır. sing-box 1.14.3 kaynakları güncellenmiş
+Go/bağımlılık kilitleriyle 1.14.3-discordaccess.1 olarak yeniden derlenmiştir.
+
+Otomatik başlangıç için paket yalnız kendi hesabınızın yazabildiği kalıcı
+kişisel bir klasörde bulunmalıdır. Başka standart kullanıcıların yazabildiği
+hedef veya üst klasörler reddedilir; Windows izinleri değiştirilmez.
+Dosya çakışmasında .discordaccess-fs-*.preserved / .rollback-preserved yedekleri
+korunabilir. Bunları silmeyin veya herkese açık hata kaydına yüklemeyin.
+
+Windows derleme, regresyon ve motorun altı DNS ayarını kabul etme kontrolü
+ayrı GitHub Actions ortamında yapılır. Yerelde engellenen EXE farklı bir
+çalıştırma yöntemiyle açılmaz; güvenlik ayarları değiştirilmez. Güncel kontrol
+sonucuna ilgili PR/Actions kaydından bakın. Gerçek hesapla mesaj/dosya/yayın,
+Windows yeniden başlatması ve tepsi etkileşimi bu otomatik testlerden ayrıdır.
+Bu adayda bu kullanıcı testleri henüz tamamlanmadı.
+
 Motor ve gömülü bağımlılık/Go runtime lisansları LISANSLAR.txt içindedir.
 Sabit kaynak sürümleri ve bildirim manifesti GitHub licenses/ klasöründedir.
+Motorun kaynak ve yeniden derleme paketi dağıtımla birlikte sağlanır.
 Paket test, log veya profil dosyası içermez. Her sağlayıcı/ses/yayın koşulu için
-başarı garantisi verilmez.
+başarı garantisi verilmez. Hash doğrulaması Windows kod imzası değildir.

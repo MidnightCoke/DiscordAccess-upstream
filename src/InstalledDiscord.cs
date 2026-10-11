@@ -459,41 +459,11 @@ namespace DiscordAccess
         }
         private static void Replace(string path, byte[] expected, byte[] replacement)
         {
-            Require(path);
-            if (Same(expected, replacement)) return;
-            string temporary = Path.Combine(Path.GetDirectoryName(path), ".discordaccess-" + Guid.NewGuid().ToString("N") + ".tmp");
-            Require(temporary);
-            try
-            {
-                using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
-                { CheckHandle(temporary, output); output.Write(replacement, 0, replacement.Length); output.Flush(true); }
-                Require(path); Require(temporary);
-                if (expected == null) { File.Move(temporary, path); return; }
-                // Deny competing writers while checking the current bytes. The
-                // delete share permits atomic replacement rather than truncation.
-                using (var current = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
-                {
-                    CheckHandle(path, current);
-                    if (!Same(ReadStream(current, SettingsLimit), expected)) throw Conflict();
-                    Require(temporary); Require(path); File.Replace(temporary, path, null);
-                }
-            }
-            finally { if (File.Exists(temporary) && Safety.NoReparse(temporary)) File.Delete(temporary); }
+            FileTransaction.ReplaceExpected(path, expected, replacement, SettingsLimit, Require);
         }
         private static void DeleteExpected(string path, byte[] expected)
         {
-            Require(path);
-            using (var current = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Delete))
-            {
-                CheckHandle(path, current);
-                if (!Same(ReadStream(current, SettingsLimit), expected)) throw Conflict();
-                Require(path); File.Delete(path);
-            }
-        }
-        private static void CheckHandle(string path, FileStream stream)
-        {
-            Require(path);
-            if (!String.Equals(Path.GetFullPath(path), NativeFile.FinalPath(stream.SafeFileHandle), StringComparison.OrdinalIgnoreCase)) throw Conflict();
+            FileTransaction.DeleteExpected(path, expected, SettingsLimit, Require);
         }
         private static void Require(string path)
         {
@@ -574,6 +544,7 @@ namespace DiscordAccess
             string settingsPath = Path.Combine(profile, "settings.json"), journalPath = Path.Combine(session, "journal.json");
             string moduleRoot = Path.Combine(app, "modules"), junction = Path.Combine(root, "junction");
             var log = new List<string>();
+            var priorInterleave = FileTransaction.InterleaveForChecks;
             string legacy = "http://127.0.0.1:32101/fixture/legacy", modern = "http://127.0.0.1:32101/fixture/updates/";
             string[] entryPaths = Enumerable.Range(1, 2).Select(i => Path.Combine(moduleRoot,
                 "discord_desktop_core-" + i, "discord_desktop_core", "index.js")).ToArray();
@@ -859,6 +830,80 @@ namespace DiscordAccess
                 rejects(() => prepare(), "Missing installed core entry was silently ignored.");
                 assert(!File.Exists(journalPath), "Missing entry created recovery state."); File.Move(missing, entryPaths[1]);
 
+                // Real settings, module and recovery-journal call chains use
+                // the same bounded filesystem transaction as startup journals.
+                // The competing writer always swaps a regular inert file in
+                // after the helper compares the old object's bytes.
+                Action<string, byte[]> atomicIncoming = (path, bytes) => {
+                    string incoming = Path.Combine(Path.GetDirectoryName(path), "fixture-incoming-" + Guid.NewGuid().ToString("N"));
+                    File.WriteAllBytes(incoming, bytes); File.Replace(incoming, path, null);
+                };
+                Func<string, byte[], bool> backedUp = (path, bytes) => Directory.GetFiles(Path.GetDirectoryName(path), ".discordaccess-fs-*.preserved")
+                    .Any(candidate => Same(File.ReadAllBytes(candidate), bytes));
+                instance = prepare();
+                var incomingSettings = Object(File.ReadAllBytes(settingsPath)); incomingSettings["concurrentPreference"] = "SETTINGS_RACE_CANARY";
+                byte[] incomingSettingsBytes = Json(incomingSettings);
+                try
+                {
+                    FileTransaction.InterleaveForChecks = (phase, path) => {
+                        if (phase == "replace" && path == settingsPath) atomicIncoming(path, incomingSettingsBytes);
+                    };
+                    rejects(() => instance.Configure(legacy, modern), "Configure accepted a replaced settings object.");
+                }
+                finally { FileTransaction.InterleaveForChecks = priorInterleave; }
+                assert(Same(File.ReadAllBytes(settingsPath), incomingSettingsBytes) && backedUp(settingsPath, incomingSettingsBytes),
+                    "Configure discarded a concurrent preference file or its actual displaced backup.");
+                assert(File.Exists(journalPath), "Settings conflict lost the recovery journal.");
+                instance.Restore();
+                assert(!File.Exists(journalPath) && Same(File.ReadAllBytes(settingsPath), incomingSettingsBytes), "Settings race recovery discarded foreign preferences.");
+
+                byte[] incomingEntry = Utf8.GetBytes("CONCURRENT_OFFICIAL_UPDATER_CANARY: inert; never execute");
+                try
+                {
+                    FileTransaction.InterleaveForChecks = (phase, path) => {
+                        if (phase == "replace" && path == entryPaths[0]) atomicIncoming(path, incomingEntry);
+                    };
+                    rejects(() => prepare(), "Prepare accepted a replaced module entry object.");
+                }
+                finally { FileTransaction.InterleaveForChecks = priorInterleave; }
+                assert(Same(File.ReadAllBytes(entryPaths[0]), incomingEntry) && backedUp(entryPaths[0], incomingEntry),
+                    "Prepare discarded a concurrent module entry or its actual displaced backup.");
+                assert(File.Exists(journalPath) && Same(File.ReadAllBytes(entryPaths[1]), originals[1]), "Module race rollback lost evidence or modified another entry.");
+                File.WriteAllBytes(entryPaths[0], originals[0]); RecoverCore(installed, profile, session, log.Add);
+                assert(!File.Exists(journalPath), "Resolved module race did not recover.");
+
+                instance = prepare(); byte[] beforeJournalRace = File.ReadAllBytes(journalPath);
+                var incomingJournal = Object(beforeJournalRace); incomingJournal["FOREIGN_JOURNAL_CANARY"] = true;
+                byte[] incomingJournalBytes = Json(incomingJournal);
+                try
+                {
+                    FileTransaction.InterleaveForChecks = (phase, path) => {
+                        if (phase == "replace" && path == journalPath) atomicIncoming(path, incomingJournalBytes);
+                    };
+                    rejects(() => instance.Configure(legacy, modern), "SaveJournal accepted a replaced journal object.");
+                }
+                finally { FileTransaction.InterleaveForChecks = priorInterleave; }
+                assert(Same(File.ReadAllBytes(journalPath), incomingJournalBytes) && backedUp(journalPath, incomingJournalBytes),
+                    "SaveJournal discarded the concurrent recovery evidence.");
+                File.WriteAllBytes(journalPath, beforeJournalRace); instance.Restore();
+                assert(!File.Exists(journalPath), "Resolved journal replacement race did not recover.");
+
+                instance = prepare(); beforeJournalRace = File.ReadAllBytes(journalPath);
+                incomingJournal = Object(beforeJournalRace); incomingJournal["FOREIGN_DELETE_CANARY"] = true;
+                incomingJournalBytes = Json(incomingJournal);
+                try
+                {
+                    FileTransaction.InterleaveForChecks = (phase, path) => {
+                        if (phase == "delete" && path == journalPath) atomicIncoming(path, incomingJournalBytes);
+                    };
+                    rejects(instance.Restore, "Restore accepted a replaced journal during deletion.");
+                }
+                finally { FileTransaction.InterleaveForChecks = priorInterleave; }
+                assert(Same(File.ReadAllBytes(journalPath), incomingJournalBytes), "Restore deleted renamed-in foreign recovery evidence.");
+                assert(entryPaths.Select((path, i) => Same(File.ReadAllBytes(path), originals[i])).All(value => value), "Journal delete conflict skipped independent module cleanup.");
+                File.WriteAllBytes(journalPath, beforeJournalRace); RecoverCore(installed, profile, session, log.Add);
+                assert(!File.Exists(journalPath), "Resolved journal deletion race did not recover.");
+
                 // A junction is a directory-only fixture; it is never followed
                 // for writes and is removed nonrecursively before cleanup.
                 using (var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
@@ -880,6 +925,7 @@ namespace DiscordAccess
             }
             finally
             {
+                FileTransaction.InterleaveForChecks = priorInterleave;
                 fixtureRoots = null;
                 if (Directory.Exists(junction) && (File.GetAttributes(junction) & FileAttributes.ReparsePoint) != 0) Directory.Delete(junction, false);
                 if (Safety.Under(root, work) && Safety.NoReparse(root) && !Directory.Exists(junction)) Directory.Delete(root, true);

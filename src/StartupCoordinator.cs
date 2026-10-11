@@ -442,6 +442,23 @@ namespace DiscordAccess
         private static UserActionException Unsupported()
         { return new UserActionException("Bu Discord'un etkin başlangıç kaydı HKLM/başlangıç klasöründe veya tanınmayan bir komutta. Sıra garantisi için Windows başlangıç ayarlarında bu kaydı kapatın; program bu kaydı değiştirmedi."); }
 
+        // Filesystem persistence is separable from the Windows registry backend
+        // so its exact call chain can be checked with an inert work journal.
+        internal sealed class FileJournal
+        {
+            private readonly string path;
+            private readonly Action prepare;
+            private readonly Action<string> validate;
+            internal FileJournal(string path, Action prepare, Action<string> validate)
+            { this.path = path; this.prepare = prepare; this.validate = validate; }
+            internal void Replace(byte[] expected, byte[] replacement)
+            {
+                prepare();
+                try { FileTransaction.ReplaceExpected(path, expected, replacement, JournalLimit, validate); }
+                catch (InvalidDataException) { throw Conflict(); }
+            }
+        }
+
         private sealed class WindowsEnvironment : IEnvironment
         {
             private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -549,6 +566,7 @@ namespace DiscordAccess
                 if (!SamePath(helper, Canonical(Assembly.GetExecutingAssembly().Location)) ||
                     !String.Equals(Path.GetFileName(helper), "DiscordAccess.exe", StringComparison.OrdinalIgnoreCase) || !Safety.NoReparse(helper)) throw Conflict();
                 using (Safety.ReadLease(helper)) { }
+                StartupPathTrust.Verify(helper);
             }
             public byte[] ReadJournal()
             {
@@ -559,30 +577,7 @@ namespace DiscordAccess
             }
             public void ReplaceJournal(byte[] expected, byte[] replacement)
             {
-                Prepare(true);
-                string temporary = Path.Combine(session, ".startup-" + Guid.NewGuid().ToString("N") + ".tmp");
-                try
-                {
-                    using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
-                    {
-                        CheckPath(temporary, stream); stream.Write(replacement, 0, replacement.Length); stream.Flush(true);
-                    }
-                    if (expected == null)
-                    {
-                        if (File.Exists(Journal)) throw Conflict();
-                        File.Move(temporary, Journal);
-                    }
-                    else
-                    {
-                        using (var current = new FileStream(Journal, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
-                        {
-                            CheckPath(Journal, current); if (!SameBytes(Read(current), expected)) throw Conflict();
-                            if (!Safety.NoReparse(temporary) || !Safety.NoReparse(Journal)) throw Conflict();
-                            File.Replace(temporary, Journal, null);
-                        }
-                    }
-                }
-                finally { if (File.Exists(temporary) && Safety.NoReparse(temporary)) File.Delete(temporary); }
+                new FileJournal(Journal, () => Prepare(true), RequireFilePath).Replace(expected, replacement);
             }
             private void Prepare(bool create)
             {
@@ -619,8 +614,8 @@ namespace DiscordAccess
                 while (offset < value.Length) { int n = stream.Read(value, offset, value.Length - offset); if (n == 0) throw Conflict(); offset += n; }
                 return value;
             }
-            private static void CheckPath(string path, FileStream stream)
-            { if (!Safety.NoReparse(path) || !SamePath(Path.GetFullPath(path), NativeFile.FinalPath(stream.SafeFileHandle))) throw Conflict(); }
+            private static void RequireFilePath(string path)
+            { if (!Safety.NoReparse(path)) throw Conflict(); }
         }
     }
 }

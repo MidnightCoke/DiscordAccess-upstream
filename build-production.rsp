@@ -32,3 +32,6 @@ src\ResidentStartupRequests.cs
 src\BackgroundLifecycle.cs
 src\StartupCoordinator.cs
 src\TrayHost.cs
+src\StartupPathTrust.cs
+src\ResidentInstance.cs
+src\FileTransaction.cs

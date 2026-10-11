@@ -17,6 +17,16 @@ node tests/external-wrapper.test.cjs
 
 Windows bir üretilmiş test EXE'sini engellerse bunu tam test başarısı olarak raporlamayın. Hangi grubun çalışmadığını ve kalan kontrolleri PR'da belirtin; Windows güvenlik ayarlarını değiştiren veya engeli aşan kod eklemeyin.
 
+### GitHub üzerinde Windows testleri
+
+`Windows tests` iş akışı, GitHub'ın ayrı Windows x64 ortamında aynı derleme ve test sırasını çalıştırır. `main` dalına push yapıldığında, `main` hedefli PR'larda ve Actions sayfasından elle başlatıldığında çalışır. C# testleri tamamlanmazsa iş akışı başarısız kalır; bağımsız JavaScript ve kısayol kontrolleri mümkün olduğunda yine sonuç verir.
+
+İş akışında depo erişimi salt okunurdur, kişisel secret gerekmez ve güvenlik politikası değiştirilmez. Motor sabit kaynak, Go ve bağımlılık kilitlerinden yeniden derlenir; çıktı hash'i doğrulanır. Altı üretilmiş DNS ayarı, yalnız CI'da motorun `check` komutuyla sınanır: bağlantı motoru `run` ile başlatılmaz, dinleyici açılmaz veya Discord isteği gönderilmez. Discord/profil açılmaz.
+
+Beş metin test raporu yedi gün, yeniden derlenen motor ve karşılık gelen kaynak/derleme kanıtları ayrı artifact olarak 30 gün saklanır. Sentetik profiller ve diğer `work/` dosyaları eklenmez. Artifact süresi dolmadan dağıtılacak motorun karşılık gelen kaynaklarını Release ile birlikte kalıcı olarak yayınlayın. Bu kontroller gerçek hesapla mesaj, indirme, yayın veya yeniden başlatma denemesinin yerini tutmaz.
+
+`engine-build/go.mod` ve `go.sum` byte düzeyinde sabittir; `Build-SecurityEngine.ps1` bu kilitlerle derler ve beklenen motor hash'inden farklı çıktıyı reddeder. Go veya bağımlılık güncellemesinde önce ayrı aday derleme üretip kaynak farkını, gömülü modül envanterini ve bilinen açıkları inceleyin; ardından bu sabitleri birlikte değiştirin. Windows test işi aynı motoru temiz ortamda tekrar üretebilmelidir. `Security engine build` iş akışı aynı işlemin elle başlatılan bağımsız tekrarını sağlar.
+
 ## Ekip çalışma akışı
 
 `main` üzerinden kendi iş dalınızı açın:

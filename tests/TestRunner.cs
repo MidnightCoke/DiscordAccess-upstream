@@ -5,6 +5,12 @@ namespace DiscordAccess
     {
         internal static int Main(string[] args)
         {
+            if (args.Length > 0 && args[0] == "--resident-namespace-child")
+            {
+                Guid fixture;
+                if (args.Length != 2 || !Guid.TryParseExact(args[1], "N", out fixture)) return 64;
+                return ResidentInstanceChecks.RunNamespaceChild(args[1]);
+            }
             Program.PackageDirectory = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
             if (args.Length == 1 && args[0] == "--resident-only")
             {
