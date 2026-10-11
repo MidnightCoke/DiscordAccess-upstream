@@ -1,12 +1,14 @@
 # DiscordAccess
 
-Windows'ta kurulu resmi Discord Stable için sistem tepsisinde çalışan bağlantı yardımcısı. Bu dal **v4.19 güvenlik adayını** içerir; henüz Release olarak yayımlanmamıştır.
+Windows'ta kurulu resmi Discord Stable için sistem tepsisinde çalışan bağlantı yardımcısı. **v4.19**, proxy, otomatik başlangıç ve dosya işlemlerine yönelik güvenlik düzeltmelerini içerir.
 
 `DiscordAccess.exe` bağlantıyı hazırlar; Discord'u kendi masaüstü veya Başlat menüsü simgenizden açarsınız. Kısayolun gerçek Discord hedefi korunur, yalnız oturumun yerel proxy argümanları eklenir. Ayrı Discord veya profil kopyası oluşturulmaz; mevcut hesabınız kullanılır. Açık CMD penceresi gerekmez.
 
 ## Hazır Windows paketini indir
 
-Hazır güvenlik paketi doğrulama tamamlandıktan sonra [Releases](https://github.com/alpertknn/DiscordAccess/releases) bölümünde yayımlanır. Mevcut v4.18 yayını bu daldaki güvenlik düzeltmelerini içermez.
+[v4.19 Release sayfasından](https://github.com/alpertknn/DiscordAccess/releases/tag/v4.19) **DiscordAccess-v4.19.zip** dosyasını indirin. v4.18 bu güvenlik düzeltmelerini içermez.
+
+`DiscordAccess-v4.19-engine-source.zip` motorun karşılık gelen kaynakları ve yeniden derleme malzemeleridir; programı çalıştırmak için indirmeniz gerekmez. Hazır paketi yeniden dağıtıyorsanız bu kaynak paketini de sunun.
 
 ZIP'i tamamen kısa, kalıcı bir yerel klasöre çıkarın. `DiscordAccess.exe` ve `engine/sing-box.exe` aynı paket içinde bulunmalıdır. `DiscordAccess.exe` dosyasını açın; hazır paket için derleme gerekmez. `Baslat.cmd` kaldırıldı.
 
@@ -14,7 +16,7 @@ Paketin [kullanım notları](docs/OKU-BENI.txt) da depoda bulunur.
 
 GitHub'daki **Code > Download ZIP** ile Releases bölümündeki **Source code** dosyaları yalnız kaynak kodudur; program EXE'si ve motor içermez. Geliştirme için bu dosyaları kullanacaksanız önce “Kaynaktan hazırlama” adımlarını tamamlayın. Depo private olduğu sürece hazır indirmeye erişmek için depoya erişimi olan GitHub hesabınızla giriş yapın. [Tüm sürümler](https://github.com/alpertknn/DiscordAccess/releases).
 
-İndirilen ZIP'in SHA-256 değerini `Get-FileHash .\DiscordAccess-v4.19-security-candidate.zip -Algorithm SHA256` ile hesaplayıp paketle verilen `SHA256SUMS.txt` ile karşılaştırabilirsiniz. Hash dosyası kod imzası sağlamaz.
+İndirilen ZIP'in SHA-256 değerini `Get-FileHash .\DiscordAccess-v4.19.zip -Algorithm SHA256` ile hesaplayıp aynı Release'teki `SHA256SUMS.txt` ile karşılaştırabilirsiniz. Hash dosyası kod imzası sağlamaz.
 
 ## Gereksinimler
 

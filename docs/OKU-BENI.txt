@@ -1,4 +1,4 @@
-DiscordAccess v4.19 — güvenlik adayı, henüz Release olarak yayımlanmadı
+DiscordAccess v4.19 — Windows x64 paketi
 
 ZIP'i tamamen kısa, kalıcı bir yerel klasöre çıkarın. DiscordAccess.exe ile
 engine/sing-box.exe aynı pakette bulunmalıdır. Baslat.cmd kaldırıldı.
@@ -82,7 +82,7 @@ Başlangıç kurtarması: startup-session\journal.json (kişisel veri, paylaşma
 Windows 10/11 x64, .NET Framework 4.8 ve yazılabilir resmi Discord Stable gerekir.
 Yönetici olarak açmayın. EXE'ler Windows güvenlik değerlendirmesine tabidir.
 
-Bu güvenlik adayı düz HTTP Upgrade isteklerini reddeder; otomatik başlangıç
+Bu sürüm düz HTTP Upgrade isteklerini reddeder; otomatik başlangıç
 hedefinin yazma izinlerini, tek oturum kilidini ve dosya işlemlerindeki
 çakışma davranışını sağlamlaştırır. sing-box 1.14.3 kaynakları güncellenmiş
 Go/bağımlılık kilitleriyle 1.14.3-discordaccess.1 olarak yeniden derlenmiştir.
@@ -98,7 +98,7 @@ ayrı GitHub Actions ortamında yapılır. Yerelde engellenen EXE farklı bir
 çalıştırma yöntemiyle açılmaz; güvenlik ayarları değiştirilmez. Güncel kontrol
 sonucuna ilgili PR/Actions kaydından bakın. Gerçek hesapla mesaj/dosya/yayın,
 Windows yeniden başlatması ve tepsi etkileşimi bu otomatik testlerden ayrıdır.
-Bu adayda bu kullanıcı testleri henüz tamamlanmadı.
+Bu sürümde bu kullanıcı testleri henüz tamamlanmadı.
 
 Motor ve gömülü bağımlılık/Go runtime lisansları LISANSLAR.txt içindedir.
 Sabit kaynak sürümleri ve bildirim manifesti GitHub licenses/ klasöründedir.

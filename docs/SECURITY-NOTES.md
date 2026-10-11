@@ -1,6 +1,6 @@
 # Güvenlik sınırları
 
-v4.19 bir güvenlik adayıdır. Otomatik kontrollerin geçmesi, yazılımın açık içermediğini veya her Discord/ağ koşulunda çalışacağını kanıtlamaz. Yeni adayın gerçek hesap, ses/yayın ve Windows yeniden başlatma denemesi ayrıca yapılmalıdır.
+v4.19 güvenlik düzeltmeleri içerir. Otomatik kontrollerin geçmesi, yazılımın açık içermediğini veya her Discord/ağ koşulunda çalışacağını kanıtlamaz. Bu sürümün gerçek hesap, ses/yayın ve Windows yeniden başlatma denemesi ayrıca yapılmalıdır.
 
 ## Bu revizyondaki korumalar
 
