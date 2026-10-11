@@ -4,11 +4,19 @@ Windows'ta kurulu resmi Discord Stable için CMD üzerinden çalışan bağlant�
 
 CMD bağlantıyı hazırlar; Discord'u kendi masaüstü veya Başlat menüsü simgenizden açarsınız. Kısayolun gerçek Discord hedefi korunur, yalnız oturumun yerel proxy argümanları eklenir. Ayrı Discord veya profil kopyası oluşturulmaz; mevcut hesabınız kullanılır.
 
+## Hazır Windows paketini indir
+
+**[DiscordAccess-v4.16-CMD.zip dosyasını indir](https://github.com/alpertknn/DiscordAccess/releases/download/v4.16/DiscordAccess-v4.16-CMD.zip)**
+
+ZIP'i tamamen bir klasöre çıkarın. `Baslat.cmd`, `DiscordAccess.exe` ve `engine/sing-box.exe` aynı paket içinde bulunmalıdır. Ardından aşağıdaki kullanım adımlarını izleyin; hazır paket için derleme gerekmez.
+
+GitHub'daki **Code > Download ZIP** ile Releases bölümündeki **Source code** dosyaları yalnız kaynak kodudur; program EXE'si ve motor içermez. Geliştirme için bu dosyaları kullanacaksanız önce “Kaynaktan hazırlama” adımlarını tamamlayın. Depo private olduğu sürece hazır indirmeye erişmek için depoya erişimi olan GitHub hesabınızla giriş yapın. [Tüm sürümler](https://github.com/alpertknn/DiscordAccess/releases).
+
 ## Gereksinimler
 
 - Windows 10/11 x64 ve .NET Framework 4.8.
 - Yazma izniniz olan resmi Discord Stable kurulumu.
-- Derlemek için Windows'un .NET Framework x64 C# derleyicisi.
+- Yalnız kaynaktan derlemek için Windows'un .NET Framework x64 C# derleyicisi.
 - Node.js: yalnız JavaScript testleri için.
 
 Yönetici olarak çalıştırmayın. Bu proje Windows'un genel proxy, DNS veya yönlendirme ayarlarını değiştirmez; ağ sürücüsü veya sistem servisi kurmaz.
@@ -82,7 +90,7 @@ Kayıtlar `%LOCALAPPDATA%\DiscordAccess\v3` konumundadır. Bağlantı açıkken 
 
 ## Geliştirme
 
-Derleme, testler ve ekip çalışma akışı için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın. Üretim kaynak kodu v4.16 paketinden değiştirilmeden alınmıştır. Loglar, hesap/profil dosyaları ve yerel test çıktıları depoya dahil edilmez.
+Derleme, testler ve ekip çalışma akışı için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın. Üretim bağlantı kodu v4.16 paketinden değiştirilmeden alınmıştır. Loglar, hesap/profil dosyaları ve yerel test çıktıları depoya dahil edilmez.
 
 ## Lisans
 

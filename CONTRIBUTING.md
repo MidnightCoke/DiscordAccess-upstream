@@ -11,9 +11,10 @@ powershell -NoProfile -File scripts/Fetch-Engine.ps1
 node tests/attachment-download.test.cjs
 node tests/external-wrapper.test.cjs
 .\tests\shortcuts\Run.cmd
+.\tests\launcher\Run.cmd
 ```
 
-`Test.cmd`, ikinci Node testinin ihtiyaç duyduğu sentetik wrapper dosyalarını `work/` altında üretir; bu nedenle sırayı koruyun. Kısayol testleri ayrı, geçici fixture verileri kullanır. Kontroller gerçek Discord hesabı açmaz; ağ kontrolleri loopback ve sentetik yanıtlarla yapılır. Test çıktıları ve derlenen dosyalar Git dışında kalır.
+`Test.cmd`, ikinci Node testinin ihtiyaç duyduğu sentetik wrapper dosyalarını `work/` altında üretir; bu nedenle sırayı koruyun. Kısayol testleri ayrı, geçici fixture verileri kullanır. Başlatıcı testleri yalnız sahte bir konsol EXE'siyle eksik dosyaları, argüman ve çıkış kodlarını, Türkçe/boşluk/parantez içeren yolları kontrol eder. Kontroller gerçek Discord hesabı açmaz; ağ kontrolleri loopback ve sentetik yanıtlarla yapılır. Test çıktıları ve derlenen dosyalar Git dışında kalır.
 
 Windows bir üretilmiş test EXE'sini engellerse bunu tam test başarısı olarak raporlamayın. Hangi grubun çalışmadığını ve kalan kontrolleri PR'da belirtin; Windows güvenlik ayarlarını değiştiren veya engeli aşan kod eklemeyin.
 
