@@ -263,6 +263,29 @@ namespace DiscordAccess
             add("Overlong hostname denied", () => Rejected(Connect(String.Join(".", new[] { new string('a', 63), new string('b', 63), new string('c', 63), new string('d', 63), "discord", "com" }) + ":443")));
             add("HTTP absolute URI on port 80", () => Accepted("GET http://discord.com:80/api/v10/gateway HTTP/1.1\r\nHost: discord.com:80\r\n\r\n"));
             add("HTTP default port", () => Accepted("GET http://discord.com/api/v10/gateway HTTP/1.1\r\nHost: discord.com\r\n\r\n"));
+            foreach (string headers in new[] {
+                "Connection: Upgrade\r\nUpgrade: websocket",
+                "connection: keep-alive, uPgRaDe\r\nupgrade: h2c",
+                "Connection: keep-alive\r\nConnection: upgrade",
+                "Upgrade: websocket", "Upgrade:", "Proxy-Connection: keep-alive, Upgrade" })
+            {
+                string upgradeHeaders = headers;
+                add("Plain HTTP upgrade rejected before proxy authentication", () =>
+                {
+                    ProcessGate.RequestFailure refusal = ProcessGate.RequestFailure.None;
+                    try
+                    {
+                        ProcessGate.RewriteHeader("GET http://discord.com/ HTTP/1.1\r\nHost: discord.com\r\n" +
+                            upgradeHeaders + "\r\n\r\n", TestAuthorization, out refusal);
+                        throw new InvalidOperationException("Plain HTTP upgrade accepted.");
+                    }
+                    catch (InvalidDataException)
+                    { Require(refusal == ProcessGate.RequestFailure.UnsupportedUpgrade, "HTTP upgrade rejection category changed."); }
+                });
+            }
+            add("Normal HTTP keep-alive remains available", () => Accepted(
+                "GET http://discord.com/ HTTP/1.1\r\nHost: discord.com\r\nConnection: keep-alive\r\n\r\n"));
+            add("TLS WebSocket CONNECT remains available", () => Accepted(Connect("gateway.discord.gg:443", "Host: gateway.discord.gg:443")));
             add("Existing proxy credentials removed", () =>
             {
                 string request = Connect("discord.com:443", "Host: discord.com:443",
