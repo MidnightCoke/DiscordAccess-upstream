@@ -27,3 +27,8 @@ src\ResidentController.cs
 src\DiscordInstallation.cs
 src\DiscordPathOptions.cs
 src\ExternalDiscordScope.cs
+src\ResidentOptions.cs
+src\ResidentStartupRequests.cs
+src\BackgroundLifecycle.cs
+src\StartupCoordinator.cs
+src\TrayHost.cs

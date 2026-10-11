@@ -42,9 +42,38 @@ namespace DiscordAccess
 
         internal static bool RequestOpen(out string message) { return Request(Name(null), out message); }
 
+        internal static IDisposable ListenStatus(Action callback)
+        { return new ManualLaunchSignal(StatusName(), callback); }
+
+        internal static bool RequestStatus(out string message) { return Request(StatusName(), out message); }
+
+        private static string StatusName()
+        { return Name(null).Replace("OpenDiscord.V416.", "ShowResident.V417."); }
+
+        internal static IDisposable ListenStartup(Action callback)
+        { return new ManualLaunchSignal(StartupName(null), callback); }
+
+        internal static bool RequestStartup(out string message)
+        { return Request(StartupName(null), out message); }
+
+        private static string StartupName(string fixture)
+        { return Name(fixture).Replace("OpenDiscord.V416.", "StartupResident.V417."); }
+
+#if TEST_BUILD
+        internal static IDisposable ListenStartupFixture(string fixture, Action callback)
+        { RequireFixture(fixture); return new ManualLaunchSignal(StartupName(fixture), callback); }
+        internal static bool RequestStartupFixture(string fixture, out string message)
+        { RequireFixture(fixture); return Request(StartupName(fixture), out message); }
+        private static void RequireFixture(string fixture)
+        {
+            Guid parsed;
+            if (!Guid.TryParseExact(fixture, "N", out parsed)) throw new ArgumentException("Startup fixture identifier");
+        }
+#endif
+
         private static bool Request(string name, out string message)
         {
-            message = "Açık bağlantı oturumu bulunamadı. Önce Baslat.cmd'yi açın.";
+            message = "Açık bağlantı oturumu bulunamadı. Önce DiscordAccess.exe'yi açın.";
             try
             {
                 using (var existing = EventWaitHandle.OpenExisting(name, EventWaitHandleRights.Modify | EventWaitHandleRights.ReadPermissions))

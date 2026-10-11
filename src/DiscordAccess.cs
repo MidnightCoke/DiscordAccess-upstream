@@ -24,20 +24,25 @@ namespace DiscordAccess
         {
             args = args ?? new string[0];
             bool fromIcon = args.Length == 1 && args[0] == "--open-discord";
+            bool background = !ResidentOptions.ConsoleRequested(args);
             try
             {
-                if (!fromIcon) ConsoleWindow.Ensure();
+                if (!fromIcon && !background) ConsoleWindow.Ensure();
                 TlsPolicy.UseSystemDefaults();
                 DiscordPathOptions pathOptions;
                 try { pathOptions = DiscordPathOptions.Parse(args); }
-                catch (ArgumentException ex) { Console.Error.WriteLine(ex.Message); return 64; }
+                catch (ArgumentException ex) { return ReportArgument(ex, background); }
                 args = pathOptions.RemainingArgs;
+                ResidentOptions mode;
+                try { mode = ResidentOptions.Parse(args); }
+                catch (ArgumentException ex) { return ReportArgument(ex, background); }
+                args = mode.Arguments; background = mode.Background;
                 fromIcon = args.Length == 1 && args[0] == "--open-discord";
                 if (pathOptions.ExplicitPath != null && (fromIcon || args.Contains("--restore")))
-                { Console.Error.WriteLine("--discord-path bağlantıyı başlatırken kullanılmalıdır; --restore veya --open-discord ile birleştirmeyin."); return 64; }
+                { return ReportArgument(new ArgumentException("--discord-path bağlantıyı başlatırken kullanılmalıdır; --restore veya --open-discord ile birleştirmeyin."), background); }
                 DnsOptions dns;
                 try { dns = DnsOptions.Parse(args); }
-                catch (ArgumentException ex) { Console.Error.WriteLine(ex.Message); return 64; }
+                catch (ArgumentException ex) { return ReportArgument(ex, background); }
                 Safety.RejectElevation();
                 if (fromIcon)
                 {
@@ -56,24 +61,43 @@ namespace DiscordAccess
                 if (args.Any(arg => arg == "--help" || arg == "-h" || arg == "/?")) return ConsoleHost.Run(args, dns);
                 bool restoring = args.Length == 1 && args[0] == "--restore";
                 if (!fromIcon && !restoring && args.Any(arg => arg != "--connect" && arg != "--start" && !DnsOptions.IsArgument(arg)))
+                {
+                    if (background) return ReportArgument(new ArgumentException("Tanınmayan seçenek. Kullanım için --help yazın."), true);
                     return ConsoleHost.Run(args, dns);
+                }
                 bool created;
                 using (var mutex = new Mutex(true, @"Local\DiscordAccess.Isolated.V3", out created))
                 {
-                    if (!created) throw new UserActionException("DiscordAccess açık veya hazırlanıyor. Bağlantı hazır olduktan sonra Discord simgesine tekrar basın.");
+                    if (!created)
+                    {
+                        if (restoring) throw new UserActionException("DiscordAccess hâlâ açık. Önce mevcut bağlantıyı kapatın.");
+                        string response;
+                        if (background && mode.Startup)
+                        {
+                            // The owner registers this signal before recovery
+                            // or discovery; cover the tiny constructor gap only.
+                            for (int attempt = 0; attempt < 20; attempt++)
+                            { if (ManualLaunchSignal.RequestStartup(out response)) break; Thread.Sleep(50); }
+                        }
+                        else if (background) ManualLaunchSignal.RequestStatus(out response);
+                        else Console.WriteLine("DiscordAccess zaten çalışıyor; ikinci bağlantı başlatılmadı.");
+                        return 0;
+                    }
+                    using (var startupRequests = new ResidentStartupRequests())
                     using (ResidentStateLease.Acquire())
                     {
                         if (Controller.InstalledClientRunning() && InstalledDiscord.HasPendingRecovery)
-                            throw new UserActionException("Önce Discord'u sistem tepsisinden tamamen kapatın; ardından Baslat.cmd'yi açın. Bekleyen geri alma kaydı korunuyor.");
+                            throw new UserActionException("Önce Discord'u sistem tepsisinden tamamen kapatın; ardından DiscordAccess.exe'yi açın. Bekleyen geri alma kaydı korunuyor.");
                         try { InstalledDiscord.Recover(SessionLog.Write); }
                         catch
                         {
-                            throw new UserActionException("Geçici Discord ayarları geri alınamadı. Discord kapalıyken Baslat.cmd --restore deneyin. Çakışan kullanıcı değişiklikleri ve kurtarma kaydı korundu.");
+                            throw new UserActionException("Geçici Discord ayarları geri alınamadı. Discord kapalıyken DiscordAccess.exe --restore deneyin. Çakışan kullanıcı değişiklikleri ve kurtarma kaydı korundu.");
                         }
                         DiscordShortcuts.Recover(SessionLog.Write);
                         if (DiscordShortcuts.HasPendingRecovery)
                             throw new UserActionException("Kısayol geri alma tamamlanamadı. Kurtarma kaydı korundu; mevcut kısayolların üzerine yazılmadı.");
-                        if (!restoring) Safety.SelectDiscord(DiscordInstallation.Resolve(pathOptions.ExplicitPath));
+                        DiscordInstallation installation = null;
+                        if (!restoring) { installation = DiscordInstallation.Resolve(pathOptions.ExplicitPath); Safety.SelectDiscord(installation); }
                         if (fromIcon)
                         {
                             using (var official = new TrustedImage(Safety.FindDiscord(), true))
@@ -82,18 +106,39 @@ namespace DiscordAccess
                             return 0;
                         }
                         if (restoring)
-                        { Console.WriteLine("Discord bağlantı ayarları ve kısayolları geri alındı."); return 0; }
-                        return ConsoleHost.Run(args, dns);
+                        {
+                            StartupCoordinator.Restore(SessionLog.Write);
+                            Console.WriteLine("Discord bağlantı ayarları, kısayolları ve otomatik başlatma ayarları geri alındı."); return 0;
+                        }
+                        if (background) return TrayHost.Run(dns, installation, mode.Startup, startupRequests);
+                        var consoleStartup = StartupCoordinator.Create(Path.Combine(Safety.Base,"DiscordAccess.exe"), installation,
+                            new string[0], SessionLog.Write);
+                        return ConsoleHost.Run(args, dns, startupRequests, consoleStartup.StartupIntent);
                     }
                 }
             }
             catch (Exception ex)
             {
+                if (background && !fromIcon)
+                {
+                    string message = ConsoleHost.SafeError(ex);
+                    SessionLog.Write("DiscordAccess açılamadı: " + message);
+                    System.Windows.Forms.MessageBox.Show(message, "DiscordAccess", System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Warning);
+                    return 3;
+                }
                 ConsoleWindow.Ensure();
                 Console.Error.WriteLine("DiscordAccess açılamadı: " + ConsoleHost.SafeError(ex));
                 if (fromIcon) { Console.WriteLine("Kapatmak için Enter'a basın."); Console.ReadLine(); }
                 return 3;
             }
+        }
+        private static int ReportArgument(ArgumentException error, bool background)
+        {
+            if (background) System.Windows.Forms.MessageBox.Show(error.Message, "DiscordAccess", System.Windows.Forms.MessageBoxButtons.OK,
+                System.Windows.Forms.MessageBoxIcon.Warning);
+            else { ConsoleWindow.Ensure(); Console.Error.WriteLine(error.Message); }
+            return 64;
         }
     }
     internal static class Safety

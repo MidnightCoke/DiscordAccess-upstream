@@ -25,6 +25,10 @@ namespace DiscordAccess
                 Console.WriteLine("Isolated session integration: PASS (" + DesktopIntegration.RunOfflineChecks(packageRoot) + " checks)");
                 Console.WriteLine("Console lifecycle: PASS (" + ConsoleHost.RunOfflineChecks() + " checks)");
                 Console.WriteLine("Resident launch signal: PASS (" + ManualLaunchSignal.RunOfflineChecks() + " checks)");
+                Console.WriteLine("Resident launch modes: PASS (" + ResidentOptions.RunOfflineChecks() + " checks)");
+                Console.WriteLine("Resident startup intent queue: PASS (" + ResidentStartupRequests.RunOfflineChecks() + " checks; synthetic signals only)");
+                Console.WriteLine("Background lifecycle: PASS (" + BackgroundLifecycle.RunOfflineChecks() + " checks; synthetic operations only)");
+                Console.WriteLine("Ordered Windows startup: PASS (" + StartupCoordinatorChecks.Run(packageRoot) + " checks; synthetic registry/files only)");
                 Console.WriteLine("Installed Discord transactions: PASS (" + InstalledDiscord.RunOfflineChecks(packageRoot) + " checks)");
                 Console.WriteLine("External official Discord identity: PASS (" + ExternalDiscordScopeChecks.Run() + " checks; inert processes only)");
                 Console.WriteLine("Separate application ownership: PASS (" + ProcessGate.RunApplicationOwnershipChecks() + " checks)");
