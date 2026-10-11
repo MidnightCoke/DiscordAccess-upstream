@@ -1,0 +1,6 @@
+# Preserve the frozen Windows sources and embedded hook resource byte-for-byte.
+* -text
+*.md text eol=lf
+LICENSE text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf

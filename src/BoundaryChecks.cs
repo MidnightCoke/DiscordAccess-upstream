@@ -1,0 +1,1 @@
+namespace DiscordAccess { public static class BoundaryChecks { public static int Run(string root) { Program.PackageDirectory = System.IO.Path.GetFullPath(root); return RegressionChecks.Run(root); } } }
