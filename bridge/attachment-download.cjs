@@ -1,6 +1,6 @@
 'use strict';
 
-// Required only by the isolated Discord entry point, before its official core.
+// Required by the installed Discord wrapper, before its official core.
 // This changes attachment openExternal calls only; all transport remains in the
 // existing Chromium session. No Node networking, preload or proxy is changed.
 const installed = Symbol.for('DiscordAccess.attachmentDownload.v2');
@@ -92,10 +92,10 @@ function install(electron, options) {
     log(code, metrics);
     try {
       const recovery = code === 'NO_WINDOW'
-        ? 'İndirme için uygun Discord penceresi bulunamadı. Ayrı Discord penceresini açıp dosyaya yeniden tıklayın. İsterseniz CMD penceresinde D yazıp Enter tuşuna basarak indirme bağlantısını yapıştırın.'
+        ? 'İndirme için uygun Discord penceresi bulunamadı. Kurulu Discord\u0027un ana penceresini açıp dosyaya yeniden tıklayın.'
         : code === 'TIMEOUT' || code === 'BUSY'
-        ? 'Bekleyen indirme tamamlanamadı. CMD penceresinde D yazıp Enter tuşuna basın ve indirme bağlantısını yapıştırın. Discord içinden tekrar tıklayarak indirmek için DiscordAccess uygulamasını yeniden başlatın.'
-        : 'Dosya Discord içinde indirilemedi. CMD penceresinde D yazıp Enter tuşuna basın ve indirme bağlantısını yapıştırmayı deneyin. Ayrıntılar DiscordAccess indirme kayıtlarındadır.';
+        ? 'Bekleyen indirme tamamlanamadı. Önce Discord\u0027u tamamen kapatın; DiscordAccess tepsisinden Çıkış seçip bağlantıyı ve Discord\u0027u yeniden açın.'
+        : 'Dosya Discord içinde indirilemedi. Ayrıntılar DiscordAccess indirme kayıtlarındadır. Komut satırı indirmesi için OKU-BENI.txt içindeki --console ve D adımlarını izleyin.';
       electron.dialog.showErrorBox('Discord dosya indirme',
         recovery);
     } catch (_) { }

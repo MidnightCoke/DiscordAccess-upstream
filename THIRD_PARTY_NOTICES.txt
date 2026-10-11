@@ -1,4 +1,4 @@
-DiscordAccess v4.16 — üçüncü taraf lisansları
+DiscordAccess — üçüncü taraf lisansları
 
 engine/sing-box.exe: sing-box 1.14.3, Windows amd64.
 Motor ayrı süreçtir; GPL-3.0-or-later lisansı aşağıda korunmuştur.
@@ -8,6 +8,13 @@ https://github.com/SagerNet/sing-box/tree/v1.14.3
 Kaynak arşivi: https://github.com/SagerNet/sing-box/archive/refs/tags/v1.14.3.tar.gz
 Resmi yayın: https://github.com/SagerNet/sing-box/releases/tag/v1.14.3
 Motor SHA-256: 5c19bb3f8c12d4e85b3d47fe63123a7624b314b58dd7a8e32f51004f1c4d2faf
+
+Bu değişmemiş motorun 135 sabit Go modülü ve Go 1.26.8 runtime kaynaklarından alınan ek bildirimler:
+licenses/ENGINE-THIRD-PARTY-NOTICES.txt
+Sürüm, kaynak arşivi URL, SHA-256, doğrulanmış Go h1 ve bildirim dosyası hash manifesti:
+licenses/engine-source-manifest.json
+Manifestteki kaynak arşivleri exact sürümleri, ana kaynak derleme dosyalarını ve modül kaynaklarını belirtir.
+Ek bildirimler aşağıdaki ana GPL metninin veya upstream bildirimlerinin yerini almaz.
 
 Discord uygulaması bu pakette dağıtılmaz. Kullanıcının mevcut resmi kurulumu kullanılır; Discord'un kendi koşulları geçerlidir.
 Windows/.NET Framework sistem bileşenleridir ve pakette dağıtılmaz.

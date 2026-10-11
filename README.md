@@ -1,16 +1,18 @@
 # DiscordAccess
 
-Windows'ta kurulu resmi Discord Stable için sistem tepsisinde çalışan bağlantı yardımcısı. Güncel sürüm **v4.17**.
+Windows'ta kurulu resmi Discord Stable için sistem tepsisinde çalışan bağlantı yardımcısı. Güncel sürüm **v4.18**.
 
 `DiscordAccess.exe` bağlantıyı hazırlar; Discord'u kendi masaüstü veya Başlat menüsü simgenizden açarsınız. Kısayolun gerçek Discord hedefi korunur, yalnız oturumun yerel proxy argümanları eklenir. Ayrı Discord veya profil kopyası oluşturulmaz; mevcut hesabınız kullanılır. Açık CMD penceresi gerekmez.
 
 ## Hazır Windows paketini indir
 
-**[DiscordAccess-v4.17.zip dosyasını indir](https://github.com/alpertknn/DiscordAccess/releases/download/v4.17/DiscordAccess-v4.17.zip)**
+**[DiscordAccess-v4.18.zip dosyasını indir](https://github.com/alpertknn/DiscordAccess/releases/download/v4.18/DiscordAccess-v4.18.zip)**
 
 ZIP'i tamamen kısa, kalıcı bir yerel klasöre çıkarın. `DiscordAccess.exe` ve `engine/sing-box.exe` aynı paket içinde bulunmalıdır. `DiscordAccess.exe` dosyasını açın; hazır paket için derleme gerekmez. `Baslat.cmd` kaldırıldı.
 
 GitHub'daki **Code > Download ZIP** ile Releases bölümündeki **Source code** dosyaları yalnız kaynak kodudur; program EXE'si ve motor içermez. Geliştirme için bu dosyaları kullanacaksanız önce “Kaynaktan hazırlama” adımlarını tamamlayın. Depo private olduğu sürece hazır indirmeye erişmek için depoya erişimi olan GitHub hesabınızla giriş yapın. [Tüm sürümler](https://github.com/alpertknn/DiscordAccess/releases).
+
+İndirilen ZIP'in SHA-256 değerini `Get-FileHash .\DiscordAccess-v4.18.zip -Algorithm SHA256` ile hesaplayıp aynı Release'teki `SHA256SUMS.txt` ile karşılaştırabilirsiniz. Hash dosyası kod imzası sağlamaz.
 
 ## Gereksinimler
 
@@ -74,6 +76,8 @@ Kurulum klasörü, `Discord.exe`, `Update.exe` veya `app-sürüm` klasörü kabu
 | `D` + Enter | Discord ek dosyası bağlantısıyla indirme. |
 | `A` + Enter | Uyumlu kısayol bulunmazsa seçilen resmi Discord'u açma. |
 
+Tepsi modu açıkken konsol indirmesine geçecekseniz önce Discord'u tamamen kapatın ve DiscordAccess tepsisinden **Çıkış** seçin. Paket klasöründe `DiscordAccess.exe --console` açın; bağlantı hazır olunca `D` + Enter ile ek dosyası bağlantısını yapıştırın. İkinci EXE açmak açık tepsi oturumunu konsola dönüştürmez.
+
 Discord içindeki ek dosyası indirme desteği korunur. Tanınan modül girişine geçici destek eklenir; normal `settings.json` dosyasındaki iki güncelleme uç noktası oturumun yerel köprüsüne gider. Discord EXE'si, güncelleyici ve `app.asar`/`core.asar` değiştirilmez. Hesap veya profil kopyalanmaz.
 
 ## Geri alma ve güncelleme
@@ -92,8 +96,10 @@ Kayıtlar `%LOCALAPPDATA%\DiscordAccess\v3` konumundadır. Bağlantı açıkken 
 
 ## Geliştirme
 
-Derleme, testler ve ekip çalışma akışı için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın. v4.17 mevcut bağlantı motorunu kullanır; tepsi yaşam döngüsü, tek oturum ve başlangıç koordinasyonu ekler. Loglar, hesap/profil dosyaları ve yerel test çıktıları depoya dahil edilmez.
+Derleme, testler ve ekip çalışma akışı için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın. v4.18, v4.17'nin bağlantı ve başlangıç akışını korur; dağıtım lisans bildirimlerini ve tepsi moduna uygun indirme hata metnini tamamlar. Loglar, hesap/profil dosyaları ve yerel test çıktıları depoya dahil edilmez.
+
+Hata bildirirken program ve Windows sürümünü, yapılan işlemi ve görünen kısa hata kodunu yazın. Discord profili, kurtarma `journal.json` dosyası, hesap token'ı veya imzalı dosya bağlantısı paylaşmayın. Yerel kayıtlar kişisel yol içeriyorsa paylaşmadan önce bu kısımları çıkarın.
 
 ## Lisans
 
-DiscordAccess kaynak kodu [MIT](LICENSE) lisansıyla paylaşılır. Ayrı sing-box motorunun kendi lisansı ve kaynak bağlantıları [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) içindedir. Discord uygulaması bu depoda dağıtılmaz; bu proje Discord'un resmi ürünü değildir.
+DiscordAccess kaynak kodu [MIT](LICENSE) lisansıyla paylaşılır. Ayrı sing-box motorunun kendi GPL bildirimi [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt), gömülü bağımlılık ve Go runtime bildirimleri [ENGINE-THIRD-PARTY-NOTICES.txt](licenses/ENGINE-THIRD-PARTY-NOTICES.txt), sabit sürüm ve kaynak bilgileri [engine-source-manifest.json](licenses/engine-source-manifest.json) içindedir. Hazır paketteki `LISANSLAR.txt` bu metinleri birlikte içerir. Discord uygulaması bu depoda dağıtılmaz; bu proje Discord'un resmi ürünü değildir.
