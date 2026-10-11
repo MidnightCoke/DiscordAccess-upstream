@@ -1,24 +1,32 @@
 DiscordAccess — üçüncü taraf lisansları
 
-engine/sing-box.exe: sing-box 1.14.3, Windows amd64.
+engine/sing-box.exe: sing-box 1.14.3-discordaccess.1, Windows amd64.
 Motor ayrı süreçtir; GPL-3.0-or-later lisansı aşağıda korunmuştur.
-Dağıtılan motor değiştirilmemiştir.
-Kaynak kodu, bu sürüme ait derleme dosyaları ve bağımlılık tanımları:
-https://github.com/SagerNet/sing-box/tree/v1.14.3
-Kaynak arşivi: https://github.com/SagerNet/sing-box/archive/refs/tags/v1.14.3.tar.gz
-Resmi yayın: https://github.com/SagerNet/sing-box/releases/tag/v1.14.3
-Motor SHA-256: 5c19bb3f8c12d4e85b3d47fe63123a7624b314b58dd7a8e32f51004f1c4d2faf
+Bu motor DiscordAccess için yeniden derlenmiştir; upstream hazır EXE'si değildir.
+Değişiklik: sabit güvenlik güncellemeleri içeren go.mod/go.sum, Go 1.26.9 ve
+kullanılan HTTP/DoH/TLS akışına uygun sınırlı build tag'leri. Ana sing-box Go
+kaynak dosyaları değişmemiştir.
+Ana kaynak commit: 7054cac5124465ffdb145870d7c01885566711b1
+Kaynak arşivi: https://github.com/SagerNet/sing-box/archive/7054cac5124465ffdb145870d7c01885566711b1.zip
+Upstream yayın: https://github.com/SagerNet/sing-box/releases/tag/v1.14.3
+Motor SHA-256: 22b6fc758fb36108486819259a3df7c46381819f3b312e504bf979796fee5d14
 
-Bu değişmemiş motorun 135 sabit Go modülü ve Go 1.26.8 runtime kaynaklarından alınan ek bildirimler:
+Yeniden üretim için bu depodaki scripts/Build-SecurityEngine.ps1 ve
+engine-build/go.mod, engine-build/go.sum kullanılır. Sabit kaynak/Go arşivi
+hash'leri ve sonuç EXE hash'i betikte doğrulanır. Dağıtılan motorun karşılık
+gelen kaynak arşivi ve derleme kanıtları motor paketiyle birlikte sağlanmalıdır.
+
+Bu motorun 63 sabit Go modülü ve Go 1.26.9 runtime kaynaklarının ek bildirimleri:
 licenses/ENGINE-THIRD-PARTY-NOTICES.txt
-Sürüm, kaynak arşivi URL, SHA-256, doğrulanmış Go h1 ve bildirim dosyası hash manifesti:
+Sürüm, kaynak arşivi URL, SHA-256, doğrulanmış Go h1 ve bildirim hash manifesti:
 licenses/engine-source-manifest.json
-Manifestteki kaynak arşivleri exact sürümleri, ana kaynak derleme dosyalarını ve modül kaynaklarını belirtir.
+Manifestteki kaynak arşivleri tam sürümleri ve modül kaynaklarını belirtir.
 Ek bildirimler aşağıdaki ana GPL metninin veya upstream bildirimlerinin yerini almaz.
 
-Discord uygulaması bu pakette dağıtılmaz. Kullanıcının mevcut resmi kurulumu kullanılır; Discord'un kendi koşulları geçerlidir.
-Windows/.NET Framework sistem bileşenleridir ve pakette dağıtılmaz.
-Bu bildirim DiscordAccess'in kendi koduna yeni bir lisans atamaz.
+Discord uygulaması bu pakette dağıtılmaz. Kullanıcının mevcut resmi kurulumu
+kullanılır; Discord'un kendi koşulları geçerlidir. Windows/.NET Framework
+sistem bileşenleridir ve pakette dağıtılmaz. Bu bildirim DiscordAccess'in
+kendi koduna yeni bir lisans atamaz.
 
 Upstream lisans bildirimi:
 

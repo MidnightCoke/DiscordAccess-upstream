@@ -1,0 +1,253 @@
+#if TEST_BUILD
+using System;
+using System.Diagnostics;
+using System.Reflection;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace DiscordAccess
+{
+    // Kernel objects and private namespaces use fresh GUID fixture names only.
+    // These checks never acquire the production resident name or change ACLs
+    // on an existing namespace, file, registry entry or Discord installation.
+    internal static class ResidentInstanceChecks
+    {
+        private static string Fixture() { return Guid.NewGuid().ToString("N"); }
+        private static string Name(string fixture, SecurityIdentifier user)
+        {
+            using (var process = Process.GetCurrentProcess())
+                return ResidentInstance.NameForChecks(user, process.SessionId, fixture);
+        }
+
+        internal static int Run()
+        {
+            int checks = 0;
+            Action<bool, string> assert = (ok, message) => { checks++; if (!ok) throw new InvalidOperationException("Resident instance: " + message); };
+            Action<Action, string> reject = (action, message) =>
+            {
+                bool refused = false; try { action(); } catch (UserActionException) { refused = true; } catch (ArgumentException) { refused = true; }
+                assert(refused, message);
+            };
+            SecurityIdentifier user;
+            using (var identity = WindowsIdentity.GetCurrent()) user = identity.User;
+            assert(user != null, "Windows fixture user was unavailable.");
+            var world = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+            var foreign = new SecurityIdentifier("S-1-5-21-111111111-222222222-333333333-1002");
+            var security = ResidentInstance.SecurityForChecks(user);
+            assert(ResidentInstance.TrustedForChecks(security, user), "New private descriptor was not trusted.");
+            assert(!ResidentInstance.TrustedForChecks(security, foreign), "Descriptor was accepted for another user.");
+            assert(!ResidentInstance.TrustedForChecks(null, user), "Missing descriptor was trusted.");
+            var changed = ResidentInstance.SecurityForChecks(user); changed.SetOwner(foreign);
+            assert(!ResidentInstance.TrustedForChecks(changed, user), "Foreign owner was trusted.");
+            changed = ResidentInstance.SecurityForChecks(user); changed.SetAccessRuleProtection(false, true);
+            assert(!ResidentInstance.TrustedForChecks(changed, user), "Unprotected descriptor was trusted.");
+            changed = new MutexSecurity(); changed.SetOwner(user); changed.SetAccessRuleProtection(true, false);
+            changed.AddAccessRule(new MutexAccessRule(user, MutexRights.FullControl, AccessControlType.Allow));
+            assert(!ResidentInstance.TrustedForChecks(changed, user), "Missing SYSTEM access was trusted.");
+            foreach (MutexRights rights in new[] { MutexRights.ReadPermissions, MutexRights.Modify, MutexRights.FullControl })
+            {
+                changed = ResidentInstance.SecurityForChecks(user);
+                changed.AddAccessRule(new MutexAccessRule(world, rights, AccessControlType.Allow));
+                assert(!ResidentInstance.TrustedForChecks(changed, user), "Additional untrusted access was accepted.");
+            }
+            changed = ResidentInstance.SecurityForChecks(user);
+            changed.AddAccessRule(new MutexAccessRule(world, MutexRights.Modify, AccessControlType.Deny));
+            assert(!ResidentInstance.TrustedForChecks(changed, user), "Foreign deny descriptor was accepted as our exact descriptor.");
+            changed = ResidentInstance.SecurityForChecks(user);
+            var nullDacl = new RawSecurityDescriptor(ControlFlags.DiscretionaryAclPresent | ControlFlags.DiscretionaryAclProtected,
+                user, null, null, null);
+            var nullBytes = new byte[nullDacl.BinaryLength]; nullDacl.GetBinaryForm(nullBytes, 0);
+            changed.SetSecurityDescriptorBinaryForm(nullBytes);
+            assert(!ResidentInstance.TrustedForChecks(changed, user), "Null DACL was trusted.");
+
+            string fixture = Fixture();
+            string currentName = Name(fixture, user);
+            assert(currentName.StartsWith("DiscordAccess.Resident.V2." + user.Value + ".", StringComparison.Ordinal) &&
+                currentName.EndsWith(".Test." + fixture + "\\Owner", StringComparison.Ordinal), "Fixture name lost its private user/session boundary.");
+            assert(ResidentInstance.NameForChecks(user, 1, fixture) != ResidentInstance.NameForChecks(user, 2, fixture), "Sessions share a resident name.");
+            assert(ResidentInstance.NameForChecks(user, 1, fixture) != ResidentInstance.NameForChecks(foreign, 1, fixture), "Users share a resident name.");
+            reject(() => { using (ResidentInstance.AcquireForChecks(null)) { } }, "Null fixture could address the production mutex.");
+            reject(() => { using (ResidentInstance.AcquireForChecks("invalid")) { } }, "Unvalidated fixture could address another object.");
+            reject(() => { using (ResidentInstance.NamespaceForChecks(null)) { } }, "Null fixture could address the production namespace.");
+            reject(() => { using (ResidentInstance.NamespaceForChecks("invalid")) { } }, "Unvalidated fixture could address another namespace.");
+            assert(ResidentInstance.ForeignBoundaryErrorForChecks(Fixture(), foreign) == 5,
+                "A caller outside the required user SID boundary created a namespace.");
+
+            // Ordinary-session object squatting cannot reserve the process-local
+            // alias of a private namespace with the same visible prefix.
+            fixture = Fixture(); string prefix;
+            using (var process = Process.GetCurrentProcess())
+                prefix = ResidentInstance.NamespaceNameForChecks(user, process.SessionId, fixture);
+            bool publicCreated;
+            using (var publicSquat = new Mutex(false, @"Local\" + prefix, out publicCreated, security))
+            {
+                assert(publicCreated, "Fresh public-prefix fixture collided.");
+                using (var isolated = ResidentInstance.AcquireForChecks(fixture))
+                    assert(isolated.CreatedNew && isolated.IsPrimary, "An ordinary named object reserved a private namespace alias.");
+            }
+            using (var firstIsolated = ResidentInstance.AcquireForChecks(Fixture()))
+            using (var secondIsolated = ResidentInstance.AcquireForChecks(Fixture()))
+                assert(firstIsolated.IsPrimary && secondIsolated.IsPrimary, "Different private boundaries share a mutex.");
+
+            // A separate process must open the existing namespace, not create a
+            // parallel mutex. Closing that secondary alias must leave our owner
+            // and namespace intact. Only this already compiled fixture runner
+            // is started; the child validates the fresh GUID before acquisition.
+            fixture = Fixture();
+            using (ResidentInstance.NamespaceForChecks(fixture))
+            {
+                using (var crossProcessPrimary = ResidentInstance.AcquireForChecks(fixture))
+                {
+                    assert(RunChild(fixture) == "secondary", "Another process created a second primary namespace/mutex.");
+                    assert(crossProcessPrimary.IsPrimary, "Child disposal removed our ownership.");
+                    assert(RunChild(fixture) == "secondary", "Secondary disposal destroyed the shared namespace.");
+                }
+                assert(RunChild(fixture) == "primary", "A child could not acquire after primary disposal.");
+                using (var afterChild = ResidentInstance.AcquireForChecks(fixture))
+                    assert(afterChild.IsPrimary, "Child shutdown prevented an acquisition through the retained alias.");
+            }
+
+            fixture = Fixture();
+            using (var primary = ResidentInstance.AcquireForChecks(fixture))
+            {
+                assert(primary.CreatedNew && primary.IsPrimary, "First fixture did not acquire ownership.");
+                bool duplicatePrimary = true, duplicateCreated = true; Exception failed = null;
+                var duplicate = new Thread(() =>
+                {
+                    try
+                    {
+                        using (var second = ResidentInstance.AcquireForChecks(fixture))
+                        { duplicatePrimary = second.IsPrimary; duplicateCreated = second.CreatedNew; }
+                    }
+                    catch (Exception error) { failed = error; }
+                });
+                duplicate.IsBackground = true; duplicate.Start();
+                assert(duplicate.Join(5000) && failed == null && !duplicatePrimary && !duplicateCreated,
+                    "Another thread started a duplicate or failed trusted existing-object validation.");
+                assert(primary.IsPrimary, "Secondary disposal changed primary ownership.");
+                primary.Dispose(); primary.Dispose();
+                assert(!primary.IsPrimary, "Disposed instance retained primary state.");
+            }
+            using (var next = ResidentInstance.AcquireForChecks(fixture))
+                assert(next.IsPrimary, "Disposed primary prevented a later connection.");
+
+            fixture = Fixture(); bool created;
+            using (ResidentInstance.NamespaceForChecks(fixture))
+            using (var unowned = new Mutex(false, Name(fixture, user), out created, ResidentInstance.SecurityForChecks(user)))
+            {
+                assert(created, "Unowned fixture collided with another object.");
+                using (var reclaimed = ResidentInstance.AcquireForChecks(fixture))
+                    assert(!reclaimed.CreatedNew && reclaimed.IsPrimary, "Existing unowned mutex was mistaken for a running instance.");
+                using (var reclaimedAgain = ResidentInstance.AcquireForChecks(fixture))
+                    assert(!reclaimedAgain.CreatedNew && reclaimedAgain.IsPrimary, "Acquired existing mutex was not released on disposal.");
+            }
+
+            fixture = Fixture(); Mutex abandoned = null; Exception abandonError = null; bool abandonCreated = false;
+            string abandonedName = Name(fixture, user);
+            var abandonThread = new Thread(() =>
+            {
+                try { abandoned = new Mutex(true, abandonedName, out abandonCreated, ResidentInstance.SecurityForChecks(user)); }
+                catch (Exception error) { abandonError = error; }
+                // The thread exits while owning the fixture; retained handle
+                // keeps the kernel object present for abandoned-owner recovery.
+            });
+            abandonThread.IsBackground = true;
+            using (ResidentInstance.NamespaceForChecks(fixture))
+            {
+                abandonThread.Start();
+                try
+                {
+                    assert(abandonThread.Join(5000) && abandonError == null && abandonCreated && abandoned != null,
+                        "Abandoned mutex fixture was not prepared.");
+                    using (var recovered = ResidentInstance.AcquireForChecks(fixture))
+                        assert(!recovered.CreatedNew && recovered.IsPrimary, "Abandoned trusted mutex prevented recovery.");
+                    using (var recoveredAgain = ResidentInstance.AcquireForChecks(fixture))
+                        assert(recoveredAgain.IsPrimary, "Abandoned recovery did not release its acquired ownership.");
+                }
+                finally { if (abandoned != null) abandoned.Dispose(); }
+            }
+
+            fixture = Fixture(); changed = ResidentInstance.SecurityForChecks(user);
+            changed.AddAccessRule(new MutexAccessRule(world, MutexRights.Modify, AccessControlType.Allow));
+            using (ResidentInstance.NamespaceForChecks(fixture))
+            using (var weak = new Mutex(false, Name(fixture, user), out created, changed))
+            {
+                assert(created, "Untrusted fixture collided with another object.");
+                reject(() => { using (ResidentInstance.AcquireForChecks(fixture)) { } }, "Existing weak mutex was trusted or overwritten.");
+                assert(!ResidentInstance.TrustedForChecks(weak.GetAccessControl(), user), "Rejected existing mutex ACL was rewritten.");
+            }
+            fixture = Fixture();
+            var eventSecurity = new EventWaitHandleSecurity(); eventSecurity.SetOwner(user); eventSecurity.SetAccessRuleProtection(true, false);
+            eventSecurity.AddAccessRule(new EventWaitHandleAccessRule(user, EventWaitHandleRights.FullControl, AccessControlType.Allow));
+            using (ResidentInstance.NamespaceForChecks(fixture))
+            using (var incompatible = new EventWaitHandle(false, EventResetMode.AutoReset, Name(fixture, user), out created, eventSecurity))
+            {
+                assert(created, "Incompatible fixture collided with another object.");
+                reject(() => { using (ResidentInstance.AcquireForChecks(fixture)) { } }, "Existing different kernel-object type was accepted.");
+                assert(!incompatible.WaitOne(0), "Rejected different object was signaled.");
+            }
+            // Retaining a namespace alias while an instance is disposed must
+            // preserve the namespace and allow a later clean mutex acquisition.
+            fixture = Fixture();
+            using (var retained = ResidentInstance.NamespaceForChecks(fixture))
+            {
+                using (var disposed = ResidentInstance.AcquireForChecks(fixture)) assert(disposed.IsPrimary, "Retained namespace could not acquire.");
+                using (var successor = ResidentInstance.AcquireForChecks(fixture)) assert(successor.IsPrimary, "Instance disposal destroyed a retained namespace.");
+            }
+            using (var recreated = ResidentInstance.AcquireForChecks(fixture))
+                assert(recreated.IsPrimary, "Closing the final namespace lease prevented a later acquisition.");
+            return checks;
+        }
+
+        internal static int RunNamespaceChild(string fixture)
+        {
+            // Exact GUID validation also resides in AcquireForChecks, so this
+            // dispatch cannot address a production namespace or named object.
+            try
+            {
+                using (var instance = ResidentInstance.AcquireForChecks(fixture))
+                    Console.WriteLine(instance.IsPrimary ? "primary" : "secondary");
+                return 0;
+            }
+            catch (Exception error)
+            { Console.Error.WriteLine("Namespace fixture failed: " + error.GetType().Name); return 1; }
+        }
+
+        private static string RunChild(string fixture)
+        {
+            Guid parsed;
+            if (!Guid.TryParseExact(fixture, "N", out parsed)) throw new ArgumentException("Resident child fixture identifier");
+            Process child = null;
+            Task<string> output = null, errors = null;
+            try
+            {
+                child = Process.Start(new ProcessStartInfo(Assembly.GetExecutingAssembly().Location,
+                    "--resident-namespace-child " + fixture) {
+                    UseShellExecute = false, CreateNoWindow = true,
+                    RedirectStandardOutput = true, RedirectStandardError = true });
+                if (child == null) throw new InvalidOperationException("Resident namespace fixture child was not created.");
+                output = child.StandardOutput.ReadToEndAsync(); errors = child.StandardError.ReadToEndAsync();
+                if (!child.WaitForExit(5000)) throw new InvalidOperationException("Resident namespace fixture child timed out.");
+                if (!Task.WaitAll(new Task[] { output, errors }, 2000))
+                    throw new InvalidOperationException("Resident namespace fixture child output timed out.");
+                if (child.ExitCode != 0 || !String.IsNullOrWhiteSpace(errors.Result))
+                    throw new InvalidOperationException("Resident namespace fixture child failed (exit " + child.ExitCode + "): " + Limit(errors.Result));
+                return output.Result.Trim();
+            }
+            finally
+            {
+                if (child != null)
+                {
+                    try { if (!child.HasExited) { child.Kill(); child.WaitForExit(2000); } }
+                    finally { child.Dispose(); }
+                }
+            }
+        }
+
+        private static string Limit(string text)
+        { return text == null ? "" : text.Substring(0, Math.Min(text.Length, 512)); }
+    }
+}
+#endif

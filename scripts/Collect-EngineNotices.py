@@ -9,6 +9,7 @@ CACHE = REPO / 'work' / 'license-source-cache'
 EXPECTED_EXE = None
 TAG = 'v1.14.3-discordaccess.1'
 COMMIT = '7054cac5124465ffdb145870d7c01885566711b1'
+SOURCE_SHA256 = 'cd8a3508f36d74ef7c9c515bdc8586f048fd06c22499d38ee3787faa7d220f74'
 LEGAL = re.compile(r'^(?:licen[cs]e|copying|notice|copyright|authors|patents)(?:[._-].*)?$', re.I)
 CODE_EXT = {'.go', '.c', '.cc', '.cpp', '.h', '.cs', '.py', '.js', '.ts', '.exe', '.dll', '.sys', '.png', '.jpg', '.gif', '.woff', '.woff2'}
 
@@ -171,6 +172,8 @@ def collect_main():
     component_id = 'sing-box-v1.14.3'
     url = f'https://github.com/SagerNet/sing-box/archive/{COMMIT}.zip'
     raw = download(url, component_id + '.zip')
+    if sha(raw) != SOURCE_SHA256:
+        raise ValueError('Main source archive differs from the pinned builder source')
     result = {'module': 'github.com/sagernet/sing-box', 'version': TAG, 'commit': COMMIT,
               'component_id': component_id, 'source_url': url, 'source_archive_sha256': sha(raw),
               'source_archive_bytes': len(raw), 'notices': [], 'errors': []}
@@ -258,6 +261,11 @@ def main():
     (OUT / 'ENGINE-THIRD-PARTY-NOTICES.txt').write_text('\n'.join(aggregate), encoding='utf-8', newline='\n')
     manifest = {'schema': 1, 'engine_version': TAG, 'engine_sha256': EXPECTED_EXE, 'engine_bytes': len(data),
                 'go_version': go_version, 'build_settings': settings, 'main_source_commit': COMMIT,
+                'build_recipe': {'script': 'scripts/Build-SecurityEngine.ps1',
+                                 'script_sha256': sha((REPO / 'scripts/Build-SecurityEngine.ps1').read_bytes()),
+                                 'go_mod': 'engine-build/go.mod', 'go_mod_sha256': sha((REPO / 'engine-build/go.mod').read_bytes()),
+                                 'go_sum': 'engine-build/go.sum', 'go_sum_sha256': sha((REPO / 'engine-build/go.sum').read_bytes()),
+                                 'note': 'Upstream Go source is unchanged; these exact dependency locks and build options produce the custom engine. Corresponding source artifacts must accompany binary distribution.'},
                 'module_count': len(modules), 'notice_count': count,
                 'notice_format': 'Each aggregate_marker identifies its BEGIN/END block in ENGINE-THIRD-PARTY-NOTICES.txt. Notice text is UTF-8, omitting a leading UTF-8 BOM if present. Original archive-file SHA256 and aggregate-text SHA256 are both retained. No separate notice text files are required.',
                 'hash_algorithm_reference': 'https://go.dev/src/golang.org/x/mod/sumdb/dirhash/hash.go',

@@ -1,14 +1,8 @@
 name: Security engine build
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - scripts/Build-SecurityEngine.ps1
-      - .github/workflows/engine-security-build.yml
-      - licenses/engine-source-manifest.json
-      - scripts/Fetch-Engine.ps1
+  # PRs rebuild and hash-check the same engine as part of Windows tests.
+  # This standalone workflow is for an explicit reproducibility check.
   workflow_dispatch:
 
 permissions:

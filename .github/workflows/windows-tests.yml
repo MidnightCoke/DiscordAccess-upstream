@@ -20,7 +20,7 @@ jobs:
   regression:
     name: Windows x64 regression
     runs-on: windows-2022
-    timeout-minutes: 20
+    timeout-minutes: 45
     defaults:
       run:
         shell: pwsh
@@ -46,6 +46,9 @@ jobs:
         run: |
           & ./Build.cmd
           exit $LASTEXITCODE
+
+      - name: Check generated configurations with the pinned engine
+        run: ./scripts/Test-EngineConfig.ps1
 
       - name: Run complete C# regression suite
         id: csharp
@@ -81,5 +84,15 @@ jobs:
             work/attachment-download-results.txt
             work/external-wrapper-results.txt
             work/shortcut-results.txt
+            work/engine-config-results.txt
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Save rebuilt engine and corresponding source evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-engine-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/security-engine-build-*/artifacts/*
+          if-no-files-found: warn
+          retention-days: 30

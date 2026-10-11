@@ -65,21 +65,25 @@ namespace DiscordAccess
                     if (background) return ReportArgument(new ArgumentException("Tanınmayan seçenek. Kullanım için --help yazın."), true);
                     return ConsoleHost.Run(args, dns);
                 }
-                bool created;
-                using (var mutex = new Mutex(true, @"Local\DiscordAccess.Isolated.V3", out created))
+                using (var instance = ResidentInstance.Acquire())
                 {
-                    if (!created)
+                    if (!instance.IsPrimary)
                     {
                         if (restoring) throw new UserActionException("DiscordAccess hâlâ açık. Önce mevcut bağlantıyı kapatın.");
                         string response;
-                        if (background && mode.Startup)
+                        if (background)
                         {
                             // The owner registers this signal before recovery
                             // or discovery; cover the tiny constructor gap only.
+                            bool delivered = false;
                             for (int attempt = 0; attempt < 20; attempt++)
-                            { if (ManualLaunchSignal.RequestStartup(out response)) break; Thread.Sleep(50); }
+                            {
+                                delivered = mode.Startup ? ManualLaunchSignal.RequestStartup(out response) : ManualLaunchSignal.RequestStatus(out response);
+                                if (delivered) break;
+                                Thread.Sleep(50);
+                            }
+                            if (!delivered) throw new UserActionException("Mevcut DiscordAccess oturumu yanıt vermedi. Açık bağlantıyı kapatıp yeniden deneyin.");
                         }
-                        else if (background) ManualLaunchSignal.RequestStatus(out response);
                         else Console.WriteLine("DiscordAccess zaten çalışıyor; ikinci bağlantı başlatılmadı.");
                         return 0;
                     }
@@ -312,7 +316,7 @@ namespace DiscordAccess
     }
     internal sealed class Package : IDisposable
     {
-        internal const string EngineSha256 = "5c19bb3f8c12d4e85b3d47fe63123a7624b314b58dd7a8e32f51004f1c4d2faf";
+        internal const string EngineSha256 = "22b6fc758fb36108486819259a3df7c46381819f3b312e504bf979796fee5d14";
         internal readonly string Engine;
         private readonly DnsOptions dns;
         private TrustedImage image;

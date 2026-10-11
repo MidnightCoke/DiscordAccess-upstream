@@ -1,6 +1,7 @@
 #if TEST_BUILD
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Web.Script.Serialization;
@@ -9,7 +10,8 @@ using Microsoft.Win32;
 namespace DiscordAccess
 {
     // Registry, approval values, journals and image verification are all
-    // synthetic. These checks never instantiate the Windows backend.
+    // synthetic. Filesystem races use disposable work fixtures only; these
+    // checks never instantiate the Windows backend or mutate real startup.
     internal static class StartupCoordinatorChecks
     {
         private const string Root = @"C:\StartupFixture\Discord Stable";
@@ -241,6 +243,57 @@ namespace DiscordAccess
             reject(() => access.SetEnabled(false), "Journal external edit was overwritten.");
             assert(env.Runs.ContainsKey(StartupCoordinator.RunName), "Registry mutated despite journal compare failure.");
             assert(env.Runs["Unrelated application"].Command.Contains("PRIVATE_TOKEN_CANARY"), "Unrelated startup entry changed.");
+            return checks + FileTransaction.RunOfflineChecks(packageRoot) + FileJournalChecks(packageRoot);
+        }
+
+        private static int FileJournalChecks(string packageRoot)
+        {
+            string work = Path.Combine(Path.GetFullPath(packageRoot), "work");
+            string root = Path.Combine(work, "startup-journal-" + Guid.NewGuid().ToString("N"));
+            if (!Safety.Under(root, work) || !Safety.NoReparse(root)) throw new InvalidOperationException("Startup journal fixture escaped work.");
+            Directory.CreateDirectory(root);
+            int checks = 0, prepared = 0; bool rejectPrepare = false;
+            Action<bool, string> assert = (ok, detail) => { if (!ok) throw new InvalidOperationException(detail); checks++; };
+            Action<Action, string> reject = (action, detail) => {
+                bool rejected = false; try { action(); } catch (UserActionException) { rejected = true; }
+                assert(rejected, detail);
+            };
+            string journal = Path.Combine(root, "journal.json");
+            byte[] first = Encoding.UTF8.GetBytes("{\"step\":1}"), next = Encoding.UTF8.GetBytes("{\"step\":2}"),
+                third = Encoding.UTF8.GetBytes("{\"step\":3}"), foreign = Encoding.UTF8.GetBytes("{\"FOREIGN_STARTUP_JOURNAL_CANARY\":true}");
+            var storage = new StartupCoordinator.FileJournal(journal, () => {
+                prepared++;
+                if (rejectPrepare || !Safety.Under(root, work) || !Safety.NoReparse(root)) throw new UserActionException("Fixture preparation rejected.");
+            }, path => { if (!Safety.Under(path, root) || !Safety.NoReparse(path)) throw new UserActionException("Fixture path rejected."); });
+            var prior = FileTransaction.InterleaveForChecks;
+            try
+            {
+                storage.Replace(null, first);
+                assert(StartupCoordinator.SameBytes(File.ReadAllBytes(journal), first) && prepared == 1, "Startup FileJournal did not prepare then create.");
+                storage.Replace(first, next);
+                assert(StartupCoordinator.SameBytes(File.ReadAllBytes(journal), next) && prepared == 2, "Startup FileJournal did not use expected replacement.");
+                FileTransaction.InterleaveForChecks = (phase, path) => {
+                    if (phase != "replace" || path != journal) return;
+                    string incoming = Path.Combine(root, "incoming-" + Guid.NewGuid().ToString("N"));
+                    File.WriteAllBytes(incoming, foreign); File.Replace(incoming, journal, null);
+                };
+                reject(() => storage.Replace(next, third), "Startup FileJournal accepted an atomic replacement race.");
+                FileTransaction.InterleaveForChecks = prior;
+                assert(StartupCoordinator.SameBytes(File.ReadAllBytes(journal), foreign) && Directory.GetFiles(root, "*.preserved")
+                    .Any(path => StartupCoordinator.SameBytes(File.ReadAllBytes(path), foreign)), "Startup FileJournal lost concurrent journal evidence.");
+                assert(prepared == 3, "Startup FileJournal bypassed its preparation callback during a conflict.");
+                storage.Replace(foreign, third);
+                assert(StartupCoordinator.SameBytes(File.ReadAllBytes(journal), third) && Directory.GetFiles(root, "*.preserved")
+                    .Any(path => StartupCoordinator.SameBytes(File.ReadAllBytes(path), foreign)), "Later startup journal write removed prior foreign evidence.");
+                rejectPrepare = true;
+                reject(() => storage.Replace(third, first), "Startup FileJournal ignored failed path/permission preparation.");
+                assert(StartupCoordinator.SameBytes(File.ReadAllBytes(journal), third), "Failed startup preparation mutated its journal.");
+            }
+            finally
+            {
+                FileTransaction.InterleaveForChecks = prior;
+                if (Safety.Under(root, work) && Safety.NoReparse(root)) Directory.Delete(root, true);
+            }
             return checks;
         }
     }

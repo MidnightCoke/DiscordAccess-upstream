@@ -1,12 +1,12 @@
 # DiscordAccess
 
-Windows'ta kurulu resmi Discord Stable için sistem tepsisinde çalışan bağlantı yardımcısı. Güncel sürüm **v4.18**.
+Windows'ta kurulu resmi Discord Stable için sistem tepsisinde çalışan bağlantı yardımcısı. Bu dal **v4.19 güvenlik adayını** içerir; henüz Release olarak yayımlanmamıştır.
 
 `DiscordAccess.exe` bağlantıyı hazırlar; Discord'u kendi masaüstü veya Başlat menüsü simgenizden açarsınız. Kısayolun gerçek Discord hedefi korunur, yalnız oturumun yerel proxy argümanları eklenir. Ayrı Discord veya profil kopyası oluşturulmaz; mevcut hesabınız kullanılır. Açık CMD penceresi gerekmez.
 
 ## Hazır Windows paketini indir
 
-**[DiscordAccess-v4.18.zip dosyasını indir](https://github.com/alpertknn/DiscordAccess/releases/download/v4.18/DiscordAccess-v4.18.zip)**
+Hazır güvenlik paketi doğrulama tamamlandıktan sonra [Releases](https://github.com/alpertknn/DiscordAccess/releases) bölümünde yayımlanır. Mevcut v4.18 yayını bu daldaki güvenlik düzeltmelerini içermez.
 
 ZIP'i tamamen kısa, kalıcı bir yerel klasöre çıkarın. `DiscordAccess.exe` ve `engine/sing-box.exe` aynı paket içinde bulunmalıdır. `DiscordAccess.exe` dosyasını açın; hazır paket için derleme gerekmez. `Baslat.cmd` kaldırıldı.
 
@@ -14,7 +14,7 @@ Paketin [kullanım notları](docs/OKU-BENI.txt) da depoda bulunur.
 
 GitHub'daki **Code > Download ZIP** ile Releases bölümündeki **Source code** dosyaları yalnız kaynak kodudur; program EXE'si ve motor içermez. Geliştirme için bu dosyaları kullanacaksanız önce “Kaynaktan hazırlama” adımlarını tamamlayın. Depo private olduğu sürece hazır indirmeye erişmek için depoya erişimi olan GitHub hesabınızla giriş yapın. [Tüm sürümler](https://github.com/alpertknn/DiscordAccess/releases).
 
-İndirilen ZIP'in SHA-256 değerini `Get-FileHash .\DiscordAccess-v4.18.zip -Algorithm SHA256` ile hesaplayıp aynı Release'teki `SHA256SUMS.txt` ile karşılaştırabilirsiniz. Hash dosyası kod imzası sağlamaz.
+İndirilen ZIP'in SHA-256 değerini `Get-FileHash .\DiscordAccess-v4.19-security-candidate.zip -Algorithm SHA256` ile hesaplayıp paketle verilen `SHA256SUMS.txt` ile karşılaştırabilirsiniz. Hash dosyası kod imzası sağlamaz.
 
 ## Gereksinimler
 
@@ -38,7 +38,7 @@ powershell -NoProfile -File scripts/Fetch-Engine.ps1
 .\Build.cmd
 ```
 
-Motor betiği resmi sing-box 1.14.3 Windows amd64 sürümünü indirir; ZIP ve EXE SHA-256 değerlerini doğrular. Motor veya derlenmiş program Git geçmişine dahil değildir. Doğrulanmış aynı motor zaten `engine/sing-box.exe` konumundaysa yeniden indirilmez.
+Motor betiği hash ile sabitlenmiş sing-box 1.14.3 kaynak kodunu ve Go 1.26.9 derleyicisini indirir; `engine-build/go.mod` ve `go.sum` içindeki güncellenmiş bağımlılıklarla `1.14.3-discordaccess.1` motorunu derler. Çıktı EXE'si ayrıca sabit SHA-256 ile doğrulanır. İlk hazırlık birkaç dakika sürebilir; sistem geneline Go kurulmaz. Doğrulanmış aynı motor zaten `engine/sing-box.exe` konumundaysa yeniden derlenmez. Farklı motorun üzerine yazılmaz; eski çalışma klasörünü kullanmak yerine yeni kaynak klasöründe hazırlayın. Hazır paket kullanıcılarının derleme yapması gerekmez.
 
 ## Kullanım
 
@@ -58,6 +58,8 @@ Tepside **Windows ile başlat** seçeneğini kapatmak DiscordAccess'in başlang�
 Bağımsız iki `Run` kaydı açılış sırasını garanti etmediği için özgün Discord kaydı bağlantı yardımcısı tarafından koordine edilir ([Windows belgesi](https://learn.microsoft.com/windows/win32/setupapi/run-and-runonce-registry-keys)). Tanınan Discord kaydı sonradan tekrar oluşturulursa tepsi oturumu bunu beş saniyede bir kontrol eder. Tanınmayan/değişmiş komutlar veya birden fazla kayıt korunur ve uyarı verilir. Seçili Discord için etkin HKLM/başlangıç klasörü kaydı varsa sıra koordinasyonu kurulmaz; bu kayıtlar değiştirilmez.
 
 Paketi bağlantı açıkken taşımayın. Başlangıç kaydı açıkken başka klasöre geçecekseniz önce tepsiden **Windows ile başlat** seçeneğini kapatın; yeni kalıcı klasörde tekrar etkinleştirin. Uzun başlangıç komutları Windows'un 260 karakter sınırına takılırsa paket için daha kısa klasör kullanın.
+
+Otomatik başlangıç, paket dosyasına veya üst klasörlerine başka standart kullanıcıların yazabildiği konumlarda reddedilir. Böyle bir uyarıda paketi yalnız kendi hesabınızın yazabildiği kalıcı kişisel klasöre taşıyın. Windows izinleri program tarafından değiştirilmez.
 
 Sürekli durumda bir DiscordAccess ve bir sing-box motoru çalışır. Discord'un kendi Electron alt süreçleri normaldir; bunlar ek Discord kopyası değildir ve program tarafından kapatılmaz.
 
@@ -92,13 +94,15 @@ Discord açıkken DiscordAccess kapatılırsa geri alma kaydı kalabilir. Discor
 
 Discord'un uygulama sürümü veya desktop core modülü güncellenirse Discord'u tamamen kapatın, tepsiden **Çıkış** seçin ve `DiscordAccess.exe` dosyasını yeniden açın. Oturum boyunca doğrulanan sürümün dosyaları tutulur; yeni sürüm ve modül desteği sonraki başlangıçta hazırlanır. `--restore`, bağlantı/kısayollar ile birlikte DiscordAccess otomatik başlangıcını da geri alır ve kapalı tercih bırakır.
 
+Dosya işlem sırasında başka bir program tarafından değiştirilirse işlem durabilir. Tanınmayan içerik ve `.discordaccess-fs-*.preserved` / `.rollback-preserved` kurtarma dosyaları korunur; bunları otomatik temizlikle silmeyin veya herkese açık hata kaydına yüklemeyin.
+
 Discord EXE'sini doğrudan açmak ve `discord://` bağlantıları kısayol akışının kapsamına girmez. Koordine edilmiş Windows başlangıcı resmi Discord'u sabit proxy argümanlarıyla açar. Ortak Başlat menüsü kısayolları okunabilir, değiştirilmez. Ses/video UDP akışı doğrudan kalır. Her internet sağlayıcısı veya tüm ses/yayın işlevleri için başarı garantisi verilmez.
 
 Kayıtlar `%LOCALAPPDATA%\DiscordAccess\v3` konumundadır. Bağlantı açıkken paket klasörünü taşımayın. Proje imzasızdır; Smart App Control veya anti-cheat onayı olduğunu iddia etmez.
 
 ## Geliştirme
 
-Derleme, testler ve ekip çalışma akışı için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın. v4.18, v4.17'nin bağlantı ve başlangıç akışını korur; dağıtım lisans bildirimlerini ve tepsi moduna uygun indirme hata metnini tamamlar. Loglar, hesap/profil dosyaları ve yerel test çıktıları depoya dahil edilmez.
+Derleme, testler ve ekip çalışma akışı için [CONTRIBUTING.md](CONTRIBUTING.md), güven sınırları için [güvenlik notları](docs/SECURITY-NOTES.md) dosyasına bakın. v4.19, düz HTTP protokol yükseltmelerini reddeder; başlangıç hedefi, oturum sahipliği ve eşzamanlı dosya işlemlerini sağlamlaştırır; motorun bağımlılıklarını günceller. Loglar, hesap/profil dosyaları ve yerel test çıktıları depoya dahil edilmez.
 
 Hata bildirirken program ve Windows sürümünü, yapılan işlemi ve görünen kısa hata kodunu yazın. Discord profili, kurtarma `journal.json` dosyası, hesap token'ı veya imzalı dosya bağlantısı paylaşmayın. Yerel kayıtlar kişisel yol içeriyorsa paylaşmadan önce bu kısımları çıkarın.
 
