@@ -30,8 +30,8 @@ namespace DiscordAccess
             for (int index = 0; index < entries.Length; index++) acl.InsertAce(index, entries[index]);
             return new RawSecurityDescriptor(ControlFlags.DiscretionaryAclPresent, owner, null, null, acl);
         }
-        private static bool Trusted(RawSecurityDescriptor descriptor, bool directory = false)
-        { return StartupPathTrust.DescriptorTrustedForChecks(descriptor, directory, User); }
+        private static bool Trusted(RawSecurityDescriptor descriptor, bool directory = false, bool executableDirectory = false)
+        { return StartupPathTrust.DescriptorTrustedForChecks(descriptor, directory, User, executableDirectory); }
 
         internal static int Run(string packageRoot)
         {
@@ -51,8 +51,21 @@ namespace DiscordAccess
             foreach (int right in new[] { 16, 64, 256, 0x10000, 0x40000, 0x80000, 0x10000000, 0x40000000 })
                 assert(!Trusted(Descriptor(User, Allow(Foreign, right)), true), "Foreign directory mutation was trusted.");
             foreach (int right in new[] { 2, 4, 2 | 4 })
+            {
                 assert(Trusted(Descriptor(Administrators, Allow(Everyone, Read | right)), true),
                     "Sibling creation was mistaken for replacement of an existing component.");
+                assert(!Trusted(Descriptor(Administrators, Allow(Everyone, Read | right)), true, true),
+                    "Foreign sidecar creation beside the executable was trusted.");
+            }
+            assert(Trusted(Descriptor(User, Allow(User, Full), Allow(System, Full), Allow(Everyone, Read)), true, true),
+                "Trusted executable directory writers were rejected.");
+            assert(Trusted(Descriptor(User, Deny(Foreign, 2 | 4), Allow(Foreign, Read | 2 | 4)), true, true),
+                "Preceding creation deny was ignored in the executable directory.");
+            assert(!Trusted(Descriptor(User, Deny(Foreign, 2), Allow(Foreign, Read | 2 | 4)), true, true),
+                "Partial creation deny concealed executable directory creation.");
+            assert(Trusted(Descriptor(User, Allow(Everyone, Full,
+                AceFlags.ContainerInherit | AceFlags.ObjectInherit | AceFlags.InheritOnly)), true, true),
+                "Executable directory inherited template was applied to its present object.");
             assert(!Trusted(Descriptor(Foreign, Allow(User, Full))), "A foreign owner with implicit DACL write was trusted.");
             assert(!Trusted(Descriptor(null, Allow(User, Full))), "Missing owner was trusted.");
             assert(!Trusted(null), "Missing descriptor was trusted.");
@@ -95,6 +108,13 @@ namespace DiscordAccess
             assert(visited.Count == 6 && visited[0] == Executable && visited[5] == @"C:\", "Path verification stopped before the root.");
             string parent = Path.GetDirectoryName(Executable);
             RawSecurityDescriptor original = chain[parent];
+            foreach (int creation in new[] { 2, 4 })
+            {
+                chain[parent] = Descriptor(User, Allow(User, Full), Allow(System, Full), Allow(Everyone, Read | creation));
+                reject(() => StartupPathTrust.VerifyChainForChecks(Executable, User, (path, directory) => chain[path], path => true),
+                    "Protected executable permitted foreign sidecar creation in its immediate directory.");
+            }
+            chain[parent] = original;
             chain[Executable] = Descriptor(User, Deny(Foreign, 0x10000), Allow(User, Full));
             chain[parent] = Descriptor(User, Allow(Foreign, 64));
             reject(() => StartupPathTrust.VerifyChainForChecks(Executable, User, (path, directory) => chain[path], path => true),

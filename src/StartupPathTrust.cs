@@ -6,8 +6,9 @@ using System.Security.Principal;
 
 namespace DiscordAccess
 {
-    // This is a read-only boundary for a persistent executable path. Sibling
-    // creation alone cannot replace an existing protected path component.
+    // This is a read-only boundary for a persistent executable path. Ancestor
+    // sibling creation cannot replace an existing protected path component,
+    // but new files beside the executable can influence its startup behavior.
     internal static class StartupPathTrust
     {
         private const string SystemSid = "S-1-5-18";
@@ -18,9 +19,10 @@ namespace DiscordAccess
         private const uint GenericAll = 0x10000000, GenericWrite = 0x40000000;
         // Content/EA/attribute writes, DELETE, WRITE_DAC and WRITE_OWNER.
         private const uint FileMutation = 0x000d0116;
-        // Directory content bits mean creation of siblings, not replacement of
+        // Ancestor content bits mean creation of siblings, not replacement of
         // an existing child. DELETE_CHILD is checked independently on parents.
         private const uint DirectoryMutation = 0x000d0150;
+        private const uint DirectoryCreation = 0x00000006;
 
         internal static void Verify(string executable)
         {
@@ -65,11 +67,12 @@ namespace DiscordAccess
         private static void VerifyChain(string path, SecurityIdentifier user,
             Func<string, bool, RawSecurityDescriptor> read, Func<string, bool> ordinaryPath)
         {
-            bool directory = false;
+            int depth = 0;
             for (string current = path; !String.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
             {
-                if (!ordinaryPath(current) || !DescriptorTrusted(read(current, directory), directory, user)) throw Rejected();
-                directory = true;
+                bool directory = depth != 0;
+                if (!ordinaryPath(current) || !DescriptorTrusted(read(current, directory), directory, user, depth == 1)) throw Rejected();
+                depth++;
             }
         }
 
@@ -87,11 +90,13 @@ namespace DiscordAccess
             return mask;
         }
 
-        private static bool DescriptorTrusted(RawSecurityDescriptor security, bool directory, SecurityIdentifier user)
+        private static bool DescriptorTrusted(RawSecurityDescriptor security, bool directory, SecurityIdentifier user,
+            bool executableDirectory = false)
         {
             if (security == null || !Trusted(security.Owner, user) ||
                 (security.ControlFlags & ControlFlags.DiscretionaryAclPresent) == 0 || security.DiscretionaryAcl == null) return false;
             uint mutation = directory ? DirectoryMutation : FileMutation;
+            if (directory && executableDirectory) mutation |= DirectoryCreation;
             // Only unconditional, preceding denies for the same trustee or
             // Everyone are conclusive without resolving arbitrary group claims.
             // Other overlapping groups are conservatively rejected, never used
@@ -127,8 +132,9 @@ namespace DiscordAccess
         }
 
 #if TEST_BUILD
-        internal static bool DescriptorTrustedForChecks(RawSecurityDescriptor security, bool directory, SecurityIdentifier user)
-        { return DescriptorTrusted(security, directory, user); }
+        internal static bool DescriptorTrustedForChecks(RawSecurityDescriptor security, bool directory, SecurityIdentifier user,
+            bool executableDirectory = false)
+        { return DescriptorTrusted(security, directory, user, executableDirectory); }
         internal static void VerifyChainForChecks(string executable, SecurityIdentifier user,
             Func<string, bool, RawSecurityDescriptor> read, Func<string, bool> ordinaryPath)
         { VerifyChain(LocalPath(executable), user, read, ordinaryPath); }
