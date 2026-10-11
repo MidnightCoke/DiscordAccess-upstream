@@ -1,0 +1,95 @@
+DiscordAccess v4.18 — sistem tepsisi ve dağıtım bildirimleri
+
+ZIP'i tamamen kısa, kalıcı bir yerel klasöre çıkarın. DiscordAccess.exe ile
+engine/sing-box.exe aynı pakette bulunmalıdır. Baslat.cmd kaldırıldı.
+GitHub Code > Download ZIP yalnız kaynak kodudur; hazır ZIP'i Releases'ten alın.
+https://github.com/alpertknn/DiscordAccess/releases/tag/v4.18
+
+İlk açılış:
+1. Discord'u sistem tepsisinden tamamen kapatın. Eski DiscordAccess açıksa
+   CMD sürümünü Q + Enter ile, tepsi sürümünü Çıkış ile kapatın.
+2. DiscordAccess.exe dosyasını normal kullanıcı olarak açın. CMD açık kalmaz.
+3. Tepside bağlantı hazır bildirimini bekleyin; Discord'u kendi simgenizden açın.
+   Uyumlu kişisel kısayol yoksa tepsiden Discord'u aç seçin.
+   Orijinal resmi Stable kurulumu ve hesabınız kullanılır; kopya oluşturulmaz.
+4. Çıkmadan önce Discord'u tamamen kapatın; DiscordAccess tepsisinden Çıkış seçin.
+   Discord açıkken çıkılırsa Discord öldürülmez; kurtarma kaydı korunur.
+
+Tepsi menüsü:
+- Discord'u aç: hazır bağlantıyla seçili resmi Discord'u açar.
+- Yeniden bağlan: başarısız bağlantıyı temizleyip yeniden hazırlar.
+- Bağlantıyı kontrol et: mevcut bağlantının anonim tanısını yapar.
+- Windows ile başlat: otomatik başlangıcı açar/kapatır.
+- Çıkış: bağlantı ve uygulamanın kendi motorunu kapatır.
+Simge gizli simgeler (^) alanında olabilir. EXE tekrar açılırsa ikinci bağlantı
+veya ikinci motor oluşturulmaz; mevcut oturuma durum isteği gönderilir.
+
+Windows açılışı:
+İlk başarılı bağlantıdan sonra mevcut kullanıcı için otomatik başlangıç hazırlanır.
+Seçili resmi Discord'un tanınan kişisel Run kaydı varsa özgün komutu ve etkin/
+devre dışı tercihi özel kayıtta korunur. Windows'a girişte önce DiscordAccess
+bağlantıyı hazırlar; Discord otomatik başlatma tercihi etkinse sonra Discord'u
+bir kez açar. Discord otomatik açılmıyorsa yalnız DiscordAccess tepside çalışır.
+Elle normal EXE açılışı Discord'u kendiliğinden başlatmaz.
+
+Windows ile başlat seçeneğini kapatmak özgün Discord başlangıç kaydını değişmiş
+kullanıcı verilerinin üzerine yazmadan geri alır. Sonraki elle açılışlarda kapalı
+tercih korunur. Normal Çıkış bu tercihi kapatmaz. Etkin HKLM/başlangıç klasörü veya
+tanınmayan/çoklu Discord kaydı için sıra koordinasyonu kurulmaz, uyarı verilir;
+bu kayıtlar değiştirilmez. StartupApproved tercihlerine yazılmaz.
+Tanınan Discord kaydı yeniden oluşursa tepside beş saniyede bir kontrol edilir.
+Oturum açılışında bağımsız Discord kaydı görülürse sıra doğrulanamaz ve uyarı
+verilir; açık Discord zorla kapatılmaz veya hazırlanmış gibi kabul edilmez.
+
+Paketi bağlantı açıkken taşımayın/silmeyin. Başka klasöre taşıyacaksanız önce
+Windows ile başlat seçeneğini kapatın, yeni yerde yeniden etkinleştirin.
+Uzun başlangıç komutları Windows'un 260 karakter sınırına takılırsa daha kısa
+kalıcı klasör seçin. Başlangıç tercihi yalnız o Windows kullanıcısına aittir.
+
+Bir DiscordAccess ve bir sing-box motoru yeterlidir. Discord'un Electron alt
+süreçleri normaldir; bunlar ayrı Discord kopyası sayılmaz ve öldürülmez.
+Genel Windows proxy/DNS/yönlendirme ayarları değişmez; sürücü/servis kurulmaz.
+Ses/video UDP akışı önceki sürümdeki gibi doğrudan kalır. Kısayolların gerçek
+Discord hedefi korunur; geçici proxy argümanları eklenir. Ortak kısayollar
+değiştirilmez. Doğrudan Discord EXE / discord:// kısayol kapsamı dışındadır.
+
+Özel kurulum yolu: PowerShell veya CMD içinde bu paket klasöründen
+  .\DiscordAccess.exe --discord-path "D:\Programlar\Discord"
+Klasör, Discord.exe, Update.exe veya app-sürüm klasörü kabul edilir. Yol
+otomatik olarak hatırlanır; sürüm sonraki açılışta yeniden bulunur. PTB/Canary,
+junction/symlink ve ağ paylaşımı desteklenmez; tüm disk taranmaz.
+
+İleri komutlar:
+  .\DiscordAccess.exe --console         Q/T/D komut satırı modu
+  .\DiscordAccess.exe --restore         Discord kapalıyken bağlantı ve başlangıcı geri al
+  .\DiscordAccess.exe --help            Kullanım/DNS seçenekleri
+  .\DiscordAccess.exe --verify-package  Motoru çalıştırmadan paket doğrula
+
+Tepsi açıkken konsol indirmesine geçmek için önce Discord'u tamamen kapatın ve
+DiscordAccess tepsisinden Çıkış seçin. Paket klasöründe
+  .\DiscordAccess.exe --console
+komutunu çalıştırın; bağlantı hazır olunca D + Enter ile ek bağlantısını yapıştırın.
+İkinci EXE açmak açık tepsi oturumunu konsola dönüştürmez.
+
+Discord uygulaması/core modülü güncellenirse Discord'u tamamen kapatın;
+DiscordAccess'ten çıkıp yeniden açın. Mevcut indirme desteği korunur.
+EXE, updater ve app.asar/core.asar değiştirilmez. Tanınan modül girişine geçici
+indirme desteği ve settings.json içindeki yalnız iki güncelleme uç noktası
+hazırlanır. Kullanıcının başka tercihleri geri almada korunur.
+
+Kayıtlar: %LOCALAPPDATA%\DiscordAccess\v3
+Başlangıç kurtarması: startup-session\journal.json (kişisel veri, paylaşmayın).
+Windows 10/11 x64, .NET Framework 4.8 ve yazılabilir resmi Discord Stable gerekir.
+Yönetici olarak açmayın. EXE'ler Windows güvenlik değerlendirmesine tabidir.
+
+Bu revizyonda indirme hook'unun 294 sentetik kontrolü, üretim derlemesi ve
+motor çalıştırmadan yardım/paket doğrulaması kontrol edilir. Bağlantı, başlangıç
+ve sahiplik kodu v4.17 ile aynı; önceki revizyondaki canlı doğrulama sınırları
+geçerlidir. Gerçek Windows yeniden başlatması, tepsi etkileşimi ve hesap içi
+mesaj/dosya/yayın bu revizyonda yeniden sınanmadı. Önceki tam regresyonun bir
+NativeOutputChecks çocuk EXE testi Windows tarafından engellendi; tam test
+başarısı iddia edilmez.
+Motor ve gömülü bağımlılık/Go runtime lisansları LISANSLAR.txt içindedir.
+Sabit kaynak sürümleri ve bildirim manifesti GitHub licenses/ klasöründedir.
+Paket test, log veya profil dosyası içermez. Her sağlayıcı/ses/yayın koşulu için
+başarı garantisi verilmez.
