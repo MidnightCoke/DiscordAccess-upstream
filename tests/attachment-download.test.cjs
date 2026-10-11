@@ -116,7 +116,7 @@ function fixture(options = {}) {
   check(!!goodRedirect.item([link, 'https://media.discordapp.net/attachments/123/456/file?hm=other-synthetic']).dialogOptions, 'allowed CDN redirect retains native save flow');
   const timeout = fixture(); install(timeout.electron, timeout.config); await timeout.electron.shell.openExternal(link); timeout.timers[0].callback();
   check(timeout.session.listenerCount('will-download') === 1 && timeout.errors.length === 1, 'timeout retains bounded tombstone to cancel late event');
-  check(timeout.errors[0][1].includes('D yazıp Enter') && timeout.errors[0][1].includes('yeniden başlatın'), 'timeout explains manual CMD download and click-path restart recovery');
+  check(timeout.errors[0][1].includes('tepsisinden Çıkış') && timeout.errors[0][1].includes('yeniden açın') && !timeout.errors[0][1].includes('CMD penceresinde'), 'timeout explains resident tray restart without assuming an open console');
   await timeout.electron.shell.openExternal(link); check(timeout.downloads.length === 1 && timeout.calls.length === 0, 'timeout retry neither relaunches ambiguous request nor opens browser');
   const lateOther = timeout.item([link], {}); check(!lateOther.prevented, 'timeout does not cancel other owner');
   const late = timeout.item(); check(late.prevented && !late.dialogOptions && timeout.session.listenerCount('will-download') === 0, 'late download cancelled and tombstone removed');
@@ -134,8 +134,8 @@ function fixture(options = {}) {
   check(!!concurrent.item().dialogOptions && concurrent.errors.length === 0, 'old cleared timer cannot expire a newer same-URL request');
   const missing = fixture({ noWindow: true }); install(missing.electron, missing.config); await missing.electron.shell.openExternal(link);
   check(missing.errors.length === 1 && missing.downloads.length === 0 && missing.calls.length === 0, 'missing window has safe error without browser fallback');
-  check(missing.errors[0][1].includes('uygun Discord penceresi bulunamadı') && missing.errors[0][1].includes('D yazıp Enter'),
-    'missing window explains the actual window-selection failure and manual download fallback');
+  check(missing.errors[0][1].includes('uygun Discord penceresi bulunamadı') && missing.errors[0][1].includes('ana penceresini açıp') && !missing.errors[0][1].includes('Ayrı Discord'),
+    'missing window explains how to reopen the installed Discord window');
   const notReady = fixture(); notReady.electron.app.isReady = () => false; install(notReady.electron, notReady.config); await notReady.electron.shell.openExternal(link);
   check(notReady.errors.length === 1 && notReady.downloads.length === 0 && notReady.electron.app.eventNames().length === 0, 'not-ready app never adds ready or session-created hooks');
   const invalidWindow = fixture(); invalidWindow.contents.getURL = () => 'https://discord.com.evil.example/channels/@me';
@@ -203,7 +203,7 @@ function fixture(options = {}) {
   const busy = fixture(); install(busy.electron, busy.config);
   for (let i = 0; i < 9; i++) await busy.electron.shell.openExternal(link + '&n=' + i);
   check(busy.downloads.length === 8 && busy.errors.length === 1 && busy.session.listenerCount('will-download') === 1 && busy.contents.listenerCount('destroyed') === 1, 'eight pending requests share one observer per session and owner');
-  check(busy.errors[0][1].includes('D yazıp Enter') && busy.errors[0][1].includes('yeniden başlatın'), 'busy handler explains manual CMD download and restart recovery');
+  check(busy.errors[0][1].includes('tepsisinden Çıkış') && busy.errors[0][1].includes('yeniden açın') && !busy.errors[0][1].includes('CMD penceresinde'), 'busy handler explains resident tray restart without assuming an open console');
   for (const timer of busy.timers) timer.callback(); await busy.electron.shell.openExternal(link + '&n=10');
   check(busy.downloads.length === 8 && busy.timers.length === 8, 'timeout tombstones remain bounded at eight');
   busy.contents.emit('destroyed'); check(busy.session.listenerCount('will-download') === 0, 'all bounded tombstones released when owner closes');

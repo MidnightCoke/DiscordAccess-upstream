@@ -56,7 +56,7 @@ namespace DiscordAccess
         {
             StartupStage stage = StartupStage.Source;
             changed(false, "Bağlanıyor");
-            log("Discord Erişim v4.17: bağlantı hazırlanıyor.");
+            log("Discord Erişim v4.18: bağlantı hazırlanıyor.");
             try
             {
                 if (InstalledClientRunning())

@@ -4,3 +4,6 @@
 LICENSE text eol=lf
 .gitignore text eol=lf
 .gitattributes text eol=lf
+
+# Preserve upstream notice bytes, including CRLF/spacing and literal ======= headings.
+licenses/ENGINE-THIRD-PARTY-NOTICES.txt -text -whitespace conflict-marker-size=32
