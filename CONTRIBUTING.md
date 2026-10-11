@@ -11,10 +11,9 @@ powershell -NoProfile -File scripts/Fetch-Engine.ps1
 node tests/attachment-download.test.cjs
 node tests/external-wrapper.test.cjs
 .\tests\shortcuts\Run.cmd
-.\tests\launcher\Run.cmd
 ```
 
-`Test.cmd`, ikinci Node testinin ihtiyaç duyduğu sentetik wrapper dosyalarını `work/` altında üretir; bu nedenle sırayı koruyun. Kısayol testleri ayrı, geçici fixture verileri kullanır. Başlatıcı testleri yalnız sahte bir konsol EXE'siyle eksik dosyaları, argüman ve çıkış kodlarını, Türkçe/boşluk/parantez içeren yolları kontrol eder. Kontroller gerçek Discord hesabı açmaz; ağ kontrolleri loopback ve sentetik yanıtlarla yapılır. Test çıktıları ve derlenen dosyalar Git dışında kalır.
+`Test.cmd`, ikinci Node testinin ihtiyaç duyduğu sentetik wrapper dosyalarını `work/` altında üretir; bu nedenle sırayı koruyun. Kısayol testleri ayrı, geçici fixture verileri kullanır. Arka plan ve başlangıç kontrolleri aynı test çalıştırıcısında sahte işlemler, registry ve kayıt verileriyle yapılır. Kontroller gerçek Discord hesabı açmaz; ağ kontrolleri loopback ve sentetik yanıtlarla yapılır. Test çıktıları ve derlenen dosyalar Git dışında kalır.
 
 Windows bir üretilmiş test EXE'sini engellerse bunu tam test başarısı olarak raporlamayın. Hangi grubun çalışmadığını ve kalan kontrolleri PR'da belirtin; Windows güvenlik ayarlarını değiştiren veya engeli aşan kod eklemeyin.
 
@@ -33,7 +32,9 @@ Değişikliği tamamlayıp ilgili kontrolleri çalıştırdıktan sonra dalı pu
 ## Korunması gereken davranış
 
 - Resmi Discord kısayol hedefini ve mevcut profilini koruyun; helper hedefi veya ayrı kopya kullanmayın.
-- CMD açılışında Discord'u otomatik başlatmayın; normal Discord sürecini kapanışta öldürmeyin.
+- Normal elle açılışta Discord'u otomatik başlatmayın. Windows açılışında yalnız korunmuş otomatik başlatma tercihi varsa, bağlantı hazır olduktan sonra bir kez açın. Normal Discord sürecini kapanışta öldürmeyin.
+- Aynı kullanıcı için tek bağlantı oturumu ve tek motor bırakın. Tepsi modu açık CMD, ikinci helper veya ayrı Discord kopyası oluşturmasın.
+- Başlangıç kaydını yalnız doğrulanmış seçili resmi Discord'un kişisel Run girdisiyle koordine edin. Kayıtları değiştirmeden önce kurtarma kanıtını yazın; kullanıcı değişikliğinin üzerine yazmayın. StartupApproved, HKLM ve başka uygulamaların kayıtlarını değiştirmeyin.
 - Genel Windows proxy/DNS/yönlendirme ayarı, TUN, sürücü veya yönetici gereksinimi eklemeyin.
 - Proxy erişimini mevcut kullanıcı/oturumda doğrulanmış resmi Discord görüntüleri ve uygulamanın kendi tanı/indirme işlemleriyle sınırlandırın.
 - Yol bulma ve kısayol taramasını sınırlı tutun. Kullanıcının değiştirdiği dosya veya ayarların üzerine geri almada yazmayın.

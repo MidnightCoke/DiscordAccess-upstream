@@ -80,9 +80,9 @@ namespace DiscordAccess
                 catch (Exception ex) { if (!ExpectedDiscoveryFailure(ex)) throw; }
             }
             if (discovered.Count > 1)
-                throw new UserActionException("Birden fazla resmi Discord Stable kurulumu bulundu. Kullanılacak kurulumu Baslat.cmd --discord-path \"D:\\Programlar\\Discord\\Discord.exe\" ile belirtin.");
+                throw new UserActionException("Birden fazla resmi Discord Stable kurulumu bulundu. Kullanılacak kurulumu DiscordAccess.exe --discord-path \"D:\\Programlar\\Discord\\Discord.exe\" ile belirtin.");
             if (discovered.Count == 0)
-                throw new UserActionException("Resmi Discord Stable kurulumu bulunamadı. Baslat.cmd --discord-path \"D:\\Programlar\\Discord\\Discord.exe\" ile yol belirtebilirsiniz.");
+                throw new UserActionException("Resmi Discord Stable kurulumu bulunamadı. DiscordAccess.exe --discord-path \"D:\\Programlar\\Discord\\Discord.exe\" ile yol belirtebilirsiniz.");
             DiscordInstallation result = discovered.Values.First();
             if (saveRoot != null) saveRoot(result.Root);
             return result;

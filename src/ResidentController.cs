@@ -56,11 +56,11 @@ namespace DiscordAccess
         {
             StartupStage stage = StartupStage.Source;
             changed(false, "Bağlanıyor");
-            log("Discord Erişim v4.16 CMD: bağlantı denemesi başladı. Discord kendiliğinden açılmaz.");
+            log("Discord Erişim v4.17: bağlantı hazırlanıyor.");
             try
             {
                 if (InstalledClientRunning())
-                    throw new UserActionException("Önce Discord'u sistem tepsisinden tamamen kapatın; ardından Baslat.cmd'yi açın. Açık Discord değiştirilmedi.");
+                    throw new UserActionException("Önce Discord'u sistem tepsisinden tamamen kapatın; ardından DiscordAccess.exe'yi açın. Açık Discord değiştirilmedi.");
                 image = new TrustedImage(Safety.FindDiscord(), true);
                 discordVersion = Path.GetFileName(Path.GetDirectoryName(image.Path)).Substring(4);
                 stage = StartupStage.Package;
@@ -81,7 +81,7 @@ namespace DiscordAccess
                 stage = StartupStage.Configure;
                 connectLifetime.Token.ThrowIfCancellationRequested();
                 if (InstalledClientRunning())
-                    throw new UserActionException("Hazırlık sırasında Discord açıldı. Discord'u tamamen kapatıp Baslat.cmd'yi yeniden açın; ayarlar değiştirilmedi.");
+                    throw new UserActionException("Hazırlık sırasında Discord açıldı. Discord'u tamamen kapatıp DiscordAccess.exe'yi yeniden açın; ayarlar değiştirilmedi.");
                 string proxy = "http://127.0.0.1:" + gate.Port;
                 launchArguments = "--proxy-server=" + proxy + " --proxy-bypass-list=" + NativeProcess.Quote("127.0.0.1;localhost") + " --disable-quic";
                 integration = InstalledDiscord.PrepareExternal(image.Path, proxy, log);
@@ -117,10 +117,11 @@ namespace DiscordAccess
         private string OpenDiscordCore()
         {
             if (disposed || !active || connection == null || image == null || external == null)
-                throw new UserActionException("Bağlantı hazır değil. Baslat.cmd penceresindeki sonucu kontrol edin.");
+                throw new UserActionException("Bağlantı hazır değil. DiscordAccess.exe penceresindeki sonucu kontrol edin.");
             connectLifetime.Token.ThrowIfCancellationRequested();
             if (!String.Equals(Safety.FindDiscord(), image.Path, StringComparison.OrdinalIgnoreCase))
-                throw new UserActionException("Discord sürümü değişti. Discord'u tamamen kapatıp Q ile çıkın; Baslat.cmd'yi yeniden açın.");
+                throw new UserActionException("Discord sürümü değişti. Discord'u tamamen kapatıp Q ile çıkın; DiscordAccess.exe'yi yeniden açın.");
+            if (InstalledClientRunning()) return "Discord zaten açık; ikinci açılış yapılmadı.";
             using (var launched = Process.Start(new ProcessStartInfo(image.Path, launchArguments) {
                 UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(image.Path) })) { }
             return "Resmi Discord'a açılış isteği gönderildi.";
@@ -234,7 +235,7 @@ namespace DiscordAccess
                     stopping = false;
                 }
             }
-            if (restoreFailed) throw new UserActionException("Bağlantı kapandı. Discord'u sistem tepsisinden tamamen kapatıp Baslat.cmd --restore çalıştırın veya Baslat.cmd'yi yeniden açın. Geçici ayarların kurtarma kaydı korundu.");
+            if (restoreFailed) throw new UserActionException("Bağlantı kapandı. Discord'u sistem tepsisinden tamamen kapatıp DiscordAccess.exe --restore çalıştırın veya DiscordAccess.exe'yi yeniden açın. Geçici ayarların kurtarma kaydı korundu.");
         }
         internal async Task<long> DownloadFileAsync(string link, string destination, CancellationToken token, IProgress<long> progress)
         {
@@ -243,7 +244,7 @@ namespace DiscordAccess
             try
             {
                 if (disposed || !active || gate == null || downloadLifetime == null)
-                    throw new UserActionException("Dosya indirmek için önce Baslat.cmd ile bağlantıyı açın.");
+                    throw new UserActionException("Dosya indirmek için önce DiscordAccess.exe ile bağlantıyı açın.");
                 port = gate.Port; session = CancellationTokenSource.CreateLinkedTokenSource(token, downloadLifetime.Token);
             }
             finally { operations.Release(); }

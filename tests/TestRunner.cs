@@ -6,6 +6,20 @@ namespace DiscordAccess
         internal static int Main(string[] args)
         {
             Program.PackageDirectory = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
+            if (args.Length == 1 && args[0] == "--resident-only")
+            {
+                try
+                {
+                    Console.WriteLine("Resident launch modes: PASS (" + ResidentOptions.RunOfflineChecks() + " checks)");
+                    Console.WriteLine("Resident startup intent queue: PASS (" + ResidentStartupRequests.RunOfflineChecks() + " checks)");
+                    Console.WriteLine("Background lifecycle: PASS (" + BackgroundLifecycle.RunOfflineChecks() + " checks)");
+                    Console.WriteLine("Ordered Windows startup: PASS (" + StartupCoordinatorChecks.Run(Program.PackageDirectory) + " checks; synthetic registry only)");
+                    Console.WriteLine("Console lifecycle: PASS (" + ConsoleHost.RunOfflineChecks() + " checks)");
+                    return 0;
+                }
+                catch (Exception ex)
+                { Console.WriteLine("FAIL " + ex.GetType().Name + ": " + ex.Message); return 1; }
+            }
             if (args.Length == 2 && args[0] == "--probe-install")
             {
                 // Read-only signer/layout verification; no cache, journals,

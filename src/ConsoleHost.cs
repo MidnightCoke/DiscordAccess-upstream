@@ -16,7 +16,7 @@ namespace DiscordAccess
         {
             private readonly AutoResetEvent changed = new AutoResetEvent(false);
             private readonly ConcurrentQueue<string> commands = new ConcurrentQueue<string>();
-            private int stop, exitCode, connected, ended, inputClosed, queued;
+            private int stop, exitCode, connected, ended, inputClosed, queued, startupConsumed;
             internal bool StopRequested { get { return Volatile.Read(ref stop) != 0; } }
             internal bool Ended { get { return Volatile.Read(ref ended) != 0; } }
             internal int ExitCode { get { return Volatile.Read(ref exitCode); } }
@@ -49,6 +49,11 @@ namespace DiscordAccess
                     else Interlocked.Decrement(ref queued);
                 }
             }
+            internal void Startup(Func<bool> intent)
+            {
+                if (StopRequested || Ended || Volatile.Read(ref startupConsumed) != 0 || intent == null || !intent()) return;
+                if (Interlocked.CompareExchange(ref startupConsumed,1,0) == 0) Command("A");
+            }
             internal bool TryCommand(out string command)
             {
                 if (!commands.TryDequeue(out command)) return false;
@@ -70,18 +75,24 @@ namespace DiscordAccess
             internal Action Dispose;
         }
 
-        internal static int Run(string[] args, DnsOptions dns)
+        internal static int Run(string[] args, DnsOptions dns, ResidentStartupRequests startupRequests = null, Func<bool> startupIntent = null)
         {
             args = args ?? new string[0];
             if (args.Any(arg => arg == "--help" || arg == "-h" || arg == "/?")) { Help(); return 0; }
             if (args.Any(arg => arg != "--connect" && arg != "--start" && !DnsOptions.IsArgument(arg)))
             { WriteConsole("Tanınmayan seçenek. Kullanım için --help yazın."); return 64; }
-            try { Console.OutputEncoding = new UTF8Encoding(false); Console.Title = "Discord Erişim v4.16"; } catch { }
+            try { Console.OutputEncoding = new UTF8Encoding(false); Console.Title = "Discord Erişim v4.17"; } catch { }
             using (var output = new ConsoleOutput(SessionLog.Write, WriteConsole))
             using (var state = new SessionState())
             using (var launchSignal = ManualLaunchSignal.Listen(() => state.Command("A")))
             {
-                output.Show("Discord Erişim v4.16 | Bağlanıyor...");
+                // Listener/state exist before delivering a startup intent that
+                // arrived while the resident was recovering or discovering.
+                if (startupRequests != null) startupRequests.Listen(() => {
+                    try { state.Startup(startupIntent); }
+                    catch (Exception error) { SessionLog.Write("Konsol otomatik açılışı: " + SafeError(error)); }
+                });
+                output.Show("Discord Erişim v4.17 | Bağlanıyor...");
                 var controller = new Controller(output.File, (active, message) =>
                 {
                     state.StateChanged(active);
@@ -315,6 +326,16 @@ namespace DiscordAccess
             int checks = 0;
             Action<bool, string> require = (condition, message) => { if (!condition) throw new InvalidOperationException(message); };
             Func<Task> complete = () => Task.FromResult(0);
+            using (var state = new SessionState())
+            {
+                string command;
+                state.Startup(() => false);
+                require(!state.TryCommand(out command), "Disabled startup queued an open."); checks++;
+                state.Startup(() => true); state.Startup(() => true);
+                require(state.TryCommand(out command) && command == "A" && !state.TryCommand(out command), "Startup intent queued more than one open."); checks++;
+                state.RequestStop(0); state.Startup(() => true);
+                require(!state.TryCommand(out command), "Stopped console accepted startup."); checks++;
+            }
             using (var state = new SessionState())
             {
                 int opened = 0, disconnected = 0, disposed = 0;
@@ -591,12 +612,15 @@ namespace DiscordAccess
         }
         private static void Help()
         {
-            WriteConsole("Discord Erişim v4.16 — komut satırı");
-            WriteConsole("DiscordAccess.exe                 Bağlantıyı hazır tutar; Discord'u kendi simgesinden açın.");
+            WriteConsole("Discord Erişim v4.17 — sistem tepsisi ve komut satırı");
+            WriteConsole("DiscordAccess.exe                 Sistem tepsisinde bağlantıyı hazır tutar; açık CMD bırakmaz.");
+            WriteConsole("DiscordAccess.exe --console       Önceki Q / T / D konsolunu açar.");
+            WriteConsole("--tray                           Sistem tepsisi modu (varsayılan).");
+            WriteConsole("--startup                        Kayıtlı Windows açılış tercihini uygular; elle açılış değildir.");
             WriteConsole("DiscordAccess.exe --open-discord  Açık bağlantı oturumuna Discord açma isteği gönderir.");
             WriteConsole("DiscordAccess.exe --verify-package  Motoru başlatmadan paketi doğrular.");
-            WriteConsole("Baslat.cmd --restore              Discord kapalıyken bekleyen geçici ayarları geri alır.");
-            WriteConsole("Baslat.cmd --discord-path \"D:\\Programlar\\Discord\\Discord.exe\"  Özel kurulum yolu; doğrulanıp hatırlanır.");
+            WriteConsole("DiscordAccess.exe --restore       Discord kapalıyken bağlantı ve başlangıç ayarlarını geri alır.");
+            WriteConsole("DiscordAccess.exe --discord-path \"D:\\Programlar\\Discord\\Discord.exe\"  Özel kurulum yolu; hatırlanır.");
             WriteConsole("--dns=auto                        Discord erişimiyle otomatik DNS seçimi (varsayılan).");
             WriteConsole("--dns=cloudflare                  Sabit Cloudflare DoH (v4.7 ile aynı).");
             WriteConsole("--dns=cloudflare-ip               Cloudflare DoH; sertifika 1.1.1.1 adresiyle doğrulanır.");
