@@ -13,6 +13,24 @@ CMD bağlantıyı hazırlar; Discord'u kendi masaüstü veya Başlat menüsü si
 
 Yönetici olarak çalıştırmayın. Bu proje Windows'un genel proxy, DNS veya yönlendirme ayarlarını değiştirmez; ağ sürücüsü veya sistem servisi kurmaz.
 
+## Windows ilk açılış engeli
+
+Smart App Control, internetten indirilen ZIP'ten çıkan `Baslat.cmd` veya kaynak hazırlama betiklerini çalışmadan önce "Web’den tehlikeli dosya uzantısı" mesajıyla engelleyebilir. Yalnız kaynağını doğruladığınız ve güvendiğiniz bu proje indirmesi için:
+
+1. ZIP'i çıkarmadan önce sağ tıklayın, **Özellikler > Genel** bölümünü açın.
+2. Varsa **Engellemeyi kaldır** seçeneğini işaretleyip **Uygula**'ya basın.
+3. ZIP'i yeni bir klasöre çıkarın; aşağıdaki hazırlama ve kullanım adımlarını izleyin.
+
+Paket zaten çıkarılmışsa yalnız `Baslat.cmd` için aynı Özellikler adımını uygulayabilirsiniz. Alternatif olarak paketin çıkarıldığı klasörde PowerShell açın:
+
+```powershell
+Unblock-File -LiteralPath '.\Baslat.cmd'
+```
+
+Bu işlem dosya içeriğini değiştirmeden Windows'un indirme sırasında eklediği `Zone.Identifier` bilgisini kaldırır. Bu bilgi Git ile taşınmaz; depodaki kod değişikliği sonraki indirmelerin işaretlenmesini önleyemez. CMD çalışmadan engellendiği için içine eklenecek bir komut da ilk açılış engelini çözemez.
+
+Smart App Control açık kalabilir. `DiscordAccess.exe` veya `sing-box.exe` ayrıca engellenirse bu farklı bir imza/güven değerlendirmesidir; yukarıdaki adım EXE'lere SAC onayı sağlamaz. Ayrıntılar: [Microsoft'un tehlikeli dosya uzantısı açıklaması](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-has-blocked-an-app-with-a-dangerous-file-extension) ve [Unblock-File belgesi](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/unblock-file).
+
 ## Kaynaktan hazırlama
 
 Depo klasöründe PowerShell açın:
