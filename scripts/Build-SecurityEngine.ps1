@@ -27,7 +27,7 @@ $upgrades = [ordered]@{
     'github.com/go-chi/chi/v5' = 'v5.3.0'
     'github.com/go-jose/go-jose/v4' = 'v4.1.4'
     'github.com/insomniacslk/dhcp' = 'v0.0.0-20260719225207-c76316d4aa82'
-    'golang.org/x/mod' = 'v0.40.0'
+    'golang.org/x/mod' = 'v0.41.0'
 }
 
 function Assert-LocalPath([string] $Path) {
