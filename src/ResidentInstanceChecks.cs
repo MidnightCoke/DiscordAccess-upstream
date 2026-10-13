@@ -12,7 +12,7 @@ namespace DiscordAccess
 {
     // Kernel objects and private namespaces use fresh GUID fixture names only.
     // These checks never acquire the production resident name or change ACLs
-    // on an existing namespace, file, registry entry or Discord installation.
+    // outside fresh fixture files, namespaces and kernel objects.
     internal static class ResidentInstanceChecks
     {
         private static string Fixture() { return Guid.NewGuid().ToString("N"); }
@@ -79,6 +79,34 @@ namespace DiscordAccess
                 "A caller outside the required user SID boundary created a namespace.");
 
             fixture = Fixture();
+            using (var stateOwner = ResidentStateLease.TryAcquireForChecks(fixture))
+            {
+                assert(stateOwner != null, "Fresh authoritative fixture lease was not acquired.");
+                using (var busy = ResidentInstance.AcquireForChecks(fixture))
+                    assert(!busy.IsPrimary && !busy.CreatedNew && ResidentInstance.NamespaceReferencesForChecks(fixture) == 0,
+                        "A busy authoritative lease created a private namespace or Owner.");
+                assert(RunChild(fixture) == "secondary", "A child bypassed the authoritative lease without a namespace.");
+            }
+            using (var nextStateOwner = ResidentInstance.AcquireForChecks(fixture))
+                assert(nextStateOwner.IsPrimary, "Releasing the authoritative fixture lease prevented a successor.");
+
+            // Only a fresh fixture file is changed, never a production state
+            // file. Untrusted ACLs must fail even when no owner holds the file.
+            fixture = Fixture();
+            using (var trustedState = ResidentStateLease.TryAcquireForChecks(fixture))
+                assert(trustedState != null, "State ACL fixture was not prepared.");
+            string fixtureState = ResidentStateLease.PathForChecks(fixture);
+            var stateSecurity = File.GetAccessControl(fixtureState);
+            stateSecurity.AddAccessRule(new FileSystemAccessRule(world, FileSystemRights.ReadData, AccessControlType.Allow));
+            File.SetAccessControl(fixtureState, stateSecurity);
+            reject(() => { using (ResidentInstance.AcquireForChecks(fixture)) { } }, "An untrusted state lease was treated as busy or accepted.");
+            bool worldRetained = false;
+            foreach (FileSystemAccessRule rule in File.GetAccessControl(fixtureState).GetAccessRules(true, true, typeof(SecurityIdentifier)))
+                if (rule.IdentityReference.Value == world.Value && rule.AccessControlType == AccessControlType.Allow) worldRetained = true;
+            assert(worldRetained && ResidentInstance.NamespaceReferencesForChecks(fixture) == 0,
+                "Rejected state ACL was rewritten or a namespace was created.");
+
+            fixture = Fixture();
             using (var missing = ResidentInstance.OpenNamespaceForChecks(fixture))
                 assert(missing == null && ResidentInstance.NamespaceReferencesForChecks(fixture) == 0,
                     "A request-only lease created an absent namespace.");
@@ -140,7 +168,8 @@ namespace DiscordAccess
             // The original namespace creator may close after another process
             // has taken ownership. Its close must not split that live owner
             // from later processes that create/open the same SID boundary.
-            CheckCreatorHandover(Fixture(), assert);
+            string handoverFixture = Fixture();
+            for (int takeover = 0; takeover < 3; takeover++) CheckCreatorHandover(handoverFixture, assert);
 
             fixture = Fixture();
             using (var primary = ResidentInstance.AcquireForChecks(fixture))
@@ -174,7 +203,8 @@ namespace DiscordAccess
                 using (var reclaimed = ResidentInstance.AcquireForChecks(fixture))
                     assert(!reclaimed.CreatedNew && reclaimed.IsPrimary, "Existing unowned mutex was mistaken for a running instance.");
                 using (var reclaimedAgain = ResidentInstance.AcquireForChecks(fixture))
-                    assert(!reclaimedAgain.CreatedNew && reclaimedAgain.IsPrimary, "Acquired existing mutex was not released on disposal.");
+                    assert(reclaimedAgain.CreatedNew && reclaimedAgain.IsPrimary,
+                        "A later takeover did not acquire the fresh namespace after the previous Owner was disposed.");
             }
 
             fixture = Fixture(); Mutex abandoned = null; Exception abandonError = null; bool abandonCreated = false;
@@ -280,15 +310,20 @@ namespace DiscordAccess
             {
                 using (var instance = ResidentInstance.AcquireForChecks(fixture))
                 {
-                    Console.WriteLine(instance.IsPrimary ? "primary" : "secondary");
-                    Console.Out.Flush();
-                    // Use an exact byte frame rather than Console/StreamWriter
-                    // encodings, which can add a BOM on redirected Windows IO.
-                    byte[] release = System.Text.Encoding.ASCII.GetBytes("release\n");
-                    Stream input = Console.OpenStandardInput();
-                    foreach (byte expected in release)
-                        if (input.ReadByte() != expected) throw new InvalidOperationException("Holding fixture control frame differed.");
-                    return 0;
+                    if (!instance.IsPrimary) throw new InvalidOperationException("Holding fixture was not primary.");
+                    using (var status = ManualLaunchSignal.ListenFixture(fixture, "status", () => {
+                        Console.WriteLine("status"); Console.Out.Flush(); }))
+                    {
+                        Console.WriteLine(instance.IsPrimary ? "primary" : "secondary");
+                        Console.Out.Flush();
+                        // Use an exact byte frame rather than Console/StreamWriter
+                        // encodings, which can add a BOM on redirected Windows IO.
+                        byte[] release = System.Text.Encoding.ASCII.GetBytes("release\n");
+                        Stream input = Console.OpenStandardInput();
+                        foreach (byte expected in release)
+                            if (input.ReadByte() != expected) throw new InvalidOperationException("Holding fixture control frame differed.");
+                        return 0;
+                    }
                 }
             }
             catch (Exception error)
@@ -312,6 +347,9 @@ namespace DiscordAccess
                 creator.Dispose();
                 assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 0, "Original creator kept a hidden namespace lease.");
                 assert(RunChild(fixture) == "secondary", "Creator alias closing split a live primary from a third process.");
+                Task<string> delivered = holder.StandardOutput.ReadLineAsync();
+                assert(RunSignalChildForChecks(fixture, "status") == "sent" && delivered.Wait(5000) && delivered.Result == "status",
+                    "Creator alias closing orphaned the live primary's private signal listener.");
                 byte[] release = System.Text.Encoding.ASCII.GetBytes("release\n");
                 holder.StandardInput.BaseStream.Write(release, 0, release.Length);
                 holder.StandardInput.BaseStream.Flush();
@@ -323,6 +361,7 @@ namespace DiscordAccess
                     ", fixture stderr=" + (read ? errors.Result.Trim() : "unavailable") + ").");
                 using (var successor = ResidentInstance.AcquireForChecks(fixture))
                     assert(successor.IsPrimary, "Creator/opener shutdown prevented a successor primary.");
+                assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 0, "Takeover retained a private namespace lease after shutdown.");
             }
             finally
             {

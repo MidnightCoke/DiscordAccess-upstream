@@ -15,14 +15,24 @@ namespace DiscordAccess
     {
         private Mutex mutex;
         private NamespaceLease namespaceLease;
+        private IDisposable stateLease;
         private bool owns;
         internal bool CreatedNew { get; private set; }
         internal bool IsPrimary { get; private set; }
 
-        private ResidentInstance(string name, SecurityIdentifier user)
+        private ResidentInstance(string name, SecurityIdentifier user, string fixture)
         {
             try
             {
+                // An old namespace can outlive its creator as unreachable
+                // objects. The file lease, not that object generation, decides
+                // whether this user already has an active controller.
+#if TEST_BUILD
+                stateLease = fixture == null ? ResidentStateLease.TryAcquire() : ResidentStateLease.TryAcquireForChecks(fixture);
+#else
+                stateLease = ResidentStateLease.TryAcquire();
+#endif
+                if (stateLease == null) return;
                 namespaceLease = NamespaceLease.Acquire(name, user, true);
                 bool created;
                 mutex = new Mutex(true, name + "\\Owner", out created, Security(user));
@@ -33,7 +43,16 @@ namespace DiscordAccess
                     try { owns = mutex.WaitOne(0); }
                     catch (AbandonedMutexException) { owns = true; }
                 }
-                IsPrimary = owns;
+                if (!owns) { Dispose(); return; }
+                // Validate the initial Owner before replacing its namespace;
+                // never overwrite a weak ACL or incompatible existing object.
+                // CreatedNew retains the initial lookup result for diagnostics.
+                mutex.ReleaseMutex(); owns = false; mutex.Dispose(); mutex = null;
+                namespaceLease.Reanchor();
+                mutex = new Mutex(true, namespaceLease.ObjectName("Owner"), out created, Security(user));
+                owns = created;
+                if (!created || !Trusted(mutex.GetAccessControl(), user)) throw Rejected();
+                IsPrimary = true;
             }
             catch
             {
@@ -45,7 +64,7 @@ namespace DiscordAccess
         {
             SecurityIdentifier user = CurrentUser();
             using (var process = Process.GetCurrentProcess())
-                return new ResidentInstance(Name(user, process.SessionId, null), user);
+                return new ResidentInstance(Name(user, process.SessionId, null), user, null);
         }
 
         // A signal listener/request needs an alias lease, not mutex ownership.
@@ -128,7 +147,14 @@ namespace DiscordAccess
                 finally
                 {
                     var lease = namespaceLease; namespaceLease = null;
-                    if (lease != null) lease.Dispose();
+                    try { if (lease != null) lease.Dispose(); }
+                    finally
+                    {
+                        // Main disposes all signal listeners before this owner.
+                        // Unpublish the namespace before allowing a successor.
+                        var state = stateLease; stateLease = null;
+                        if (state != null) state.Dispose();
+                    }
                 }
             }
         }
@@ -154,6 +180,7 @@ namespace DiscordAccess
                 lock (Gate)
                 {
                     if (entry == null) throw new ObjectDisposedException("NamespaceLease");
+                    if (entry.Handle == IntPtr.Zero) throw Rejected();
                     return name + "\\" + leaf;
                 }
             }
@@ -170,6 +197,7 @@ namespace DiscordAccess
                         found = new Entry { Handle = handle, References = 0 };
                         Entries.Add(name, found);
                     }
+                    if (found.Handle == IntPtr.Zero) throw Rejected();
                     found.References++;
                     return new NamespaceLease(name, user, found);
                 }
@@ -225,6 +253,52 @@ namespace DiscordAccess
                 catch { NamespaceNative.DeleteBoundaryDescriptor(boundary); throw; }
             }
 
+            // Called only by a new primary while it owns the authoritative
+            // state file lease and before publishing any listener. Closing a
+            // creator handle makes future OpenPrivateNamespace fail even when
+            // another process retains objects. Recreate the published namespace
+            // in this primary instead of inheriting that creator's lifetime.
+            internal void Reanchor()
+            {
+                lock (Gate)
+                {
+                    if (entry == null) throw new ObjectDisposedException("NamespaceLease");
+                    IntPtr previous = entry.Handle;
+                    if (previous == IntPtr.Zero) throw Rejected();
+                    entry.Handle = IntPtr.Zero;
+                    if (!NamespaceNative.ClosePrivateNamespace(previous, 1) &&
+                        !NamespaceNative.ClosePrivateNamespace(previous, 0)) throw Rejected();
+                    IntPtr boundary = CreateBoundary(name, User);
+                    try
+                    {
+                        for (int attempt = 0; attempt < 4; attempt++)
+                        {
+                            int error;
+                            IntPtr handle = CreateNamespace(name, boundary, User, out error);
+                            if (handle != IntPtr.Zero) { entry.Handle = handle; return; }
+                            if (error != 183) throw Rejected();
+                            // A retained stale local alias may reference an
+                            // already-destroyed generation. Remove any remaining
+                            // publication while the state lease excludes owners.
+                            handle = NamespaceNative.OpenPrivateNamespace(boundary, name);
+                            if (handle == IntPtr.Zero)
+                            {
+                                error = Marshal.GetLastWin32Error();
+                                if (error == 2 || error == 3) continue;
+                                throw Rejected();
+                            }
+                            if (!NamespaceNative.ClosePrivateNamespace(handle, 1))
+                            {
+                                NamespaceNative.ClosePrivateNamespace(handle, 0);
+                                throw Rejected();
+                            }
+                        }
+                        throw Rejected();
+                    }
+                    finally { NamespaceNative.DeleteBoundaryDescriptor(boundary); }
+                }
+            }
+
             private static IntPtr CreateNamespace(string name, IntPtr boundary, SecurityIdentifier user, out int error)
             {
                 var descriptor = new RawSecurityDescriptor("O:" + user.Value + "D:P(A;;GA;;;" + user.Value + ")(A;;GA;;;SY)");
@@ -250,10 +324,9 @@ namespace DiscordAccess
                     Entry owned = entry; string alias = name; entry = null; name = null;
                     if (--owned.References != 0) return;
                     Entries.Remove(alias);
-                    // DESTROY would invalidate lookup while another process
-                    // could still own a mutex in this namespace. Close only our
-                    // alias handle; the kernel owns cross-process lifetime.
-                    NamespaceNative.ClosePrivateNamespace(owned.Handle, 0);
+                    // A primary has its own published generation. Requests and
+                    // secondary leases never destroy an existing publication.
+                    if (owned.Handle != IntPtr.Zero) NamespaceNative.ClosePrivateNamespace(owned.Handle, 0);
                     owned.Handle = IntPtr.Zero;
                 }
             }
@@ -315,7 +388,7 @@ namespace DiscordAccess
             if (!Guid.TryParseExact(fixture, "N", out parsed)) throw new ArgumentException("Resident fixture identifier");
             SecurityIdentifier user = CurrentUser();
             using (var process = Process.GetCurrentProcess())
-                return new ResidentInstance(Name(user, process.SessionId, fixture), user);
+                return new ResidentInstance(Name(user, process.SessionId, fixture), user, fixture);
         }
         internal static string NameForChecks(SecurityIdentifier user, int session, string fixture)
         { return Name(user, session, fixture) + "\\Owner"; }

@@ -88,7 +88,6 @@ namespace DiscordAccess
                         return 0;
                     }
                     using (var startupRequests = ResidentStartupRequests.ForLaunch(restoring, fromIcon))
-                    using (ResidentStateLease.Acquire())
                     {
                         if (Controller.InstalledClientRunning() && InstalledDiscord.HasPendingRecovery)
                             throw new UserActionException("Önce Discord'u sistem tepsisinden tamamen kapatın; ardından DiscordAccess.exe'yi açın. Bekleyen geri alma kaydı korunuyor.");
