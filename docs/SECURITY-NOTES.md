@@ -18,6 +18,6 @@ Program standart kullanıcı yetkisiyle çalışır. Yerel proxy yalnız doğrul
 
 Aynı kullanıcı yetkisini ele geçiren zararlı yazılım veya yönetici/SYSTEM saldırganı için ayrı bir güvenlik sınırı iddia edilmez. Dosya işlemleri Windows dosya adı alanında mutlak karşılaştır-ve-değiştir garantisi vermez; çakışma yedekleri kullanıcı içeriğini korumak içindir. Paket kaydı kurulduktan sonra kullanıcı izinleri bağımsız olarak değiştirilirse sonraki Windows açılışını geçmiş bir kontrol güvenceye alamaz.
 
-Bu proje imzasızdır. Açık kaynak lisansı, hash kontrolü ve test başarısı Smart App Control veya anti-cheat onayı sağlamaz. Güvenlik politikaları düşürülmez; engellenen yerel testler farklı yükleme yöntemiyle çalıştırılmaz. Windows regresyonları ayrı GitHub Actions ortamında yapılır.
+Bu proje imzasızdır. Açık kaynak lisansı, hash kontrolü ve test başarısı Smart App Control veya anti-cheat onayı sağlamaz. Güvenlik politikaları düşürülmez; engellenen yerel testler farklı yükleme yöntemiyle çalıştırılmaz. GitHub Actions kaldırılmıştır; Windows regresyonları izin verilen geliştirme ortamında elle çalıştırılır. Geçmiş otomatik test kayıtları sonradan değişen kodun doğrulaması sayılmaz.
 
 Hata bildirirken hesap token'ı, profil, imzalı ek dosyası URL'si, kurtarma journal'ı veya `.preserved` dosyalarını paylaşmayın. Program sürümü, kısa hata kodu ve kişisel verilerden arındırılmış yeniden üretim adımları yeterlidir.

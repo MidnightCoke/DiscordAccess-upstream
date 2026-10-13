@@ -1,12 +1,14 @@
 #Requires -Version 7.0
-# CI-only: validate the exact generated runtime policies with the pinned engine.
+# Explicit opt-in: validate generated runtime policies with the pinned engine.
 # sing-box check constructs and closes the options; it never calls Start or
 # PreStart. These policies contain no file logging, cache, TUN or system proxy.
 # Verified in cmd/sing-box/cmd_check.go and the HTTP/DoH constructors at pinned
 # upstream source commit 7054cac5124465ffdb145870d7c01885566711b1.
+[CmdletBinding()]
+param([switch] $RunChecks)
 $ErrorActionPreference = 'Stop'
-if ($env:GITHUB_ACTIONS -ne 'true' -or [Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
-    -not [Environment]::Is64BitProcess) { throw 'Engine configuration smoke tests run only in GitHub Actions Windows x64. No local test executable was started.' }
+if (-not $RunChecks -or [Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
+    -not [Environment]::Is64BitProcess) { throw 'Use -RunChecks on Windows x64 permitted to execute the generated fixtures. No test executable was started.' }
 
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $workRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot 'work'))

@@ -17,15 +17,22 @@ node tests/external-wrapper.test.cjs
 
 Windows bir üretilmiş test EXE'sini engellerse bunu tam test başarısı olarak raporlamayın. Hangi grubun çalışmadığını ve kalan kontrolleri PR'da belirtin; Windows güvenlik ayarlarını değiştiren veya engeli aşan kod eklemeyin.
 
-### GitHub üzerinde Windows testleri
+### Windows testlerini elle çalıştırma
 
-`Windows tests` iş akışı, GitHub'ın ayrı Windows x64 ortamında aynı derleme ve test sırasını çalıştırır. `main` dalına push yapıldığında, `main` hedefli PR'larda ve Actions sayfasından elle başlatıldığında çalışır. C# testleri tamamlanmazsa iş akışı başarısız kalır; bağımsız JavaScript ve kısayol kontrolleri mümkün olduğunda yine sonuç verir.
+GitHub Actions kaldırıldı; push veya PR açılması otomatik test çalıştırmaz. Yukarıdaki derleme/test sırasını, Windows güvenlik politikasının üretilen test dosyalarını çalıştırmaya izin verdiği bir geliştirme ortamında tamamlayın. Engellenen EXE için güvenlik ayarlarını düşürmeyin veya farklı yükleme yöntemi kullanmayın. Çalışmayan grubu geçmiş saymayın.
 
-İş akışında depo erişimi salt okunurdur, kişisel secret gerekmez ve güvenlik politikası değiştirilmez. Motor sabit kaynak, Go, bağımlılık kilitleri ve `engine-patches/http-limits/manifest.json` içindeki tam dosya değişikliklerinden yeniden derlenir; çıktı hash'i doğrulanır. CI'da derlemeden önce HTTP sınırı, kimlik doğrulama ve TCP kabul döngüsünün Go birim testleri sentetik/loopback bağlantılarla çalışır; büyük gövdeler, önceden tamponlanmış istekler ve uzun doğrulanmış tüneller sınanır. Altı üretilmiş DNS ayarı yalnız CI'da motorun `check` komutuyla sınanır; bağlantı motoru `run` ile başlatılmaz ve Discord isteği gönderilmez. Discord/profil açılmaz.
+Motor kaynak testleri için ayrıca:
 
-Motor derlemesinden önce özel ad alanı/süreç sahipliği kontrolleri ayrıca çalışır; bu ön kontrol, tüm C# regresyonlarının yerine geçmez. Altı metin test raporu yedi gün, yeniden derlenen motor ve karşılık gelen kaynak/derleme kanıtları ayrı artifact olarak 30 gün saklanır. Sentetik profiller ve diğer `work/` dosyaları eklenmez. Artifact süresi dolmadan dağıtılacak motorun karşılık gelen kaynaklarını Release ile birlikte kalıcı olarak yayınlayın. Bu kontroller gerçek hesapla mesaj, indirme, yayın veya yeniden başlatma denemesinin yerini tutmaz.
+```powershell
+powershell -NoProfile -File scripts/Build-SecurityEngine.ps1 -RunSourceTests
+pwsh -NoProfile -File scripts/Test-EngineConfig.ps1 -RunChecks
+```
 
-`engine-build/go.mod`, `go.sum` ve kaynak değişiklikleri byte düzeyinde sabittir; `Build-SecurityEngine.ps1` her dosyanın değişiklik öncesi/sonrası hash'ini kontrol edip beklenen motor hash'inden farklı çıktıyı reddeder. Go, bağımlılık veya motor kaynak güncellemesinde önce ayrı aday derleme üretip kaynak farkını, gömülü modül envanterini ve bilinen açıkları inceleyin; ardından bu sabitleri birlikte değiştirin. Yalnız GitHub Windows CI'da kullanılabilen `-ReviewCandidate`, son EXE pinini henüz belirlemek için artifact üretir; kaynak, kilit ve test kontrollerini atlamaz, `-OutFile` ile birleştirilemez. Normal derleme ve Windows test işi sabit motoru temiz ortamda tekrar üretebilmelidir. `Security engine build` iş akışı bu sıkı derlemenin elle başlatılan bağımsız tekrarını sağlar.
+İlk komut sabit kaynak/Go/bağımlılık kilitleri ve tam dosya değişikliklerinden motoru yeniden derler, üç HTTP/listener birim test grubunu sentetik/loopback bağlantılarla çalıştırır ve sonuç hash'ini doğrular. İkinci komut, önceden hazırlanmış sabit motorun altı DNS ayarını yalnız `check` komutuyla sınar; motoru `run` ile başlatmaz ve Discord isteği göndermez. Discord/profil açılmaz. Bu açık seçenekler Windows uygulama denetimini atlamaz.
+
+`engine-build/go.mod`, `go.sum` ve kaynak değişiklikleri byte düzeyinde sabittir; `Build-SecurityEngine.ps1` değişiklik öncesi/sonrası dosya hash'lerini kontrol edip beklenen motor hash'inden farklı normal çıktıyı reddeder. Motor güncellemesinde önce `-ReviewCandidate -RunSourceTests` ile ayrı inceleme çıktısı üretip kaynak farkını, gömülü modülleri ve bilinen açıkları inceleyin; sonra sabitleri birlikte değiştirin. İnceleme çıktısı `-OutFile` ile birleştirilemez ve hazır paket olarak kabul edilmez.
+
+Test raporlarını `work/` altında yerel olarak saklayın; motorun karşılık gelen kaynak/derleme kanıtlarını dağıtımla birlikte sunun. Daha önceki Windows test kayıtları geçmiş sürümlerin kanıtıdır. Tamamlanan kontrolleri exact commit ile belirtin; gerçek hesapla mesaj, indirme, yayın ve yeniden başlatma denemesi ayrıdır.
 
 ## Ekip çalışma akışı
 

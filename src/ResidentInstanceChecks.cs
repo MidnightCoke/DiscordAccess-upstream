@@ -36,6 +36,7 @@ namespace DiscordAccess
             SecurityIdentifier user;
             using (var identity = WindowsIdentity.GetCurrent()) user = identity.User;
             assert(user != null, "Windows fixture user was unavailable.");
+            CheckReleaseFrames(assert);
             var world = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
             var foreign = new SecurityIdentifier("S-1-5-21-111111111-222222222-333333333-1002");
             var security = ResidentInstance.SecurityForChecks(user);
@@ -321,16 +322,13 @@ namespace DiscordAccess
                         Console.Out.Flush();
                         // Use an exact byte frame rather than Console/StreamWriter
                         // encodings, which can add a BOM on redirected Windows IO.
-                        byte[] release = System.Text.Encoding.ASCII.GetBytes("release\n");
-                        Stream input = Console.OpenStandardInput();
-                        foreach (byte expected in release)
-                            if (input.ReadByte() != expected) throw new InvalidOperationException("Holding fixture control frame differed.");
+                        ReadReleaseFrame(Console.OpenStandardInput());
                         return 0;
                     }
                 }
             }
             catch (Exception error)
-            { Console.Error.WriteLine("Holding namespace fixture failed: " + error.GetType().Name + "; " + ResidentInstance.FailureForChecks()); return 1; }
+            { Console.Error.WriteLine("Holding namespace fixture failed: " + error.GetType().Name + "; " + frameFailure + "; " + ResidentInstance.FailureForChecks()); return 1; }
         }
 
         internal static int RunHoldingStaticNamespaceChild(string fixture)
@@ -341,14 +339,65 @@ namespace DiscordAccess
                 {
                     if (lease == null) throw new InvalidOperationException("Static fixture namespace was absent.");
                     Console.WriteLine("opened"); Console.Out.Flush();
-                    Stream input = Console.OpenStandardInput();
-                    foreach (byte expected in Encoding.ASCII.GetBytes("release\n"))
-                        if (input.ReadByte() != expected) throw new InvalidOperationException("Static fixture control frame differed.");
+                    ReadReleaseFrame(Console.OpenStandardInput());
                     return 0;
                 }
             }
             catch (Exception error)
-            { Console.Error.WriteLine("Static namespace fixture failed: " + error.GetType().Name + "; " + ResidentInstance.FailureForChecks()); return 1; }
+            { Console.Error.WriteLine("Static namespace fixture failed: " + error.GetType().Name + "; " + frameFailure + "; " + ResidentInstance.FailureForChecks()); return 1; }
+        }
+
+        [ThreadStatic] private static string frameFailure;
+        private static void CheckReleaseFrames(Action<bool, string> assert)
+        {
+            foreach (byte[] bytes in new[] { Encoding.ASCII.GetBytes("release\n"),
+                new byte[] { 0xef, 0xbb, 0xbf, 0x72, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x0a } })
+            {
+                using (var input = new MemoryStream(bytes)) ReadReleaseFrame(input);
+                assert(true, "Exact control frame or .NET UTF8 preamble was rejected.");
+            }
+            foreach (byte[] bytes in new[] { new byte[0], Encoding.ASCII.GetBytes("release"), Encoding.ASCII.GetBytes("stop\n"),
+                new byte[] { 0xef, 0xbb }, new byte[] { 0xef, 0xbb, 0x00 }, new byte[] { 0xff, 0xfe, 0x72, 0x00 },
+                new byte[] { 0xef, 0xbb, 0xbf, 0xef, 0xbb, 0xbf, 0x72 } })
+            {
+                bool rejected = false;
+                try { using (var input = new MemoryStream(bytes)) ReadReleaseFrame(input); }
+                catch (InvalidOperationException) { rejected = true; }
+                assert(rejected, "An invalid, truncated, repeated-BOM or alternate-encoding control frame was accepted.");
+            }
+        }
+        private static void ReadReleaseFrame(Stream input)
+        {
+            // .NET Framework's Process.StandardInput StreamWriter can emit its
+            // UTF-8 preamble when Start enables AutoFlush, before our parent
+            // ever writes the raw release frame. Accept only that exact optional
+            // preamble, then block for the same eight-byte ASCII control frame.
+            frameFailure = null;
+            byte[] expected = Encoding.ASCII.GetBytes("release\n");
+            int first = input.ReadByte();
+            if (first == 0xef)
+            {
+                CheckFrameByte(input.ReadByte(), 0xbb, "UTF8-BOM[1]");
+                CheckFrameByte(input.ReadByte(), 0xbf, "UTF8-BOM[2]");
+                first = input.ReadByte();
+            }
+            CheckFrameByte(first, expected[0], "release[0]");
+            for (int index = 1; index < expected.Length; index++)
+                CheckFrameByte(input.ReadByte(), expected[index], "release[" + index.ToString(CultureInfo.InvariantCulture) + "]");
+        }
+        private static void CheckFrameByte(int actual, int expected, string position)
+        {
+            if (actual == expected) return;
+            frameFailure = "control=" + position + ", expected=0x" + expected.ToString("x2", CultureInfo.InvariantCulture) +
+                ", actual=" + (actual < 0 ? "EOF" : "0x" + actual.ToString("x2", CultureInfo.InvariantCulture));
+            throw new InvalidOperationException("Holding fixture control frame differed.");
+        }
+        private static void CheckHolderAlive(Process holder, Task<string> errors, string stage, Action<bool, string> assert)
+        {
+            bool alive = !holder.HasExited;
+            string detail = alive ? "" : "exit=" + holder.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                ", stderr=" + (errors.Wait(2000) ? Limit(errors.Result) : "unavailable");
+            assert(alive, "Holding fixture exited before " + stage + " (" + detail + ").");
         }
 
         private static void CheckPublicationRecords(SecurityIdentifier user, Action<bool, string> assert)
@@ -476,9 +525,17 @@ namespace DiscordAccess
                 Task<string> errors = holder.StandardError.ReadToEndAsync();
                 Task<string> ready = holder.StandardOutput.ReadLineAsync();
                 assert(ready.Wait(5000) && ready.Result == "primary", "Namespace opener child did not retain primary ownership.");
+                CheckHolderAlive(holder, errors, "creator close", assert);
+                using (var identity = WindowsIdentity.GetCurrent())
+                using (var process = Process.GetCurrentProcess())
+                    assert(ResidentStateLease.ReadGenerationForChecks(fixture, identity.User, process.SessionId) != null,
+                        "Holding fixture publication was not readable through the parent's exact fixture path.");
                 creator.Dispose();
                 assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 0, "Original creator kept a hidden namespace lease.");
-                assert(RunChild(fixture, context: "creator-closed-live-opener") == "secondary", "Creator alias closing split a live primary from a third process.");
+                CheckHolderAlive(holder, errors, "third ownership probe", assert);
+                string third = RunChild(fixture, context: "creator-closed-live-opener");
+                CheckHolderAlive(holder, errors, "ownership probe completion", assert);
+                assert(third == "secondary", "Creator alias closing split a live primary from a third process (observed=" + third + ").");
                 Task<string> delivered = holder.StandardOutput.ReadLineAsync();
                 assert(RunSignalChildForChecks(fixture, "status") == "sent" && delivered.Wait(5000) && delivered.Result == "status",
                     "Creator alias closing orphaned the live primary's private signal listener.");

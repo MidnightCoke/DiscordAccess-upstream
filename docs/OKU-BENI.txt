@@ -96,10 +96,10 @@ hedef veya üst klasörler reddedilir; Windows izinleri değiştirilmez.
 Dosya çakışmasında .discordaccess-fs-*.preserved / .rollback-preserved yedekleri
 korunabilir. Bunları silmeyin veya herkese açık hata kaydına yüklemeyin.
 
-Windows derleme, regresyon ve motorun altı DNS ayarını kabul etme kontrolü
-ayrı GitHub Actions ortamında yapılır. Yerelde engellenen EXE farklı bir
-çalıştırma yöntemiyle açılmaz; güvenlik ayarları değiştirilmez. Güncel kontrol
-sonucuna ilgili PR/Actions kaydından bakın. Gerçek hesapla mesaj/dosya/yayın,
+GitHub Actions kaldırıldı. Windows derleme, regresyon ve motorun altı DNS
+ayarını kabul etme kontrolü izin verilen geliştirme ortamında elle yapılır.
+Engellenen EXE farklı yöntemle açılmaz; güvenlik ayarları değiştirilmez.
+Tamamlanan kontrol ve commit bilgisi ilgili PR içinde belirtilir. Gerçek hesapla mesaj/dosya/yayın,
 Windows yeniden başlatması ve tepsi etkileşimi bu otomatik testlerden ayrıdır.
 Bu sürümde bu kullanıcı testleri henüz tamamlanmadı.
 

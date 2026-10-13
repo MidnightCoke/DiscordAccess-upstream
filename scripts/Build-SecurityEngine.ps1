@@ -1,7 +1,7 @@
 # Build the pinned stable source with byte-pinned dependency locks. This script
 # never runs sing-box, edits Windows settings, or installs a system toolchain.
 [CmdletBinding()]
-param([string] $OutFile, [switch] $ReviewCandidate)
+param([string] $OutFile, [switch] $ReviewCandidate, [switch] $RunSourceTests)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -130,8 +130,8 @@ function Run-Go([string[]] $GoArguments) {
 
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'This reproducible target requires Windows x64.' }
 if (-not [Environment]::Is64BitProcess) { throw 'Use 64-bit PowerShell to build the Windows amd64 engine.' }
-if ($ReviewCandidate -and ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $OutFile)) {
-    throw 'Review candidates are CI-only artifacts; they cannot be copied to the runtime package.'
+if ($ReviewCandidate -and (-not $RunSourceTests -or $OutFile)) {
+    throw 'Review candidates require explicit source tests and cannot be copied to the runtime package.'
 }
 Assert-Locks $lockMod $lockSum
 Assert-LocalPath $workRoot
@@ -193,12 +193,12 @@ try {
         $sourceUnitTestsRan = $false
         $sourceUnitTestsPassed = $null
         $sourceUnitReport = Join-Path $artifactRoot 'source-unit-tests.txt'
-        if ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_OS -eq 'Windows') {
+        if ($RunSourceTests) {
             $sourceUnitTestsRan = $true
             Run-Go @('test','-mod=readonly','-count=1',('-tags=' + $buildTags),'-ldflags=-checklinkname=0','-timeout=60s','./internal/discordaccess/httpguard','./protocol/http','./common/listener') | Tee-Object -FilePath $sourceUnitReport
             $sourceUnitTestsPassed = $true
         } else {
-            'Source regression executables were not run: these fixtures execute only on the GitHub Actions Windows runner. Source, locks and engine build/hash verification still apply.' | Set-Content -LiteralPath $sourceUnitReport -Encoding utf8
+            'Source regression executables were not run: use -RunSourceTests on a Windows environment permitted to execute the generated fixtures. Source, locks and engine build/hash verification still apply.' | Set-Content -LiteralPath $sourceUnitReport -Encoding utf8
         }
         Assert-Locks $sourceMod $sourceSum
         $moduleLines = @(Run-Go @('list','-mod=readonly','-m','all'))
