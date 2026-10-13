@@ -72,8 +72,35 @@ namespace DiscordAccess
             reject(() => { using (ResidentInstance.AcquireForChecks("invalid")) { } }, "Unvalidated fixture could address another object.");
             reject(() => { using (ResidentInstance.NamespaceForChecks(null)) { } }, "Null fixture could address the production namespace.");
             reject(() => { using (ResidentInstance.NamespaceForChecks("invalid")) { } }, "Unvalidated fixture could address another namespace.");
+            reject(() => { using (ResidentInstance.OpenNamespaceForChecks(null)) { } }, "Null request fixture could address the production namespace.");
+            reject(() => { using (ResidentInstance.OpenNamespaceForChecks("invalid")) { } }, "Unvalidated request fixture could address another namespace.");
             assert(ResidentInstance.ForeignBoundaryErrorForChecks(Fixture(), foreign) == 5,
                 "A caller outside the required user SID boundary created a namespace.");
+
+            fixture = Fixture();
+            using (var missing = ResidentInstance.OpenNamespaceForChecks(fixture))
+                assert(missing == null && ResidentInstance.NamespaceReferencesForChecks(fixture) == 0,
+                    "A request-only lease created an absent namespace.");
+            using (var retainedAlias = ResidentInstance.NamespaceForChecks(fixture))
+            {
+                assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 1, "A retained alias has an incorrect reference count.");
+                reject(() => retainedAlias.ObjectName(@"Local\foreign"), "An object leaf escaped its private alias.");
+                var requestAlias = ResidentInstance.OpenNamespaceForChecks(fixture);
+                assert(requestAlias != null && ResidentInstance.NamespaceReferencesForChecks(fixture) == 2 &&
+                    requestAlias.ObjectName("Owner") == Name(fixture, user), "A request alias did not share the existing registration.");
+                requestAlias.Dispose(); requestAlias.Dispose();
+                assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 1, "Request alias disposal closed or leaked the retained registration.");
+                using (var primary = ResidentInstance.AcquireForChecks(fixture))
+                {
+                    using (var request = ResidentInstance.OpenNamespaceForChecks(fixture))
+                        assert(request != null && primary.IsPrimary && ResidentInstance.NamespaceReferencesForChecks(fixture) == 3,
+                            "Request namespace leasing affected main-thread mutex ownership.");
+                    assert(primary.IsPrimary && ResidentInstance.NamespaceReferencesForChecks(fixture) == 2,
+                        "Request alias closing affected the live primary lease.");
+                }
+                assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 1, "Primary disposal closed a retained request namespace.");
+            }
+            assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 0, "Final request namespace lease was not removed.");
 
             // Ordinary-session object squatting cannot reserve the process-local
             // alias of a private namespace with the same visible prefix.
@@ -108,6 +135,11 @@ namespace DiscordAccess
                 using (var afterChild = ResidentInstance.AcquireForChecks(fixture))
                     assert(afterChild.IsPrimary, "Child shutdown prevented an acquisition through the retained alias.");
             }
+
+            // The original namespace creator may close after another process
+            // has taken ownership. Its close must not split that live owner
+            // from later processes that create/open the same SID boundary.
+            CheckCreatorHandover(Fixture(), assert);
 
             fixture = Fixture();
             using (var primary = ResidentInstance.AcquireForChecks(fixture))
@@ -215,16 +247,100 @@ namespace DiscordAccess
             { Console.Error.WriteLine("Namespace fixture failed: " + error.GetType().Name); return 1; }
         }
 
-        private static string RunChild(string fixture)
+        internal static int RunSignalChild(string fixture, string channel, bool requireNoOwner)
+        {
+            try
+            {
+                string response;
+                bool sent = ManualLaunchSignal.RequestFixture(fixture, channel, out response);
+                if (ResidentInstance.NamespaceReferencesForChecks(fixture) != 0)
+                    throw new InvalidOperationException("Request-only fixture retained its alias registration.");
+                if (requireNoOwner)
+                {
+                    using (var alias = ResidentInstance.OpenNamespaceForChecks(fixture))
+                    {
+                        if (alias == null) throw new InvalidOperationException("Request-only fixture destroyed the existing namespace.");
+                        bool ownerPresent = false;
+                        try { using (Mutex.OpenExisting(alias.ObjectName("Owner"))) ownerPresent = true; }
+                        catch (WaitHandleCannotBeOpenedException) { }
+                        if (ownerPresent) throw new InvalidOperationException("Request-only fixture created a resident mutex.");
+                    }
+                }
+                Console.WriteLine(sent ? "sent" : "missing");
+                return 0;
+            }
+            catch (Exception error)
+            { Console.Error.WriteLine("Signal fixture failed: " + error.GetType().Name); return 1; }
+        }
+
+        internal static int RunHoldingNamespaceChild(string fixture)
+        {
+            try
+            {
+                using (var instance = ResidentInstance.AcquireForChecks(fixture))
+                {
+                    Console.WriteLine(instance.IsPrimary ? "primary" : "secondary");
+                    Console.Out.Flush();
+                    return Console.ReadLine() == "release" ? 0 : 1;
+                }
+            }
+            catch (Exception error)
+            { Console.Error.WriteLine("Holding namespace fixture failed: " + error.GetType().Name); return 1; }
+        }
+
+        private static void CheckCreatorHandover(string fixture, Action<bool, string> assert)
+        {
+            Process holder = null;
+            var creator = ResidentInstance.NamespaceForChecks(fixture);
+            try
+            {
+                holder = Process.Start(new ProcessStartInfo(Assembly.GetExecutingAssembly().Location,
+                    "--resident-namespace-hold-child " + fixture) {
+                    UseShellExecute = false, CreateNoWindow = true,
+                    RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true });
+                if (holder == null) throw new InvalidOperationException("Holding namespace fixture child was not created.");
+                Task<string> errors = holder.StandardError.ReadToEndAsync();
+                Task<string> ready = holder.StandardOutput.ReadLineAsync();
+                assert(ready.Wait(5000) && ready.Result == "primary", "Namespace opener child did not retain primary ownership.");
+                creator.Dispose();
+                assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 0, "Original creator kept a hidden namespace lease.");
+                assert(RunChild(fixture) == "secondary", "Creator alias closing split a live primary from a third process.");
+                holder.StandardInput.WriteLine("release"); holder.StandardInput.Flush();
+                Task<string> output = holder.StandardOutput.ReadToEndAsync();
+                assert(holder.WaitForExit(5000) && Task.WaitAll(new Task[] { output, errors }, 2000) &&
+                    holder.ExitCode == 0 && String.IsNullOrWhiteSpace(errors.Result) && String.IsNullOrWhiteSpace(output.Result),
+                    "Namespace opener child did not release ownership cleanly.");
+                using (var successor = ResidentInstance.AcquireForChecks(fixture))
+                    assert(successor.IsPrimary, "Creator/opener shutdown prevented a successor primary.");
+            }
+            finally
+            {
+                creator.Dispose();
+                if (holder != null)
+                {
+                    try { if (!holder.HasExited) { holder.Kill(); holder.WaitForExit(2000); } }
+                    finally { holder.Dispose(); }
+                }
+            }
+        }
+
+        internal static string RunNamespaceChildForChecks(string fixture) { return RunChild(fixture); }
+        internal static string RunSignalChildForChecks(string fixture, string channel, bool requireNoOwner = false)
+        { return RunChild(fixture, channel, requireNoOwner); }
+
+        private static string RunChild(string fixture, string channel = null, bool requireNoOwner = false)
         {
             Guid parsed;
             if (!Guid.TryParseExact(fixture, "N", out parsed)) throw new ArgumentException("Resident child fixture identifier");
+            if (channel != null) ManualLaunchSignal.NameForChecks(fixture, channel);
+            string arguments = channel == null ? "--resident-namespace-child " + fixture :
+                "--resident-signal-child " + fixture + " " + channel + (requireNoOwner ? " --no-owner" : "");
             Process child = null;
             Task<string> output = null, errors = null;
             try
             {
                 child = Process.Start(new ProcessStartInfo(Assembly.GetExecutingAssembly().Location,
-                    "--resident-namespace-child " + fixture) {
+                    arguments) {
                     UseShellExecute = false, CreateNoWindow = true,
                     RedirectStandardOutput = true, RedirectStandardError = true });
                 if (child == null) throw new InvalidOperationException("Resident namespace fixture child was not created.");

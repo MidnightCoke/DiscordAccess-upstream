@@ -14,7 +14,7 @@ namespace DiscordAccess
     internal sealed class ResidentInstance : IDisposable
     {
         private Mutex mutex;
-        private PrivateNamespace namespaceLease;
+        private NamespaceLease namespaceLease;
         private bool owns;
         internal bool CreatedNew { get; private set; }
         internal bool IsPrimary { get; private set; }
@@ -23,7 +23,7 @@ namespace DiscordAccess
         {
             try
             {
-                namespaceLease = PrivateNamespace.Acquire(name, user);
+                namespaceLease = NamespaceLease.Acquire(name, user, true);
                 bool created;
                 mutex = new Mutex(true, name + "\\Owner", out created, Security(user));
                 CreatedNew = created; owns = created;
@@ -46,6 +46,18 @@ namespace DiscordAccess
             SecurityIdentifier user = CurrentUser();
             using (var process = Process.GetCurrentProcess())
                 return new ResidentInstance(Name(user, process.SessionId, null), user);
+        }
+
+        // A signal listener/request needs an alias lease, not mutex ownership.
+        // Requests only open a namespace established by an existing resident.
+        internal static NamespaceLease AcquireNamespace() { return Namespace(null, true); }
+        internal static NamespaceLease OpenNamespace() { return Namespace(null, false); }
+
+        private static NamespaceLease Namespace(string fixture, bool create)
+        {
+            SecurityIdentifier user = CurrentUser();
+            using (var process = Process.GetCurrentProcess())
+                return NamespaceLease.Acquire(Name(user, process.SessionId, fixture), user, create);
         }
 
         private static SecurityIdentifier CurrentUser()
@@ -124,29 +136,55 @@ namespace DiscordAccess
         // Win32 aliases are process-local. Multiple fixture/instance leases in
         // one process must share an alias registration, rather than attempting
         // OpenPrivateNamespace again (which reports ERROR_DUP_NAME).
-        private sealed class PrivateNamespace : IDisposable
+        internal sealed class NamespaceLease : IDisposable
         {
             private sealed class Entry { internal IntPtr Handle; internal int References; }
             private static readonly object Gate = new object();
             private static readonly Dictionary<string, Entry> Entries = new Dictionary<string, Entry>(StringComparer.Ordinal);
             private string name;
             private Entry entry;
+            internal readonly SecurityIdentifier User;
 
-            private PrivateNamespace(string name, Entry entry) { this.name = name; this.entry = entry; }
+            private NamespaceLease(string name, SecurityIdentifier user, Entry entry)
+            { this.name = name; User = user; this.entry = entry; }
 
-            internal static PrivateNamespace Acquire(string name, SecurityIdentifier user)
+            internal string ObjectName(string leaf)
+            {
+                if (String.IsNullOrEmpty(leaf) || leaf.IndexOf('\\') >= 0) throw new ArgumentException("Resident object name");
+                lock (Gate)
+                {
+                    if (entry == null) throw new ObjectDisposedException("NamespaceLease");
+                    return name + "\\" + leaf;
+                }
+            }
+
+            internal static NamespaceLease Acquire(string name, SecurityIdentifier user, bool create)
             {
                 lock (Gate)
                 {
                     Entry found;
                     if (!Entries.TryGetValue(name, out found))
                     {
-                        found = new Entry { Handle = CreateOrOpen(name, user), References = 0 };
+                        IntPtr handle = create ? CreateOrOpen(name, user) : Open(name, user);
+                        if (handle == IntPtr.Zero) return null;
+                        found = new Entry { Handle = handle, References = 0 };
                         Entries.Add(name, found);
                     }
                     found.References++;
-                    return new PrivateNamespace(name, found);
+                    return new NamespaceLease(name, user, found);
                 }
+            }
+
+            private static IntPtr Open(string name, SecurityIdentifier user)
+            {
+                IntPtr boundary = CreateBoundary(name, user);
+                try
+                {
+                    // Never create an empty namespace on a request-only path.
+                    // A missing/denied namespace is an unavailable resident.
+                    return NamespaceNative.OpenPrivateNamespace(boundary, name);
+                }
+                finally { NamespaceNative.DeleteBoundaryDescriptor(boundary); }
             }
 
             private static IntPtr CreateOrOpen(string name, SecurityIdentifier user)
@@ -209,9 +247,9 @@ namespace DiscordAccess
                 lock (Gate)
                 {
                     if (entry == null) return;
-                    Entry owned = entry; entry = null;
+                    Entry owned = entry; string alias = name; entry = null; name = null;
                     if (--owned.References != 0) return;
-                    Entries.Remove(name); name = null;
+                    Entries.Remove(alias);
                     // DESTROY would invalidate lookup while another process
                     // could still own a mutex in this namespace. Close only our
                     // alias handle; the kernel owns cross-process lifetime.
@@ -221,6 +259,15 @@ namespace DiscordAccess
             }
 
 #if TEST_BUILD
+            internal static int ReferencesForChecks(string name)
+            {
+                lock (Gate)
+                {
+                    Entry found;
+                    return Entries.TryGetValue(name, out found) ? found.References : 0;
+                }
+            }
+
             internal static int ForeignBoundaryError(string name, SecurityIdentifier user, SecurityIdentifier foreign)
             {
                 IntPtr boundary = CreateBoundary(name, foreign);
@@ -274,12 +321,25 @@ namespace DiscordAccess
         { return Name(user, session, fixture) + "\\Owner"; }
         internal static string NamespaceNameForChecks(SecurityIdentifier user, int session, string fixture)
         { return Name(user, session, fixture); }
-        internal static IDisposable NamespaceForChecks(string fixture)
+        internal static NamespaceLease NamespaceForChecks(string fixture)
+        {
+            Guid parsed;
+            if (!Guid.TryParseExact(fixture, "N", out parsed)) throw new ArgumentException("Resident fixture identifier");
+            return Namespace(fixture, true);
+        }
+        internal static NamespaceLease OpenNamespaceForChecks(string fixture)
+        {
+            Guid parsed;
+            if (!Guid.TryParseExact(fixture, "N", out parsed)) throw new ArgumentException("Resident fixture identifier");
+            return Namespace(fixture, false);
+        }
+        internal static int NamespaceReferencesForChecks(string fixture)
         {
             Guid parsed;
             if (!Guid.TryParseExact(fixture, "N", out parsed)) throw new ArgumentException("Resident fixture identifier");
             SecurityIdentifier user = CurrentUser();
-            using (var process = Process.GetCurrentProcess()) return PrivateNamespace.Acquire(Name(user, process.SessionId, fixture), user);
+            using (var process = Process.GetCurrentProcess())
+                return NamespaceLease.ReferencesForChecks(Name(user, process.SessionId, fixture));
         }
         internal static int ForeignBoundaryErrorForChecks(string fixture, SecurityIdentifier foreign)
         {
@@ -287,7 +347,7 @@ namespace DiscordAccess
             if (!Guid.TryParseExact(fixture, "N", out parsed)) throw new ArgumentException("Resident fixture identifier");
             SecurityIdentifier user = CurrentUser();
             using (var process = Process.GetCurrentProcess())
-                return PrivateNamespace.ForeignBoundaryError(Name(user, process.SessionId, fixture), user, foreign);
+                return NamespaceLease.ForeignBoundaryError(Name(user, process.SessionId, fixture), user, foreign);
         }
         internal static MutexSecurity SecurityForChecks(SecurityIdentifier user) { return Security(user); }
         internal static bool TrustedForChecks(MutexSecurity security, SecurityIdentifier user) { return Trusted(security, user); }

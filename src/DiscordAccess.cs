@@ -87,7 +87,7 @@ namespace DiscordAccess
                         else Console.WriteLine("DiscordAccess zaten çalışıyor; ikinci bağlantı başlatılmadı.");
                         return 0;
                     }
-                    using (var startupRequests = new ResidentStartupRequests())
+                    using (var startupRequests = ResidentStartupRequests.ForLaunch(restoring, fromIcon))
                     using (ResidentStateLease.Acquire())
                     {
                         if (Controller.InstalledClientRunning() && InstalledDiscord.HasPendingRecovery)

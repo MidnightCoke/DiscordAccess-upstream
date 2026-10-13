@@ -11,6 +11,20 @@ namespace DiscordAccess
                 if (args.Length != 2 || !Guid.TryParseExact(args[1], "N", out fixture)) return 64;
                 return ResidentInstanceChecks.RunNamespaceChild(args[1]);
             }
+            if (args.Length > 0 && args[0] == "--resident-namespace-hold-child")
+            {
+                Guid fixture;
+                if (args.Length != 2 || !Guid.TryParseExact(args[1], "N", out fixture)) return 64;
+                return ResidentInstanceChecks.RunHoldingNamespaceChild(args[1]);
+            }
+            if (args.Length > 0 && args[0] == "--resident-signal-child")
+            {
+                Guid fixture;
+                if ((args.Length != 3 && args.Length != 4) || !Guid.TryParseExact(args[1], "N", out fixture) ||
+                    (args[2] != "open" && args[2] != "status" && args[2] != "startup") ||
+                    (args.Length == 4 && args[3] != "--no-owner")) return 64;
+                return ResidentInstanceChecks.RunSignalChild(args[1], args[2], args.Length == 4);
+            }
             Program.PackageDirectory = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
             if (args.Length == 1 && args[0] == "--resident-only")
             {

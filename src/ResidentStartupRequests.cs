@@ -4,8 +4,10 @@ using System.Threading;
 
 namespace DiscordAccess
 {
-    // Installed immediately after the resident mutex is won. Startup requests
-    // arriving during recovery/discovery retain only one pending bit, never a
+    // Installed immediately after the resident mutex is won for a host launch.
+    // Restore and shortcut-only launches do not register any startup listener.
+    // Startup requests arriving during recovery/discovery retain one pending
+    // bit, never a
     // command, path, process identity or credential. The host still validates
     // its startup preference before opening the official client.
     internal sealed class ResidentStartupRequests : IDisposable
@@ -16,6 +18,12 @@ namespace DiscordAccess
         private bool pending, dispatching, disposed;
 
         internal ResidentStartupRequests() : this(ManualLaunchSignal.ListenStartup) { }
+
+        internal static ResidentStartupRequests ForLaunch(bool restoring, bool fromIcon)
+        { return ForLaunch(restoring, fromIcon, ManualLaunchSignal.ListenStartup); }
+
+        private static ResidentStartupRequests ForLaunch(bool restoring, bool fromIcon, Func<Action, IDisposable> register)
+        { return restoring || fromIcon ? null : new ResidentStartupRequests(register); }
 
         private ResidentStartupRequests(Func<Action, IDisposable> register)
         {
@@ -99,9 +107,28 @@ namespace DiscordAccess
             Action<bool, string> require = (ok, message) =>
             { if (!ok) throw new InvalidOperationException("Resident startup queue: " + message); checks++; };
             string fixture = Guid.NewGuid().ToString("N"), response;
+            // An occupied channel would reject a listener constructor. Restore
+            // and shortcut fallback must not even invoke its registration path.
+            using (var occupied = ManualLaunchSignal.ListenStartupFixture(fixture, () => { }))
+            {
+                int registrations = 0;
+                Func<Action, IDisposable> register = callback => {
+                    registrations++;
+                    return ManualLaunchSignal.ListenStartupFixture(fixture, callback);
+                };
+                using (var restore = ForLaunch(true, false, register))
+                    require(restore == null && registrations == 0, "restore registered the startup channel");
+                using (var shortcut = ForLaunch(false, true, register))
+                    require(shortcut == null && registrations == 0, "shortcut fallback registered the startup channel");
+                bool hostRefused = false;
+                try { using (ForLaunch(false, false, register)) { } }
+                catch (InvalidOperationException) { hostRefused = true; }
+                require(hostRefused && registrations == 1, "host launch skipped its startup listener registration");
+            }
+            fixture = Guid.NewGuid().ToString("N");
             require(!ManualLaunchSignal.RequestStartupFixture(fixture, out response), "absent fixture signal was accepted");
             using (var delivered = new AutoResetEvent(false))
-            using (var requests = new ResidentStartupRequests(callback => ManualLaunchSignal.ListenStartupFixture(fixture, callback)))
+            using (var requests = ForLaunch(false, false, callback => ManualLaunchSignal.ListenStartupFixture(fixture, callback)))
             {
                 require(ManualLaunchSignal.RequestStartupFixture(fixture, out response), "fixture event was not signaled");
                 require(SpinWait.SpinUntil(() => { lock (requests.sync) return requests.pending; }, 2000),
@@ -120,7 +147,8 @@ namespace DiscordAccess
                 require(ManualLaunchSignal.RequestStartupFixture(fixture, out response) && delivered.WaitOne(2000) &&
                     Volatile.Read(ref callbacks) == 2, "later startup event was not delivered");
             }
-            require(!ManualLaunchSignal.RequestStartupFixture(fixture, out response), "disposed event remained available");
+            require(SpinWait.SpinUntil(() => !ManualLaunchSignal.RequestStartupFixture(fixture, out response), 2000),
+                "disposed event remained available");
 
             fixture = Guid.NewGuid().ToString("N");
             using (var entered = new ManualResetEvent(false))
