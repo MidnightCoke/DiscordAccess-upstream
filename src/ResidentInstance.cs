@@ -22,24 +22,30 @@ namespace DiscordAccess
 
         private ResidentInstance(string name, SecurityIdentifier user, string fixture)
         {
+            BeginAcquisitionTrace();
             try
             {
                 // An old namespace can outlive its creator as unreachable
                 // objects. The file lease, not that object generation, decides
                 // whether this user already has an active controller.
+                AcquisitionStage("state-lease-open");
 #if TEST_BUILD
                 stateLease = fixture == null ? ResidentStateLease.TryAcquire() : ResidentStateLease.TryAcquireForChecks(fixture);
 #else
                 stateLease = ResidentStateLease.TryAcquire();
 #endif
                 if (stateLease == null) return;
+                AcquisitionStage("namespace-acquire");
                 namespaceLease = NamespaceLease.Acquire(name, user, true);
                 bool created;
+                AcquisitionStage("initial-owner-create");
                 mutex = new Mutex(true, name + "\\Owner", out created, Security(user));
                 CreatedNew = created; owns = created;
+                AcquisitionStage("initial-owner-trust");
                 if (!Trusted(mutex.GetAccessControl(), user)) throw Rejected();
                 if (!owns)
                 {
+                    AcquisitionStage("initial-owner-wait");
                     try { owns = mutex.WaitOne(0); }
                     catch (AbandonedMutexException) { owns = true; }
                 }
@@ -47,17 +53,46 @@ namespace DiscordAccess
                 // Validate the initial Owner before replacing its namespace;
                 // never overwrite a weak ACL or incompatible existing object.
                 // CreatedNew retains the initial lookup result for diagnostics.
+                AcquisitionStage("initial-owner-release");
                 mutex.ReleaseMutex(); owns = false; mutex.Dispose(); mutex = null;
                 namespaceLease.Reanchor();
+                AcquisitionStage("anchored-owner-create");
                 mutex = new Mutex(true, namespaceLease.ObjectName("Owner"), out created, Security(user));
                 owns = created;
+                AcquisitionStage("anchored-owner-trust", created ? 0 : 183);
                 if (!created || !Trusted(mutex.GetAccessControl(), user)) throw Rejected();
                 IsPrimary = true;
             }
-            catch
+            catch (Exception error)
             {
+                AcquisitionFailure(error);
                 Dispose(); throw Rejected();
             }
+        }
+
+        [Conditional("TEST_BUILD")]
+        private static void BeginAcquisitionTrace()
+        {
+#if TEST_BUILD
+            acquisitionTrace = new List<string>(); acquisitionFailure = null;
+#endif
+        }
+        [Conditional("TEST_BUILD")]
+        private static void AcquisitionStage(string stage, int error = 0)
+        {
+#if TEST_BUILD
+            if (acquisitionTrace == null) acquisitionTrace = new List<string>();
+            if (acquisitionTrace.Count < 32) acquisitionTrace.Add(stage + "(win32=" + error.ToString(CultureInfo.InvariantCulture) + ")");
+#endif
+        }
+        [Conditional("TEST_BUILD")]
+        private static void AcquisitionFailure(Exception error)
+        {
+#if TEST_BUILD
+            acquisitionFailure = error.GetType().Name + " HRESULT=0x" + error.HResult.ToString("x8", CultureInfo.InvariantCulture) +
+                "; last=" + (acquisitionTrace == null || acquisitionTrace.Count == 0 ? "none" : acquisitionTrace[acquisitionTrace.Count - 1]) +
+                "; " + String.Join(" -> ", acquisitionTrace ?? new List<string>());
+#endif
         }
 
         internal static ResidentInstance Acquire()
@@ -228,11 +263,14 @@ namespace DiscordAccess
                     {
                         int createError;
                         IntPtr handle = CreateNamespace(name, boundary, user, out createError);
+                        AcquisitionStage("namespace-create", createError);
                         if (handle != IntPtr.Zero) return handle;
                         if (createError != 183) throw Rejected(); // ERROR_ALREADY_EXISTS
                         handle = NamespaceNative.OpenPrivateNamespace(boundary, name);
+                        int openError = handle == IntPtr.Zero ? Marshal.GetLastWin32Error() : 0;
+                        AcquisitionStage("namespace-open-existing", openError);
                         if (handle != IntPtr.Zero) return handle;
-                        int error = Marshal.GetLastWin32Error();
+                        int error = openError;
                         if (error != 2 && error != 3) throw Rejected(); // Owner may have just closed.
                     }
                     throw Rejected();
@@ -266,8 +304,15 @@ namespace DiscordAccess
                     IntPtr previous = entry.Handle;
                     if (previous == IntPtr.Zero) throw Rejected();
                     entry.Handle = IntPtr.Zero;
-                    if (!NamespaceNative.ClosePrivateNamespace(previous, 1) &&
-                        !NamespaceNative.ClosePrivateNamespace(previous, 0)) throw Rejected();
+                    bool destroyed = NamespaceNative.ClosePrivateNamespace(previous, 1);
+                    int destroyError = destroyed ? 0 : Marshal.GetLastWin32Error();
+                    AcquisitionStage("reanchor-destroy-old", destroyError);
+                    if (!destroyed)
+                    {
+                        bool closed = NamespaceNative.ClosePrivateNamespace(previous, 0);
+                        AcquisitionStage("reanchor-close-old", closed ? 0 : Marshal.GetLastWin32Error());
+                        if (!closed) throw Rejected();
+                    }
                     IntPtr boundary = CreateBoundary(name, User);
                     try
                     {
@@ -275,19 +320,24 @@ namespace DiscordAccess
                         {
                             int error;
                             IntPtr handle = CreateNamespace(name, boundary, User, out error);
+                            AcquisitionStage("reanchor-create-new", error);
                             if (handle != IntPtr.Zero) { entry.Handle = handle; return; }
                             if (error != 183) throw Rejected();
                             // A retained stale local alias may reference an
                             // already-destroyed generation. Remove any remaining
                             // publication while the state lease excludes owners.
                             handle = NamespaceNative.OpenPrivateNamespace(boundary, name);
+                            int openError = handle == IntPtr.Zero ? Marshal.GetLastWin32Error() : 0;
+                            AcquisitionStage("reanchor-open-remaining", openError);
                             if (handle == IntPtr.Zero)
                             {
-                                error = Marshal.GetLastWin32Error();
+                                error = openError;
                                 if (error == 2 || error == 3) continue;
                                 throw Rejected();
                             }
-                            if (!NamespaceNative.ClosePrivateNamespace(handle, 1))
+                            bool removed = NamespaceNative.ClosePrivateNamespace(handle, 1);
+                            AcquisitionStage("reanchor-destroy-remaining", removed ? 0 : Marshal.GetLastWin32Error());
+                            if (!removed)
                             {
                                 NamespaceNative.ClosePrivateNamespace(handle, 0);
                                 throw Rejected();
@@ -382,6 +432,10 @@ namespace DiscordAccess
         }
 
 #if TEST_BUILD
+        [ThreadStatic] private static List<string> acquisitionTrace;
+        [ThreadStatic] private static string acquisitionFailure;
+        internal static string FailureForChecks()
+        { return acquisitionFailure ?? String.Join(" -> ", acquisitionTrace ?? new List<string>()); }
         internal static ResidentInstance AcquireForChecks(string fixture)
         {
             Guid parsed;

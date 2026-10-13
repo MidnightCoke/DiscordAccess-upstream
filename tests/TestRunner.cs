@@ -26,6 +26,20 @@ namespace DiscordAccess
                 return ResidentInstanceChecks.RunSignalChild(args[1], args[2], args.Length == 4);
             }
             Program.PackageDirectory = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
+            if (args.Length == 1 && args[0] == "--resident-ipc-checks")
+            {
+                // A bounded CI preflight for namespace/ownership regressions;
+                // no engine, Discord installation, profile or production lock.
+                try
+                {
+                    Console.WriteLine("Resident launch signal: PASS (" + ManualLaunchSignal.RunOfflineChecks() + " checks)");
+                    Console.WriteLine("Resident instance: PASS (" + ResidentInstanceChecks.Run() + " checks)");
+                    Console.WriteLine("Resident startup intent queue: PASS (" + ResidentStartupRequests.RunOfflineChecks() + " checks)");
+                    return 0;
+                }
+                catch (Exception ex)
+                { Console.WriteLine("FAIL " + ex.GetType().Name + ": " + ex.Message); return 1; }
+            }
             if (args.Length == 1 && args[0] == "--resident-only")
             {
                 try

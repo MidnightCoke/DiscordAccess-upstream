@@ -85,7 +85,7 @@ namespace DiscordAccess
                 using (var busy = ResidentInstance.AcquireForChecks(fixture))
                     assert(!busy.IsPrimary && !busy.CreatedNew && ResidentInstance.NamespaceReferencesForChecks(fixture) == 0,
                         "A busy authoritative lease created a private namespace or Owner.");
-                assert(RunChild(fixture) == "secondary", "A child bypassed the authoritative lease without a namespace.");
+                assert(RunChild(fixture, context: "busy-state-without-namespace") == "secondary", "A child bypassed the authoritative lease without a namespace.");
             }
             using (var nextStateOwner = ResidentInstance.AcquireForChecks(fixture))
                 assert(nextStateOwner.IsPrimary, "Releasing the authoritative fixture lease prevented a successor.");
@@ -156,11 +156,11 @@ namespace DiscordAccess
             {
                 using (var crossProcessPrimary = ResidentInstance.AcquireForChecks(fixture))
                 {
-                    assert(RunChild(fixture) == "secondary", "Another process created a second primary namespace/mutex.");
+                    assert(RunChild(fixture, context: "retained-alias-live-owner") == "secondary", "Another process created a second primary namespace/mutex.");
                     assert(crossProcessPrimary.IsPrimary, "Child disposal removed our ownership.");
-                    assert(RunChild(fixture) == "secondary", "Secondary disposal destroyed the shared namespace.");
+                    assert(RunChild(fixture, context: "retained-alias-live-owner-repeat") == "secondary", "Secondary disposal destroyed the shared namespace.");
                 }
-                assert(RunChild(fixture) == "primary", "A child could not acquire after primary disposal.");
+                assert(RunChild(fixture, context: "retained-creator-child-takeover") == "primary", "A child could not acquire after primary disposal.");
                 using (var afterChild = ResidentInstance.AcquireForChecks(fixture))
                     assert(afterChild.IsPrimary, "Child shutdown prevented an acquisition through the retained alias.");
             }
@@ -275,7 +275,7 @@ namespace DiscordAccess
                 return 0;
             }
             catch (Exception error)
-            { Console.Error.WriteLine("Namespace fixture failed: " + error.GetType().Name); return 1; }
+            { Console.Error.WriteLine("Namespace fixture failed: " + error.GetType().Name + "; " + ResidentInstance.FailureForChecks()); return 1; }
         }
 
         internal static int RunSignalChild(string fixture, string channel, bool requireNoOwner)
@@ -327,7 +327,7 @@ namespace DiscordAccess
                 }
             }
             catch (Exception error)
-            { Console.Error.WriteLine("Holding namespace fixture failed: " + error.GetType().Name); return 1; }
+            { Console.Error.WriteLine("Holding namespace fixture failed: " + error.GetType().Name + "; " + ResidentInstance.FailureForChecks()); return 1; }
         }
 
         private static void CheckCreatorHandover(string fixture, Action<bool, string> assert)
@@ -346,7 +346,7 @@ namespace DiscordAccess
                 assert(ready.Wait(5000) && ready.Result == "primary", "Namespace opener child did not retain primary ownership.");
                 creator.Dispose();
                 assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 0, "Original creator kept a hidden namespace lease.");
-                assert(RunChild(fixture) == "secondary", "Creator alias closing split a live primary from a third process.");
+                assert(RunChild(fixture, context: "creator-closed-live-opener") == "secondary", "Creator alias closing split a live primary from a third process.");
                 Task<string> delivered = holder.StandardOutput.ReadLineAsync();
                 assert(RunSignalChildForChecks(fixture, "status") == "sent" && delivered.Wait(5000) && delivered.Result == "status",
                     "Creator alias closing orphaned the live primary's private signal listener.");
@@ -374,15 +374,16 @@ namespace DiscordAccess
             }
         }
 
-        internal static string RunNamespaceChildForChecks(string fixture) { return RunChild(fixture); }
+        internal static string RunNamespaceChildForChecks(string fixture) { return RunChild(fixture, context: "signal-fixture-live-owner"); }
         internal static string RunSignalChildForChecks(string fixture, string channel, bool requireNoOwner = false)
         { return RunChild(fixture, channel, requireNoOwner); }
 
-        private static string RunChild(string fixture, string channel = null, bool requireNoOwner = false)
+        private static string RunChild(string fixture, string channel = null, bool requireNoOwner = false, string context = null)
         {
             Guid parsed;
             if (!Guid.TryParseExact(fixture, "N", out parsed)) throw new ArgumentException("Resident child fixture identifier");
             if (channel != null) ManualLaunchSignal.NameForChecks(fixture, channel);
+            string label = context ?? (channel == null ? "ownership" : "signal-" + channel + (requireNoOwner ? "-no-owner" : ""));
             string arguments = channel == null ? "--resident-namespace-child " + fixture :
                 "--resident-signal-child " + fixture + " " + channel + (requireNoOwner ? " --no-owner" : "");
             Process child = null;
@@ -393,13 +394,13 @@ namespace DiscordAccess
                     arguments) {
                     UseShellExecute = false, CreateNoWindow = true,
                     RedirectStandardOutput = true, RedirectStandardError = true });
-                if (child == null) throw new InvalidOperationException("Resident namespace fixture child was not created.");
+                if (child == null) throw new InvalidOperationException("Resident namespace fixture child was not created [" + label + "].");
                 output = child.StandardOutput.ReadToEndAsync(); errors = child.StandardError.ReadToEndAsync();
-                if (!child.WaitForExit(5000)) throw new InvalidOperationException("Resident namespace fixture child timed out.");
+                if (!child.WaitForExit(5000)) throw new InvalidOperationException("Resident namespace fixture child timed out [" + label + "].");
                 if (!Task.WaitAll(new Task[] { output, errors }, 2000))
-                    throw new InvalidOperationException("Resident namespace fixture child output timed out.");
+                    throw new InvalidOperationException("Resident namespace fixture child output timed out [" + label + "].");
                 if (child.ExitCode != 0 || !String.IsNullOrWhiteSpace(errors.Result))
-                    throw new InvalidOperationException("Resident namespace fixture child failed (exit " + child.ExitCode + "): " + Limit(errors.Result));
+                    throw new InvalidOperationException("Resident namespace fixture child failed [" + label + "] (exit " + child.ExitCode + "): " + Limit(errors.Result));
                 return output.Result.Trim();
             }
             finally
@@ -413,7 +414,7 @@ namespace DiscordAccess
         }
 
         private static string Limit(string text)
-        { return text == null ? "" : text.Substring(0, Math.Min(text.Length, 512)); }
+        { return text == null ? "" : text.Substring(0, Math.Min(text.Length, 1024)); }
     }
 }
 #endif

@@ -39,6 +39,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Node.js not found.' }
           New-Item -ItemType Directory -Path work -Force | Out-Null
 
+      - name: Check resident namespace ownership before engine build
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $compiler = Join-Path $env:SystemRoot 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          & $compiler /nologo /target:exe /platform:x64 /optimize+ /define:TEST_BUILD /main:DiscordAccess.TestRunner /out:work\DiscordAccess.Tests.exe /r:System.Web.Extensions.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /resource:bridge\attachment-download.cjs,DiscordAccess.AttachmentDownloadHook src\*.cs tests\TestRunner.cs
+          if ($LASTEXITCODE -ne 0) { throw 'Resident fixture compilation failed.' }
+          & ./work/DiscordAccess.Tests.exe --resident-ipc-checks 2>&1 | Tee-Object -FilePath work/resident-ipc-results.txt
+          exit $LASTEXITCODE
+
       - name: Fetch and verify the pinned engine
         run: ./scripts/Fetch-Engine.ps1
 
@@ -85,6 +94,7 @@ jobs:
             work/external-wrapper-results.txt
             work/shortcut-results.txt
             work/engine-config-results.txt
+            work/resident-ipc-results.txt
           if-no-files-found: warn
           retention-days: 7
 
