@@ -12,7 +12,7 @@ namespace DiscordAccess
 {
     // Changes are journaled before touching the two settings or the recognized
     // entry. No account store, application archive or native module is read.
-    internal sealed class InstalledDiscord
+    internal sealed class InstalledDiscord : IDisposable
     {
         private const string OfficialEntry = "module.exports = require('./core.asar');";
         private const int SettingsLimit = 1024 * 1024;
@@ -22,6 +22,7 @@ namespace DiscordAccess
         private static readonly string[] SettingKeys = { "UPDATE_ENDPOINT", "NEW_UPDATE_ENDPOINT" };
         private string sessionRoot, journalPath, hookPath, settingsPath, installationRoot, legacyRoot, externalProxy;
         private Dictionary<string, object> journal;
+        private FileStream hookLease;
         internal string Image { get; private set; }
         internal string Version { get; private set; }
         internal string ProfilePath { get; private set; }
@@ -42,7 +43,7 @@ namespace DiscordAccess
             Require(session); string path = Path.Combine(session, "journal.json"); Require(path);
             if (!File.Exists(path)) return null;
             EnsurePrivateDirectory(session, false);
-            byte[] bytes = Read(path, SettingsLimit);
+            byte[] bytes = ReadPrivate(path, SettingsLimit);
             var saved = Object(bytes);
             string version = JournalVersion(saved);
             saved = ValidateJournal(bytes, version, null, legacyRoot);
@@ -117,6 +118,9 @@ namespace DiscordAccess
             if (entries.Count == 0) throw MissingModule();
             byte[] hook = HookResource();
             EnsurePrivateDirectory(result.sessionRoot);
+            // A protected session directory does not prove an existing child
+            // private. Check before reading, including same-byte hook reuse.
+            byte[] previousHook = File.Exists(result.hookPath) ? ReadPrivate(result.hookPath, HookLimit) : null;
             result.journal = new Dictionary<string, object> {
                 { "schema", externalProxy == null ? 2 : 3 }, { "root", result.installationRoot }, { "version", result.Version },
                 { "entries", entries.ToArray() }, { "configured", false }
@@ -129,13 +133,15 @@ namespace DiscordAccess
             result.SaveJournal(null);
             try
             {
-                byte[] previousHook = File.Exists(result.hookPath) ? Read(result.hookPath, HookLimit) : null;
                 Replace(result.hookPath, previousHook, hook);
+                result.hookLease = PrivateFileTrust.ReadLease(result.hookPath);
+                if (!Same(ReadStream(result.hookLease, HookLimit), hook)) throw Conflict();
                 foreach (var entry in expected) Replace(result.EntryPath(entry.Key), entry.Value, result.Wrapper());
             }
             catch
             {
                 try { result.Restore(); } catch { }
+                finally { result.Dispose(); }
                 throw;
             }
             if (log != null) log("Kurulu Discord için geçici bağlantı desteği hazırlandı.");
@@ -192,15 +198,16 @@ namespace DiscordAccess
                 journal["had_" + i] = exists;
                 if (exists) journal["old_" + i] = old;
             }
-            SaveJournal(Read(journalPath, SettingsLimit));
+            SaveJournal(ReadPrivate(journalPath, SettingsLimit));
             settings[SettingKeys[0]] = legacy; settings[SettingKeys[1]] = modern;
             Replace(settingsPath, current, Json(settings));
         }
 
         internal void Restore()
         {
-            if (!File.Exists(journalPath)) { journal = null; return; }
-            byte[] saved = Read(journalPath, SettingsLimit);
+            if (!File.Exists(journalPath)) { journal = null; Dispose(); return; }
+            EnsurePrivateDirectory(sessionRoot, false);
+            byte[] saved = ReadPrivate(journalPath, SettingsLimit);
             journal = ValidateJournal(saved, Version, installationRoot, legacyRoot);
             if (!String.Equals(JournalProxy(journal), externalProxy, StringComparison.Ordinal)) throw Conflict();
             VerifyRecoveryRoot(installationRoot, Version);
@@ -235,8 +242,17 @@ namespace DiscordAccess
                 else if (entry != null && !Original(entry)) conflict = true;
             }
             if (conflict) throw Conflict();
+            using (PrivateFileTrust.ReadLease(journalPath)) { }
             DeleteExpected(journalPath, saved);
             journal = null;
+            Dispose();
+        }
+
+        // Ending support releases only the lease. The journal and installed
+        // files remain available for an ordinary deferred recovery.
+        public void Dispose()
+        {
+            if (hookLease != null) { hookLease.Dispose(); hookLease = null; }
         }
 
         internal static void Recover(Action<string> log)
@@ -255,7 +271,7 @@ namespace DiscordAccess
             string path = Path.Combine(session, "journal.json"); Require(path);
             if (!File.Exists(path)) return;
             EnsurePrivateDirectory(session, false);
-            byte[] bytes = Read(path, SettingsLimit);
+            byte[] bytes = ReadPrivate(path, SettingsLimit);
             string version = JournalVersion(Object(bytes));
             var saved = ValidateJournal(bytes, version, null, legacyRoot);
             string installedRoot = JournalRoot(saved, legacyRoot);
@@ -398,7 +414,13 @@ namespace DiscordAccess
                 "  try { require(" + Serializer().Serialize(hookPath) + "); } catch (_) {}\n" +
                 "}\n" + OfficialEntry + "\n");
         }
-        private void SaveJournal(byte[] expected) { Replace(journalPath, expected, Json(journal)); }
+        private void SaveJournal(byte[] expected)
+        {
+            EnsurePrivateDirectory(sessionRoot, false);
+            if (File.Exists(journalPath)) using (PrivateFileTrust.ReadLease(journalPath)) { }
+            Replace(journalPath, expected, Json(journal));
+            using (PrivateFileTrust.ReadLease(journalPath)) { }
+        }
         private static bool Original(byte[] bytes)
         {
             if (bytes == null || bytes.Length > EntryLimit) return false;
@@ -443,6 +465,8 @@ namespace DiscordAccess
         }
         private static byte[] Read(string path, int limit)
         { Require(path); using (FileStream stream = Safety.ReadLease(path)) return ReadStream(stream, limit); }
+        private static byte[] ReadPrivate(string path, int limit)
+        { Require(path); using (FileStream stream = PrivateFileTrust.ReadLease(path)) return ReadStream(stream, limit); }
         private static byte[] ReadStream(Stream stream, int limit)
         {
             if (stream.Length < 0 || stream.Length > limit) throw Conflict();
@@ -570,9 +594,14 @@ namespace DiscordAccess
             };
             File.WriteAllBytes(settingsPath, Json(initial));
             fixtureRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { installed };
-            Func<InstalledDiscord> prepare = () => PrepareCore(image, installed, profile, session, log.Add);
+            var prepared = new List<InstalledDiscord>();
+            Func<InstalledDiscord> prepare = () => {
+                var value = PrepareCore(image, installed, profile, session, log.Add); prepared.Add(value); return value;
+            };
             string externalProxyUrl = "http://127.0.0.1:32109";
-            Func<InstalledDiscord> prepareExternal = () => PrepareCore(image, installed, profile, session, log.Add, null, externalProxyUrl);
+            Func<InstalledDiscord> prepareExternal = () => {
+                var value = PrepareCore(image, installed, profile, session, log.Add, null, externalProxyUrl); prepared.Add(value); return value;
+            };
             Action<Action, string> rejects = (action, detail) => {
                 bool rejected = false; try { action(); } catch (InvalidDataException) { rejected = true; }
                 assert(rejected, detail);
@@ -615,6 +644,79 @@ namespace DiscordAccess
                 assert(!Pending(session), "Restored session was reported as pending recovery.");
                 assert(PendingRecoveryRootCore(installed, session) == null, "Completed recovery retained an installation root.");
                 instance.Restore(); assert(!File.Exists(journalPath), "Repeated Restore was not idempotent.");
+
+                string hookPath = Path.Combine(session, "attachment-download.cjs");
+                // Real child ACLs under the already protected session parent.
+                // Both replacement and the transaction's same-byte shortcut
+                // must fail before a journal or executable wrapper is changed.
+                foreach (byte[] existingHook in new[] { Utf8.GetBytes("inert old hook fixture"), HookResource() })
+                {
+                    File.WriteAllBytes(hookPath, existingHook);
+                    File.SetAccessControl(hookPath, PrivateFileTrustChecks.Security(FileSystemRights.WriteData));
+                    string weakAcl = File.GetAccessControl(hookPath).GetSecurityDescriptorSddlForm(AccessControlSections.Owner | AccessControlSections.Access);
+                    beforeSettings = File.ReadAllBytes(settingsPath);
+                    rejects(() => prepareExternal(), "Unsafe existing hook was reused or replaced.");
+                    assert(Same(File.ReadAllBytes(hookPath), existingHook) && weakAcl ==
+                        File.GetAccessControl(hookPath).GetSecurityDescriptorSddlForm(AccessControlSections.Owner | AccessControlSections.Access),
+                        "Unsafe-hook rejection modified its bytes or ACL.");
+                    assert(!File.Exists(journalPath) && Same(File.ReadAllBytes(settingsPath), beforeSettings) &&
+                        entryPaths.Select((path, i) => Same(File.ReadAllBytes(path), originals[i])).All(value => value),
+                        "Unsafe-hook rejection activated a wrapper or created recovery state.");
+                    File.SetAccessControl(hookPath, PrivateFileTrustChecks.Security());
+                }
+
+                // A freshly published hook is verified before the first module
+                // wrapper, even if its source's inherited ACL changes in flight.
+                File.Delete(hookPath);
+                try
+                {
+                    FileTransaction.InterleaveForChecks = (phase, path) => {
+                        if (phase == "create" && path == hookPath)
+                        {
+                            string source = Directory.GetFiles(session, ".discordaccess-fs-*.pending").Single();
+                            File.SetAccessControl(source, PrivateFileTrustChecks.Security(FileSystemRights.WriteData));
+                        }
+                    };
+                    rejects(() => prepareExternal(), "Newly installed unsafe hook activated an entry wrapper.");
+                }
+                finally { FileTransaction.InterleaveForChecks = priorInterleave; }
+                assert(!File.Exists(journalPath) && entryPaths.Select((path, i) => Same(File.ReadAllBytes(path), originals[i])).All(value => value),
+                    "Installed-hook verification failure did not roll back preparation.");
+                rejects(() => { using (PrivateFileTrust.ReadLease(hookPath)) { } }, "Installed-hook rejection silently repaired its unsafe ACL.");
+                File.SetAccessControl(hookPath, PrivateFileTrustChecks.Security());
+                File.Delete(hookPath);
+
+                instance = prepareExternal(); instance.Configure(legacy, modern);
+                assert(instance.hookLease != null, "Active installed support did not retain its verified hook lease.");
+                bool hookWriteBlocked = false, hookReplaceBlocked = false;
+                try { using (new FileStream(hookPath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete)) { } }
+                catch (IOException) { hookWriteBlocked = true; }
+                string movedHook = Path.Combine(session, "fixture-moved-hook.cjs");
+                try { File.Move(hookPath, movedHook); } catch (IOException) { hookReplaceBlocked = true; }
+                assert(hookWriteBlocked && hookReplaceBlocked, "Active support allowed hook content writes or pathname replacement.");
+                instance.Restore();
+                assert(instance.hookLease == null && !File.Exists(journalPath), "Ordinary restore leaked the hook lease or journal.");
+                File.Move(hookPath, movedHook); File.Move(movedHook, hookPath);
+                assert(true, "Completed support retained a hook replacement lock.");
+
+                instance = prepareExternal();
+                byte[] privateJournal = File.ReadAllBytes(journalPath), privateSettings = File.ReadAllBytes(settingsPath);
+                File.SetAccessControl(journalPath, PrivateFileTrustChecks.Security(FileSystemRights.WriteData));
+                string weakJournalAcl = File.GetAccessControl(journalPath).GetSecurityDescriptorSddlForm(AccessControlSections.Owner | AccessControlSections.Access);
+                rejects(() => PendingRecoveryRootCore(installed, session), "Pending recovery trusted a writable child journal.");
+                rejects(() => RecoverCore(installed, profile, session, log.Add), "Recovery trusted a writable child journal.");
+                rejects(instance.Restore, "Restore trusted a writable child journal.");
+                rejects(() => instance.Configure(legacy, modern), "Configure trusted a writable child journal.");
+                assert(Same(File.ReadAllBytes(journalPath), privateJournal) && Same(File.ReadAllBytes(settingsPath), privateSettings) &&
+                    weakJournalAcl == File.GetAccessControl(journalPath).GetSecurityDescriptorSddlForm(AccessControlSections.Owner | AccessControlSections.Access) &&
+                    entryPaths.All(path => Same(File.ReadAllBytes(path), instance.Wrapper())),
+                    "Untrusted journal rejection changed transaction data or repaired its ACL.");
+                instance.Dispose();
+                assert(instance.hookLease == null && File.Exists(journalPath), "Deferred cleanup discarded recovery evidence or retained its lease.");
+                File.SetAccessControl(journalPath, PrivateFileTrustChecks.Security());
+                RecoverCore(installed, profile, session, log.Add);
+                assert(!File.Exists(journalPath) && entryPaths.Select((path, i) => Same(File.ReadAllBytes(path), originals[i])).All(value => value),
+                    "A resolved journal ACL fixture did not recover through the ordinary path.");
 
                 instance = prepare(); instance.Configure(legacy, modern);
                 RecoverCore(installed, profile, session, log.Add);
@@ -926,6 +1028,7 @@ namespace DiscordAccess
             finally
             {
                 FileTransaction.InterleaveForChecks = priorInterleave;
+                foreach (var value in prepared) value.Dispose();
                 fixtureRoots = null;
                 if (Directory.Exists(junction) && (File.GetAttributes(junction) & FileAttributes.ReparsePoint) != 0) Directory.Delete(junction, false);
                 if (Safety.Under(root, work) && Safety.NoReparse(root) && !Directory.Exists(junction)) Directory.Delete(root, true);

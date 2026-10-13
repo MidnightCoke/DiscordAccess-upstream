@@ -226,6 +226,9 @@ namespace DiscordAccess
             }
             finally
             {
+                // Support has ended even when a running client defers restore.
+                // Release its file lease without discarding recovery evidence.
+                if (integration != null) integration.Dispose();
                 try { if (connection != null) connection.Dispose(); }
                 finally
                 {

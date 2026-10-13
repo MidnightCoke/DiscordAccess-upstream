@@ -27,6 +27,7 @@ namespace DiscordAccess
                 Console.WriteLine("Resident launch signal: PASS (" + ManualLaunchSignal.RunOfflineChecks() + " checks)");
                 Console.WriteLine("Resident instance ownership: PASS (" + ResidentInstanceChecks.Run() + " checks; fixture mutex only)");
                 Console.WriteLine("Startup executable trust: PASS (" + StartupPathTrustChecks.Run(packageRoot) + " checks; fixture ACLs only)");
+                Console.WriteLine("Private support-file trust: PASS (" + PrivateFileTrustChecks.Run(packageRoot) + " checks; fixture ACLs only)");
                 Console.WriteLine("Resident launch modes: PASS (" + ResidentOptions.RunOfflineChecks() + " checks)");
                 Console.WriteLine("Resident startup intent queue: PASS (" + ResidentStartupRequests.RunOfflineChecks() + " checks; synthetic signals only)");
                 Console.WriteLine("Background lifecycle: PASS (" + BackgroundLifecycle.RunOfflineChecks() + " checks; synthetic operations only)");
