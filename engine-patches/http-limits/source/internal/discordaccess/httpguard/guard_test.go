@@ -16,10 +16,12 @@ import (
 	"time"
 )
 
-type fragmentReader struct { reader io.Reader; size int }
+type fragmentReader struct { reader io.Reader; size int; consumed int }
 func (r *fragmentReader) Read(p []byte) (int, error) {
 	if len(p) > r.size { p = p[:r.size] }
-	return r.reader.Read(p)
+	n, err := r.reader.Read(p)
+	r.consumed += n
+	return n, err
 }
 
 func TestHeaderBudget(t *testing.T) {
@@ -36,11 +38,18 @@ func TestHeaderBudget(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, fragment := range []int{1, 4096, limit * 2} {
-				guard := NewReader(&fragmentReader{strings.NewReader(tc.request), fragment})
+				upstream := &fragmentReader{reader: strings.NewReader(tc.request), size: fragment}
+				guard := NewReader(upstream)
 				reader := bufio.NewReader(guard)
 				if err := guard.Begin(reader, limit); err != nil { t.Fatal(err) }
 				_, err := http.ReadRequest(reader)
-				if tc.tooLarge && !errors.Is(err, ErrHeaderTooLarge) { t.Fatalf("fragment %d: wanted header limit, got %v", fragment, err) }
+				// net/http may replace the reader's error with a malformed MIME
+				// error when the budget cuts off the LF of the final CRLF.
+				// Require rejection AND proof that the byte budget fired before
+				// any unbounded read; a parser error alone cannot pass this check.
+				if tc.tooLarge && (err == nil || guard.total != limit+1 || upstream.consumed > limit+1) {
+					t.Fatalf("fragment %d: request was not rejected at the byte budget (count=%d, consumed=%d, err=%v)", fragment, guard.total, upstream.consumed, err)
+				}
 				if !tc.tooLarge && err != nil { t.Fatalf("fragment %d: %v", fragment, err) }
 			}
 		})

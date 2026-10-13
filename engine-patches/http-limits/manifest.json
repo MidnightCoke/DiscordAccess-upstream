@@ -29,8 +29,8 @@
       "source_relative": "internal/discordaccess/httpguard/guard_test.go",
       "payload_relative": "engine-patches/http-limits/source/internal/discordaccess/httpguard/guard_test.go",
       "before_sha256": null,
-      "after_sha256": "052e0f522c8a8b5d3df2ecc3739446b13b405b70823047fb3156363dd7c135de",
-      "bytes": 7421
+      "after_sha256": "21c52a8cd230ea59889a3251eca523f048790c0279c97028f0c319aad98dae78",
+      "bytes": 7907
     },
     {
       "source_relative": "protocol/http/DISCORDACCESS-NOTICE",

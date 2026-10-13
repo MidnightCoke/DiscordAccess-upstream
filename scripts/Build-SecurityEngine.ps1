@@ -17,7 +17,7 @@ $engineVersion = '1.14.3-discordaccess.2'
 $engineSha256 = '22B6FC758FB36108486819259A3DF7C46381819F3B312E504BF979796FEE5D14'
 $engineBytes = 36209152
 $patchManifest = Join-Path $repoRoot 'engine-patches\http-limits\manifest.json'
-$patchManifestSha = '78728DF6A8D44ACD756BED86161949CDA34AE95553F3BE32B4AD49C37E7439FF'
+$patchManifestSha = '14F99D93AF5F910BD5C00F0F536B8AE2E018DEA910400043C821493C0569E367'
 $lockMod = Join-Path $repoRoot 'engine-build\go.mod'
 $lockSum = Join-Path $repoRoot 'engine-build\go.sum'
 $lockModSha = '2C335DF61E036819C4A0694E32748B4A3998C0FAF898FC05BCC7C0213C27BAF5'
@@ -195,7 +195,7 @@ try {
         $sourceUnitReport = Join-Path $artifactRoot 'source-unit-tests.txt'
         if ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_OS -eq 'Windows') {
             $sourceUnitTestsRan = $true
-            Run-Go @('test','-mod=readonly','-count=1',('-tags=' + $buildTags),'-timeout=60s','./internal/discordaccess/httpguard','./protocol/http','./common/listener') | Tee-Object -FilePath $sourceUnitReport
+            Run-Go @('test','-mod=readonly','-count=1',('-tags=' + $buildTags),'-ldflags=-checklinkname=0','-timeout=60s','./internal/discordaccess/httpguard','./protocol/http','./common/listener') | Tee-Object -FilePath $sourceUnitReport
             $sourceUnitTestsPassed = $true
         } else {
             'Source regression executables were not run: these fixtures execute only on the GitHub Actions Windows runner. Source, locks and engine build/hash verification still apply.' | Set-Content -LiteralPath $sourceUnitReport -Encoding utf8
