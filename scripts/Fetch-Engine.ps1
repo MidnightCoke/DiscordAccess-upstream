@@ -5,9 +5,9 @@ $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $engineRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot 'engine'))
 $enginePath = [IO.Path]::GetFullPath((Join-Path $engineRoot 'sing-box.exe'))
 $builderPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'Build-SecurityEngine.ps1'))
-$version = '1.14.3-discordaccess.1'
-$exeSha256 = '22B6FC758FB36108486819259A3DF7C46381819F3B312E504BF979796FEE5D14'
-$exeBytes = 36209152
+$version = '1.14.3-discordaccess.2'
+$exeSha256 = '8BB84E511D9C4DD86E7685C9654D25248B7FF23EA0226FC52A64F9A4066587A0'
+$exeBytes = 36248576
 
 function Assert-LocalPath([string] $Path) {
     $full = [IO.Path]::GetFullPath($Path)

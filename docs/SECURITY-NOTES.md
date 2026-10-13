@@ -1,14 +1,16 @@
 # Güvenlik sınırları
 
-v4.19 güvenlik düzeltmeleri içerir. Otomatik kontrollerin geçmesi, yazılımın açık içermediğini veya her Discord/ağ koşulunda çalışacağını kanıtlamaz. Bu sürümün gerçek hesap, ses/yayın ve Windows yeniden başlatma denemesi ayrıca yapılmalıdır.
+v4.20 geliştirme adayı, v4.19'un korumalarını ve aşağıdaki ek kontrolleri içerir. Otomatik kontrollerin geçmesi, yazılımın açık içermediğini veya her Discord/ağ koşulunda çalışacağını kanıtlamaz. Yeni adayın gerçek hesap, ses/yayın ve Windows yeniden başlatma denemesi ayrıca yapılmalıdır.
 
 ## Bu revizyondaki korumalar
 
 - Yerel proxy düz HTTP `Upgrade` isteklerini motor kimlik bilgileri eklenmeden reddeder. HTTPS/WSS için mevcut CONNECT akışı korunur.
 - Otomatik başlangıçtan önce EXE ve üst klasörlerin sahibi ve etkin yazma/silme izinleri doğrulanır. Başka standart kullanıcıların değiştirebildiği hedefe kalıcı başlangıç kaydı kurulmaz; kullanıcı izinleri değiştirilmez.
-- Tek oturum kilidi, kullanıcı SID'siyle sınırlandırılmış özel Windows nesne ad alanında tutulur. Başka kullanıcının aynı görünür adı önceden oluşturması güvenilir oturum sayılmaz. Terk edilmiş kilit güvenli biçimde geri alınır; ikinci açılış çalışan oturuma durum isteği iletir.
+- Tek oturum kilidi ve Discord açma/durum/başlangıç bildirimleri, kullanıcı SID'siyle sınırlandırılmış özel Windows nesne ad alanında tutulur. Başka kullanıcının aynı görünür adı önceden oluşturması güvenilir oturum sayılmaz. Kullanıcıya özel dosya kilidi, ad alanı değişirken ve farklı Windows oturumları arasında da ikinci bağlantıyı engeller. Yeni birincil süreç kendi ad alanını oluşturup ömrü boyunca tutar. İstek gönderen süreç kilit sahipliğini almaz; `--restore` bildirim dinleyicisi kurmaz.
+- Geçici çalıştırılabilir indirme desteği ve kurulum kurtarma kayıtları açılan dosyanın kendi sahibi ve etkin değişiklik izinleriyle doğrulanır. Güvenilir üst klasör tek başına yeterli sayılmaz. Dosya değiştirme sonrası izinler tekrar kontrol edilir; doğrulanan çalıştırılabilir destek oturum boyunca salt okunur dosya tutamacıyla korunur. Bekleyen geri alma kaydı korunurken kapanış dosya tutamacını bırakır.
 - Dosya değiştirme işlemi, gerçekten yerinden çıkarılan dosyayı yedekleyip beklenen içerikle karşılaştırır. Çakışmada bilinmeyen veri korunur. Silme, doğrulanmış açık dosyanın tanıtıcısı üzerinden yapılır.
-- Motor, kararlı sing-box 1.14.3 kaynakları ve sabit güvenlik güncellemeleriyle yeniden derlenir. Kaynak arşivi, araç zinciri, bağımlılık kilitleri ve sonuç EXE hash'i doğrulanır. Lisans envanteri dağıtılan EXE'nin Go build bilgisine dayanır.
+- Motor, kararlı sing-box 1.14.3 kaynakları, sabit bağımlılıklar ve hash ile doğrulanan HTTP kaynak değişiklikleriyle yeniden derlenir. Kaynak arşivi, araç zinciri, bağımlılık kilitleri, kaynak değişiklikleri ve sonuç EXE hash'i doğrulanır. Lisans envanteri dağıtılan EXE'nin Go build bilgisine dayanır.
+- Motor HTTP dinleyicisi en fazla 128 bekleyen doğrulanmamış bağlantıyı parser goroutine'i oluşturmadan kabul eder. Kimlik doğrulama için bağlantı başına mutlak 5 saniye, her istek satırı ve başlık toplamı için 64 KiB sınır vardır. Başarısız doğrulama tekrarları süreyi uzatmaz. Başarılı doğrulamadan sonra okuma/yazma süreleri temizlenir ve kapasite serbest bırakılır; dosya gövdeleri ile CONNECT/WSS tünelleri bu boyut/süre sınırlarına tabi değildir. Her HTTP isteğinde kimlik doğrulama tekrar kontrol edilir.
 
 ## Kapsam
 

@@ -27,9 +27,7 @@ jobs:
           persist-credentials: false
 
       - name: Build from verified source and toolchain
-        # Temporary branch-only review build: establish the new deterministic
-        # engine hash without accepting or copying it into the runtime package.
-        run: ./scripts/Build-SecurityEngine.ps1 -ReviewCandidate
+        run: ./scripts/Build-SecurityEngine.ps1
 
       - name: Save engine and corresponding source evidence
         if: ${{ !cancelled() }}

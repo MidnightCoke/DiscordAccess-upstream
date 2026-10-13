@@ -1,6 +1,6 @@
 # DiscordAccess
 
-Windows'ta kurulu resmi Discord Stable için sistem tepsisinde çalışan bağlantı yardımcısı. **v4.19**, proxy, otomatik başlangıç ve dosya işlemlerine yönelik güvenlik düzeltmelerini içerir.
+Windows'ta kurulu resmi Discord Stable için sistem tepsisinde çalışan bağlantı yardımcısı. Bu dal **v4.20 geliştirme adayını** içerir; hazır yayımlanmış paket aşağıdaki v4.19 sürümüdür. Aday, geçici çalıştırılabilir dosyaların izin kontrollerini, kullanıcıya özel bildirim kanallarını ve motorun kimlik doğrulamasından önceki HTTP sınırlarını geliştirir.
 
 `DiscordAccess.exe` bağlantıyı hazırlar; Discord'u kendi masaüstü veya Başlat menüsü simgenizden açarsınız. Kısayolun gerçek Discord hedefi korunur, yalnız oturumun yerel proxy argümanları eklenir. Ayrı Discord veya profil kopyası oluşturulmaz; mevcut hesabınız kullanılır. Açık CMD penceresi gerekmez.
 
@@ -40,7 +40,7 @@ powershell -NoProfile -File scripts/Fetch-Engine.ps1
 .\Build.cmd
 ```
 
-Motor betiği hash ile sabitlenmiş sing-box 1.14.3 kaynak kodunu ve Go 1.26.9 derleyicisini indirir; `engine-build/go.mod` ve `go.sum` içindeki güncellenmiş bağımlılıklarla `1.14.3-discordaccess.1` motorunu derler. Çıktı EXE'si ayrıca sabit SHA-256 ile doğrulanır. İlk hazırlık birkaç dakika sürebilir; sistem geneline Go kurulmaz. Doğrulanmış aynı motor zaten `engine/sing-box.exe` konumundaysa yeniden derlenmez. Farklı motorun üzerine yazılmaz; eski çalışma klasörünü kullanmak yerine yeni kaynak klasöründe hazırlayın. Hazır paket kullanıcılarının derleme yapması gerekmez.
+Motor betiği hash ile sabitlenmiş sing-box 1.14.3 kaynak kodunu ve Go 1.26.9 derleyicisini indirir; `engine-build/go.mod`, `go.sum` ve `engine-patches/http-limits/manifest.json` ile sabitlenmiş kaynak değişikliklerinden `1.14.3-discordaccess.2` motorunu derler. HTTP değişiklikleri bağlantı başlıklarını, kimlik doğrulama süresini ve bekleyen doğrulanmamış bağlantıları sınırlar; doğrulanmış aktarımın dosya boyutuna veya tünel süresine sınır koymaz. Çıktı EXE'si ayrıca sabit SHA-256 ile doğrulanır. İlk hazırlık birkaç dakika sürebilir; sistem geneline Go kurulmaz. Doğrulanmış aynı motor zaten `engine/sing-box.exe` konumundaysa yeniden derlenmez. Farklı motorun üzerine yazılmaz; eski çalışma klasörünü kullanmak yerine yeni kaynak klasöründe hazırlayın. Hazır paket kullanıcılarının derleme yapması gerekmez.
 
 ## Kullanım
 
@@ -104,7 +104,7 @@ Kayıtlar `%LOCALAPPDATA%\DiscordAccess\v3` konumundadır. Bağlantı açıkken 
 
 ## Geliştirme
 
-Derleme, testler ve ekip çalışma akışı için [CONTRIBUTING.md](CONTRIBUTING.md), güven sınırları için [güvenlik notları](docs/SECURITY-NOTES.md) dosyasına bakın. v4.19, düz HTTP protokol yükseltmelerini reddeder; başlangıç hedefi, oturum sahipliği ve eşzamanlı dosya işlemlerini sağlamlaştırır; motorun bağımlılıklarını günceller. Loglar, hesap/profil dosyaları ve yerel test çıktıları depoya dahil edilmez.
+Derleme, testler ve ekip çalışma akışı için [CONTRIBUTING.md](CONTRIBUTING.md), güven sınırları için [güvenlik notları](docs/SECURITY-NOTES.md) dosyasına bakın. v4.19'un korumaları korunur; v4.20 adayı dosyaların kendi izinlerini, tüm bildirim kanallarının kullanıcı sınırını ve motorun HTTP kaynak sınırlarını ayrıca denetler. Loglar, hesap/profil dosyaları ve yerel test çıktıları depoya dahil edilmez.
 
 Hata bildirirken program ve Windows sürümünü, yapılan işlemi ve görünen kısa hata kodunu yazın. Discord profili, kurtarma `journal.json` dosyası, hesap token'ı veya imzalı dosya bağlantısı paylaşmayın. Yerel kayıtlar kişisel yol içeriyorsa paylaşmadan önce bu kısımları çıkarın.
 

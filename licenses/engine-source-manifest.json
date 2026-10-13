@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "engine_version": "v1.14.3-discordaccess.1",
-  "engine_sha256": "22b6fc758fb36108486819259a3df7c46381819f3b312e504bf979796fee5d14",
-  "engine_bytes": 36209152,
+  "engine_version": "v1.14.3-discordaccess.2",
+  "engine_sha256": "8bb84e511d9c4dd86e7685c9654d25248b7ff23ea0226fc52a64f9a4066587a0",
+  "engine_bytes": 36248576,
   "go_version": "go1.26.9",
   "build_settings": {
     "-buildmode": "exe",
@@ -17,12 +17,74 @@
   "main_source_commit": "7054cac5124465ffdb145870d7c01885566711b1",
   "build_recipe": {
     "script": "scripts/Build-SecurityEngine.ps1",
-    "script_sha256": "6e6295d7b9ef3e3b34a2be691b35db54774280a2915fa948c26b7274cefccce9",
+    "script_sha256": "dce45e1c410074cb2064b339b64a27a1e125dd201803a4f55bef4d6a012c2a1d",
     "go_mod": "engine-build/go.mod",
     "go_mod_sha256": "2c335df61e036819c4a0694e32748b4a3998c0faf898fc05bcc7c0213c27baf5",
     "go_sum": "engine-build/go.sum",
     "go_sum_sha256": "c391d32564c5c66c7eb76fae8595129e234784b03a0e4100ecb762beec9a103e",
-    "note": "Upstream Go source is unchanged; these exact dependency locks and build options produce the custom engine. Corresponding source artifacts must accompany binary distribution."
+    "patch_manifest": {
+      "path": "engine-patches/http-limits/manifest.json",
+      "sha256": "14f99d93af5f910bd5c00f0f536b8ae2e018dea910400043c821493c0569e367"
+    },
+    "patch_files": [
+      {
+        "source_relative": "common/listener/listener_tcp.go",
+        "payload_relative": "engine-patches/http-limits/source/common/listener/listener_tcp.go",
+        "before_sha256": "74f9eddf0fc7994848a0dbabd91b877705378328ae23cadac2e8742b19eac1d0",
+        "after_sha256": "c0dbd9e8057f26bd3f42554f25544db3a736a1b83e8adb8978f79c04852678d7",
+        "bytes": 4450
+      },
+      {
+        "source_relative": "common/listener/listener_tcp_discordaccess_test.go",
+        "payload_relative": "engine-patches/http-limits/source/common/listener/listener_tcp_discordaccess_test.go",
+        "before_sha256": null,
+        "after_sha256": "7d2d3116d72d91f10642a329f3398225fd63d9b7ee629be225d57a2ff0b52a08",
+        "bytes": 4926
+      },
+      {
+        "source_relative": "internal/discordaccess/httpguard/guard.go",
+        "payload_relative": "engine-patches/http-limits/source/internal/discordaccess/httpguard/guard.go",
+        "before_sha256": null,
+        "after_sha256": "688c39e4219a8b6c4a872c177c2ec3a61fffaae4802bad4c151c07af87771545",
+        "bytes": 4542
+      },
+      {
+        "source_relative": "internal/discordaccess/httpguard/guard_test.go",
+        "payload_relative": "engine-patches/http-limits/source/internal/discordaccess/httpguard/guard_test.go",
+        "before_sha256": null,
+        "after_sha256": "21c52a8cd230ea59889a3251eca523f048790c0279c97028f0c319aad98dae78",
+        "bytes": 7907
+      },
+      {
+        "source_relative": "protocol/http/DISCORDACCESS-NOTICE",
+        "payload_relative": "engine-patches/http-limits/source/protocol/http/DISCORDACCESS-NOTICE",
+        "before_sha256": null,
+        "after_sha256": "7d63c5f2418c77b00577428c07eaaec42cfe1a3ceda472e69d053a901ddd2569",
+        "bytes": 1045
+      },
+      {
+        "source_relative": "protocol/http/handshake_discordaccess.go",
+        "payload_relative": "engine-patches/http-limits/source/protocol/http/handshake_discordaccess.go",
+        "before_sha256": null,
+        "after_sha256": "78753efa2938d51eb9a65860dca26461754818b6e7d9502e4adc845657d3ee07",
+        "bytes": 9261
+      },
+      {
+        "source_relative": "protocol/http/header_limit_test.go",
+        "payload_relative": "engine-patches/http-limits/source/protocol/http/header_limit_test.go",
+        "before_sha256": null,
+        "after_sha256": "1f2dd931e5cf22803d7d5da77c5e9fa157c9042948ef42f25aeabf60908e8859",
+        "bytes": 16027
+      },
+      {
+        "source_relative": "protocol/http/inbound.go",
+        "payload_relative": "engine-patches/http-limits/source/protocol/http/inbound.go",
+        "before_sha256": "68694e52d7187ca70cedc4aed39274d1c2d80dc317647692d455aba58e39c1d6",
+        "after_sha256": "9f3765f602da789bb1593841931e390ce5a408130c87f28eeb85eb740ef43f72",
+        "bytes": 5116
+      }
+    ],
+    "note": "These exact main-source HTTP limits, dependency locks and build options produce the custom engine. Corresponding modified sources, tests and upstream notices must accompany binary distribution."
   },
   "module_count": 63,
   "notice_count": 131,
@@ -1579,7 +1641,7 @@
     },
     {
       "module": "github.com/sagernet/sing-box",
-      "version": "v1.14.3-discordaccess.1",
+      "version": "v1.14.3-discordaccess.2",
       "commit": "7054cac5124465ffdb145870d7c01885566711b1",
       "component_id": "sing-box-v1.14.3",
       "source_url": "https://github.com/SagerNet/sing-box/archive/7054cac5124465ffdb145870d7c01885566711b1.zip",
