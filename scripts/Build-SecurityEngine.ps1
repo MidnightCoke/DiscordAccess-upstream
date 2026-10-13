@@ -1,7 +1,7 @@
 # Build the pinned stable source with byte-pinned dependency locks. This script
 # never runs sing-box, edits Windows settings, or installs a system toolchain.
 [CmdletBinding()]
-param([string] $OutFile)
+param([string] $OutFile, [switch] $ReviewCandidate)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -13,9 +13,11 @@ $sourceSha = 'CD8A3508F36D74EF7C9C515BDC8586F048FD06C22499D38EE3787FAA7D220F74'
 $goVersion = 'go1.26.9'
 $goUrl = 'https://go.dev/dl/go1.26.9.windows-amd64.zip'
 $goSha = 'D722201A9C0C086D1610E111C48203009AF690892ED708072BD5AE20160E7A59'
-$engineVersion = '1.14.3-discordaccess.1'
+$engineVersion = '1.14.3-discordaccess.2'
 $engineSha256 = '22B6FC758FB36108486819259A3DF7C46381819F3B312E504BF979796FEE5D14'
 $engineBytes = 36209152
+$patchManifest = Join-Path $repoRoot 'engine-patches\http-limits\manifest.json'
+$patchManifestSha = '78728DF6A8D44ACD756BED86161949CDA34AE95553F3BE32B4AD49C37E7439FF'
 $lockMod = Join-Path $repoRoot 'engine-build\go.mod'
 $lockSum = Join-Path $repoRoot 'engine-build\go.sum'
 $lockModSha = '2C335DF61E036819C4A0694E32748B4A3998C0FAF898FC05BCC7C0213C27BAF5'
@@ -84,6 +86,43 @@ function Expand-VerifiedZip([string] $ZipPath, [string] $Destination, [string] $
     } finally { $archive.Dispose() }
 }
 
+function Apply-ReviewedPatch([string] $SourceRoot, [string] $ArtifactRoot) {
+    Assert-LocalPath $patchManifest
+    if ((Get-FileHash -LiteralPath $patchManifest -Algorithm SHA256).Hash -ne $patchManifestSha) { throw 'Reviewed main-source patch manifest did not match its pinned SHA-256.' }
+    $patch = Get-Content -Raw -LiteralPath $patchManifest | ConvertFrom-Json
+    if ($patch.schema -ne 1 -or $patch.main_source_commit -ne $sourceCommit -or
+        $patch.source_archive_sha256 -ne $sourceSha.ToLowerInvariant() -or
+        $patch.engine_version -ne $engineVersion -or $patch.files.Count -lt 1 -or $patch.files.Count -gt 16) { throw 'Reviewed main-source patch identity is invalid.' }
+    $seen = @{}
+    foreach ($file in $patch.files) {
+        $name = [string]$file.source_relative
+        if ($name -notmatch '^[A-Za-z0-9_./-]+$' -or $name.StartsWith('/') -or
+            ($name.Split('/') | Where-Object { $_ -eq '' -or $_ -eq '.' -or $_ -eq '..' }) -or
+            $seen.ContainsKey($name) -or $file.payload_relative -ne ('engine-patches/http-limits/source/' + $name) -or
+            $file.after_sha256 -notmatch '^[a-f0-9]{64}$' -or $file.bytes -lt 1 -or $file.bytes -gt 1048576) { throw 'Reviewed main-source patch path or identity is invalid.' }
+        $seen[$name] = $true
+        $target = [IO.Path]::GetFullPath((Join-Path $SourceRoot $name.Replace('/', '\')))
+        $input = [IO.Path]::GetFullPath((Join-Path $repoRoot $file.payload_relative.Replace('/', '\')))
+        Assert-LocalPath $target
+        Assert-LocalPath $input
+        if (-not $target.StartsWith($SourceRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Reviewed patch escaped the extracted main source.' }
+        if ($null -eq $file.before_sha256) {
+            if ([IO.File]::Exists($target) -or [IO.Directory]::Exists($target)) { throw 'Reviewed added source file already exists upstream.' }
+        } elseif ($file.before_sha256 -notmatch '^[a-f0-9]{64}$' -or -not [IO.File]::Exists($target) -or
+                  (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $file.before_sha256) { throw 'Reviewed patch base source bytes did not match.' }
+        if (-not [IO.File]::Exists($input) -or (Get-FileHash -LiteralPath $input -Algorithm SHA256).Hash -ne $file.after_sha256 -or
+            ([IO.FileInfo]$input).Length -ne $file.bytes) { throw 'Reviewed patch payload bytes did not match.' }
+        [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target))
+        [IO.File]::Copy($input, $target, $true)
+        if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $file.after_sha256) { throw 'Applied patch source bytes did not match.' }
+    }
+    [IO.File]::Copy($patchManifest, (Join-Path $ArtifactRoot 'reviewed-main-source-patch.json'))
+    @($patch.files | ForEach-Object {
+        $before = if ($null -eq $_.before_sha256) { '<added>' } else { $_.before_sha256 }
+        $_.source_relative + ' | before=' + $before + ' | after=' + $_.after_sha256 + ' | bytes=' + $_.bytes
+    }) | Set-Content -LiteralPath (Join-Path $ArtifactRoot 'patched-source-files.txt') -Encoding utf8
+}
+
 function Run-Go([string[]] $GoArguments) {
     & $script:goExe @GoArguments
     if ($LASTEXITCODE -ne 0) { throw ('Pinned Go command failed (exit ' + $LASTEXITCODE + '): ' + ($GoArguments -join ' ') + '. GOTOOLCHAIN=local; no automatic toolchain switch is permitted.') }
@@ -91,6 +130,9 @@ function Run-Go([string[]] $GoArguments) {
 
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'This reproducible target requires Windows x64.' }
 if (-not [Environment]::Is64BitProcess) { throw 'Use 64-bit PowerShell to build the Windows amd64 engine.' }
+if ($ReviewCandidate -and ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $OutFile)) {
+    throw 'Review candidates are CI-only artifacts; they cannot be copied to the runtime package.'
+}
 Assert-Locks $lockMod $lockSum
 Assert-LocalPath $workRoot
 [void][IO.Directory]::CreateDirectory($workRoot)
@@ -119,6 +161,7 @@ $goZip = Join-Path $buildRoot 'toolchain.zip'
 Fetch-Verified $sourceUrl $sourceZip $sourceSha
 Fetch-Verified $goUrl $goZip $goSha
 Expand-VerifiedZip $sourceZip $sourceRoot ('sing-box-' + $sourceCommit + '/') 268435456
+Apply-ReviewedPatch $sourceRoot $artifactRoot
 Expand-VerifiedZip $goZip $goRoot 'go/' 1073741824
 $script:goExe = Join-Path $goRoot 'bin\go.exe'
 Assert-LocalPath $script:goExe
@@ -147,6 +190,17 @@ try {
         Run-Go @('mod','download')
         Run-Go @('mod','verify')
         Assert-Locks $sourceMod $sourceSum
+        $sourceUnitTestsRan = $false
+        $sourceUnitTestsPassed = $null
+        $sourceUnitReport = Join-Path $artifactRoot 'source-unit-tests.txt'
+        if ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_OS -eq 'Windows') {
+            $sourceUnitTestsRan = $true
+            Run-Go @('test','-mod=readonly','-count=1',('-tags=' + $buildTags),'-timeout=60s','./internal/discordaccess/httpguard','./protocol/http','./common/listener') | Tee-Object -FilePath $sourceUnitReport
+            $sourceUnitTestsPassed = $true
+        } else {
+            'Source regression executables were not run: these fixtures execute only on the GitHub Actions Windows runner. Source, locks and engine build/hash verification still apply.' | Set-Content -LiteralPath $sourceUnitReport -Encoding utf8
+        }
+        Assert-Locks $sourceMod $sourceSum
         $moduleLines = @(Run-Go @('list','-mod=readonly','-m','all'))
         $selectedModules = [ordered]@{}
         foreach ($line in $moduleLines) {
@@ -161,7 +215,7 @@ try {
         Run-Go @('build','-trimpath','-buildvcs=false','-mod=readonly',('-tags=' + $buildTags),('-ldflags=' + $linkerFlags),'-o',$enginePath,'./cmd/sing-box')
         Assert-Locks $sourceMod $sourceSum
         $engineSha = (Get-FileHash -LiteralPath $enginePath -Algorithm SHA256).Hash
-        if ($engineSha -ne $engineSha256 -or ([IO.FileInfo]$enginePath).Length -ne $engineBytes) {
+        if (-not $ReviewCandidate -and ($engineSha -ne $engineSha256 -or ([IO.FileInfo]$enginePath).Length -ne $engineBytes)) {
             throw 'Built engine did not match the pinned SHA-256 and size. It was not published or copied to -OutFile; build evidence remains under work for review.'
         }
         $buildInfo = @(Run-Go @('version','-m',$enginePath))
@@ -175,12 +229,14 @@ try {
         [IO.Compression.ZipFile]::CreateFromDirectory($sourceRoot, (Join-Path $artifactRoot 'modified-source.zip'), [IO.Compression.CompressionLevel]::Optimal, $true)
         $metadata = [ordered]@{
             schema=1; engine_version=$engineVersion; engine_sha256=$engineSha; engine_bytes=([IO.FileInfo]$enginePath).Length
+            review_candidate=[bool]$ReviewCandidate; engine_pin_verified=(-not [bool]$ReviewCandidate)
             go_version=$goVersion; go_archive_url=$goUrl; go_archive_sha256=$goSha
             main_source_commit=$sourceCommit; source_archive_url=$sourceUrl; source_archive_sha256=$sourceSha
             source_go_mod_sha256=(Get-FileHash -LiteralPath (Join-Path $artifactRoot 'upstream-go.mod') -Algorithm SHA256).Hash
             source_go_sum_sha256=(Get-FileHash -LiteralPath (Join-Path $artifactRoot 'upstream-go.sum') -Algorithm SHA256).Hash
             modified_go_mod_sha256=(Get-FileHash -LiteralPath $sourceMod -Algorithm SHA256).Hash
             modified_go_sum_sha256=(Get-FileHash -LiteralPath $sourceSum -Algorithm SHA256).Hash
+            main_source_patch_mode='hash-pinned-exact-file-overlay'; main_source_patch_sha256=$patchManifestSha.ToLowerInvariant(); source_unit_tests_ran=$sourceUnitTestsRan; source_unit_tests_passed=$sourceUnitTestsPassed
             dependency_lock_mode='engine-build-byte-pinned'; lock_go_mod_sha256=$lockModSha; lock_go_sum_sha256=$lockSumSha
             modified_source_sha256=(Get-FileHash -LiteralPath (Join-Path $artifactRoot 'modified-source.zip') -Algorithm SHA256).Hash
             build_tags=$buildTags; linker_flags=$linkerFlags; build_settings=@{trimpath=$true; buildvcs=$false; GOOS='windows'; GOARCH='amd64'; GOAMD64='v1'; CGO_ENABLED='0'; GOTOOLCHAIN='local'}

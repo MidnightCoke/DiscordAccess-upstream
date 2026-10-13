@@ -7,7 +7,7 @@ REPO = Path(__file__).resolve().parent.parent
 OUT = REPO / 'licenses'
 CACHE = REPO / 'work' / 'license-source-cache'
 EXPECTED_EXE = None
-TAG = 'v1.14.3-discordaccess.1'
+TAG = 'v1.14.3-discordaccess.2'
 COMMIT = '7054cac5124465ffdb145870d7c01885566711b1'
 SOURCE_SHA256 = 'cd8a3508f36d74ef7c9c515bdc8586f048fd06c22499d38ee3787faa7d220f74'
 LEGAL = re.compile(r'^(?:licen[cs]e|copying|notice|copyright|authors|patents)(?:[._-].*)?$', re.I)
@@ -241,13 +241,26 @@ def main():
         except Exception as ex:
             results.append({'module': 'sing-box source' if argument is None else 'Go runtime', 'version': TAG if argument is None else go_version,
                             'notices': [], 'errors': [str(ex)]})
-    aggregate = ['sing-box 1.14.3-discordaccess.1 — dependency notices for the DiscordAccess build', '',
+    patch_path = 'engine-patches/http-limits/manifest.json'
+    patch_bytes = (REPO / patch_path).read_bytes()
+    patch = json.loads(patch_bytes)
+    if (patch.get('schema') != 1 or patch.get('engine_version') != TAG.removeprefix('v') or
+            patch.get('main_source_commit') != COMMIT or patch.get('source_archive_sha256') != SOURCE_SHA256):
+        raise ValueError('Reviewed main-source overlay identity does not match this engine')
+    for file in patch['files']:
+        payload = checked_path(REPO / file['payload_relative']).read_bytes()
+        if len(payload) != file['bytes'] or sha(payload) != file['after_sha256']:
+            raise ValueError('Reviewed source overlay payload changed')
+    overlay_notice = (REPO / 'engine-patches/http-limits/source/protocol/http/DISCORDACCESS-NOTICE').read_text(encoding='utf-8')
+    aggregate = ['sing-box 1.14.3-discordaccess.2 — dependency notices for the DiscordAccess build', '',
                  'Collected from pinned source archives matching the distributed engine build information.',
                  'Original notice contents are reproduced below; archive paths identify their scope.',
                  'Including source/test/platform notices is conservative and does not imply that every file is linked or used.',
                  'The JSON manifest records source URLs, versions, SHA256, and verified Go h1 content hashes.',
-                 'Base sing-box source is unchanged; dependency locks and build instructions accompany this build.',
-                 'No source, dependency, build script, driver or program was executed during notice collection.', '']
+                 'Hash-pinned main-source HTTP limits, dependency locks and build instructions accompany this build.',
+                 'No source, dependency, build script, driver or program was executed during notice collection.', '',
+                 'Reviewed main-source modifications notice (provided by the overlay, not an upstream archive file):',
+                 overlay_notice, '']
     count = 0
     for result in results:
         aggregate += ['=' * 78, result['module'] + ' ' + result['version'], 'Source: ' + result.get('source_url', 'UNRESOLVED'), '']
@@ -265,7 +278,9 @@ def main():
                                  'script_sha256': sha((REPO / 'scripts/Build-SecurityEngine.ps1').read_bytes()),
                                  'go_mod': 'engine-build/go.mod', 'go_mod_sha256': sha((REPO / 'engine-build/go.mod').read_bytes()),
                                  'go_sum': 'engine-build/go.sum', 'go_sum_sha256': sha((REPO / 'engine-build/go.sum').read_bytes()),
-                                 'note': 'Upstream Go source is unchanged; these exact dependency locks and build options produce the custom engine. Corresponding source artifacts must accompany binary distribution.'},
+                                 'patch_manifest': {'path': patch_path, 'sha256': sha(patch_bytes)},
+                                 'patch_files': patch['files'],
+                                 'note': 'These exact main-source HTTP limits, dependency locks and build options produce the custom engine. Corresponding modified sources, tests and upstream notices must accompany binary distribution.'},
                 'module_count': len(modules), 'notice_count': count,
                 'notice_format': 'Each aggregate_marker identifies its BEGIN/END block in ENGINE-THIRD-PARTY-NOTICES.txt. Notice text is UTF-8, omitting a leading UTF-8 BOM if present. Original archive-file SHA256 and aggregate-text SHA256 are both retained. No separate notice text files are required.',
                 'hash_algorithm_reference': 'https://go.dev/src/golang.org/x/mod/sumdb/dirhash/hash.go',

@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "engine_version": "1.14.3-discordaccess.2",
+  "main_source_commit": "7054cac5124465ffdb145870d7c01885566711b1",
+  "source_archive_sha256": "cd8a3508f36d74ef7c9c515bdc8586f048fd06c22499d38ee3787faa7d220f74",
+  "files": [
+    {
+      "source_relative": "common/listener/listener_tcp.go",
+      "payload_relative": "engine-patches/http-limits/source/common/listener/listener_tcp.go",
+      "before_sha256": "74f9eddf0fc7994848a0dbabd91b877705378328ae23cadac2e8742b19eac1d0",
+      "after_sha256": "c0dbd9e8057f26bd3f42554f25544db3a736a1b83e8adb8978f79c04852678d7",
+      "bytes": 4450
+    },
+    {
+      "source_relative": "common/listener/listener_tcp_discordaccess_test.go",
+      "payload_relative": "engine-patches/http-limits/source/common/listener/listener_tcp_discordaccess_test.go",
+      "before_sha256": null,
+      "after_sha256": "7d2d3116d72d91f10642a329f3398225fd63d9b7ee629be225d57a2ff0b52a08",
+      "bytes": 4926
+    },
+    {
+      "source_relative": "internal/discordaccess/httpguard/guard.go",
+      "payload_relative": "engine-patches/http-limits/source/internal/discordaccess/httpguard/guard.go",
+      "before_sha256": null,
+      "after_sha256": "688c39e4219a8b6c4a872c177c2ec3a61fffaae4802bad4c151c07af87771545",
+      "bytes": 4542
+    },
+    {
+      "source_relative": "internal/discordaccess/httpguard/guard_test.go",
+      "payload_relative": "engine-patches/http-limits/source/internal/discordaccess/httpguard/guard_test.go",
+      "before_sha256": null,
+      "after_sha256": "052e0f522c8a8b5d3df2ecc3739446b13b405b70823047fb3156363dd7c135de",
+      "bytes": 7421
+    },
+    {
+      "source_relative": "protocol/http/DISCORDACCESS-NOTICE",
+      "payload_relative": "engine-patches/http-limits/source/protocol/http/DISCORDACCESS-NOTICE",
+      "before_sha256": null,
+      "after_sha256": "7d63c5f2418c77b00577428c07eaaec42cfe1a3ceda472e69d053a901ddd2569",
+      "bytes": 1045
+    },
+    {
+      "source_relative": "protocol/http/handshake_discordaccess.go",
+      "payload_relative": "engine-patches/http-limits/source/protocol/http/handshake_discordaccess.go",
+      "before_sha256": null,
+      "after_sha256": "78753efa2938d51eb9a65860dca26461754818b6e7d9502e4adc845657d3ee07",
+      "bytes": 9261
+    },
+    {
+      "source_relative": "protocol/http/header_limit_test.go",
+      "payload_relative": "engine-patches/http-limits/source/protocol/http/header_limit_test.go",
+      "before_sha256": null,
+      "after_sha256": "1f2dd931e5cf22803d7d5da77c5e9fa157c9042948ef42f25aeabf60908e8859",
+      "bytes": 16027
+    },
+    {
+      "source_relative": "protocol/http/inbound.go",
+      "payload_relative": "engine-patches/http-limits/source/protocol/http/inbound.go",
+      "before_sha256": "68694e52d7187ca70cedc4aed39274d1c2d80dc317647692d455aba58e39c1d6",
+      "after_sha256": "9f3765f602da789bb1593841931e390ce5a408130c87f28eeb85eb740ef43f72",
+      "bytes": 5116
+    }
+  ]
+}
