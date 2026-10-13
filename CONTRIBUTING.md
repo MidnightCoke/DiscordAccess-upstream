@@ -2,7 +2,7 @@
 
 ## Derleme ve kontroller
 
-Windows x64 üzerinde .NET Framework 4.8 ve Node.js kullanın. Depo kökünde:
+Windows x64 üzerinde .NET Framework 4.8 ve Node.js kullanın. Motor yapılandırma kontrolü için ayrıca PowerShell 7 (`pwsh`) gerekir. Depo kökünde:
 
 ```powershell
 powershell -NoProfile -File scripts/Fetch-Engine.ps1

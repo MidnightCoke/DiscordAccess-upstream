@@ -1,4 +1,4 @@
-DiscordAccess v4.20 geliştirme adayı — Windows x64 paketi
+DiscordAccess v4.20 — Windows x64 paketi
 
 ZIP'i tamamen kısa, kalıcı bir yerel klasöre çıkarın. DiscordAccess.exe ile
 engine/sing-box.exe aynı pakette bulunmalıdır. Baslat.cmd kaldırıldı.
@@ -82,7 +82,7 @@ Başlangıç kurtarması: startup-session\journal.json (kişisel veri, paylaşma
 Windows 10/11 x64, .NET Framework 4.8 ve yazılabilir resmi Discord Stable gerekir.
 Yönetici olarak açmayın. EXE'ler Windows güvenlik değerlendirmesine tabidir.
 
-Bu aday v4.19 korumalarını korur; geçici çalıştırılabilir destek ve kurtarma
+Bu sürüm v4.19 korumalarını korur; geçici çalıştırılabilir destek ve kurtarma
 dosyalarının kendi izinlerini kontrol eder. Açma/durum/başlangıç bildirimleri
 kullanıcıya özel ad alanındadır; kilit devri ikinci bağlantıya izin vermez.
 Motorun HTTP doğrulama öncesi sınırları: 128 bekleyen bağlantı, mutlak 5 saniye

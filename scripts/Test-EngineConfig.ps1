@@ -83,7 +83,7 @@ try {
     $compileArguments += @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'src') -Filter '*.cs' -File | Sort-Object Name | ForEach-Object { $_.FullName })
     $compileArguments += (Join-Path $repoRoot 'tests\EngineConfigExport.cs')
     Run-Bounded $compiler $compileArguments 60 'Fixture compilation'
-    Run-Bounded $exporter @($repoRoot, $configRoot) 60 'Configuration export'
+    Run-Bounded $exporter @($repoRoot, $configRoot, '--write-fixture-configs') 60 'Configuration export'
     $variants = @('cloudflare-plain','cloudflare-fragment','cloudflare-ip-plain','cloudflare-ip-fragment','google-plain','google-fragment')
     if (@(Get-ChildItem -LiteralPath $configRoot -File).Count -ne $variants.Count) { throw 'Exporter produced an unexpected configuration set.' }
     foreach ($variant in $variants) {

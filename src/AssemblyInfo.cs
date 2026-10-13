@@ -7,4 +7,4 @@ using System.Runtime.Versioning;
 [assembly: AssemblyDescription("DiscordAccess v4.20 background tray")]
 [assembly: AssemblyVersion("4.20.0.0")]
 [assembly: AssemblyFileVersion("4.20.0.0")]
-[assembly: AssemblyInformationalVersion("4.20-security-candidate")]
+[assembly: AssemblyInformationalVersion("4.20")]
