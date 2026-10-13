@@ -1,6 +1,7 @@
 #if TEST_BUILD
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -281,7 +282,13 @@ namespace DiscordAccess
                 {
                     Console.WriteLine(instance.IsPrimary ? "primary" : "secondary");
                     Console.Out.Flush();
-                    return Console.ReadLine() == "release" ? 0 : 1;
+                    // Use an exact byte frame rather than Console/StreamWriter
+                    // encodings, which can add a BOM on redirected Windows IO.
+                    byte[] release = System.Text.Encoding.ASCII.GetBytes("release\n");
+                    Stream input = Console.OpenStandardInput();
+                    foreach (byte expected in release)
+                        if (input.ReadByte() != expected) throw new InvalidOperationException("Holding fixture control frame differed.");
+                    return 0;
                 }
             }
             catch (Exception error)
@@ -305,11 +312,15 @@ namespace DiscordAccess
                 creator.Dispose();
                 assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 0, "Original creator kept a hidden namespace lease.");
                 assert(RunChild(fixture) == "secondary", "Creator alias closing split a live primary from a third process.");
-                holder.StandardInput.WriteLine("release"); holder.StandardInput.Flush();
+                byte[] release = System.Text.Encoding.ASCII.GetBytes("release\n");
+                holder.StandardInput.BaseStream.Write(release, 0, release.Length);
+                holder.StandardInput.BaseStream.Flush();
                 Task<string> output = holder.StandardOutput.ReadToEndAsync();
-                assert(holder.WaitForExit(5000) && Task.WaitAll(new Task[] { output, errors }, 2000) &&
-                    holder.ExitCode == 0 && String.IsNullOrWhiteSpace(errors.Result) && String.IsNullOrWhiteSpace(output.Result),
-                    "Namespace opener child did not release ownership cleanly.");
+                bool exited = holder.WaitForExit(5000);
+                bool read = exited && Task.WaitAll(new Task[] { output, errors }, 2000);
+                assert(read && holder.ExitCode == 0 && String.IsNullOrWhiteSpace(errors.Result) && String.IsNullOrWhiteSpace(output.Result),
+                    "Namespace opener child did not release ownership cleanly (exit=" + (exited ? holder.ExitCode.ToString() : "timeout") +
+                    ", fixture stderr=" + (read ? errors.Result.Trim() : "unavailable") + ").");
                 using (var successor = ResidentInstance.AcquireForChecks(fixture))
                     assert(successor.IsPrimary, "Creator/opener shutdown prevented a successor primary.");
             }
