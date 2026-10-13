@@ -1,11 +1,33 @@
-sing-box 1.14.3-discordaccess.1 — dependency notices for the DiscordAccess build
+sing-box 1.14.3-discordaccess.2 — dependency notices for the DiscordAccess build
 
 Collected from pinned source archives matching the distributed engine build information.
 Original notice contents are reproduced below; archive paths identify their scope.
 Including source/test/platform notices is conservative and does not imply that every file is linked or used.
 The JSON manifest records source URLs, versions, SHA256, and verified Go h1 content hashes.
-Base sing-box source is unchanged; dependency locks and build instructions accompany this build.
+Hash-pinned main-source HTTP limits, dependency locks and build instructions accompany this build.
 No source, dependency, build script, driver or program was executed during notice collection.
+
+Reviewed main-source modifications notice (provided by the overlay, not an upstream archive file):
+This file accompanies handshake_discordaccess.go, derived from the exact
+github.com/sagernet/sing v0.9.7-0.20260929150544-0ad23b637bd4
+protocol/http/handshake.go source. The original license is retained below.
+DiscordAccess changes add bounded request headers and pending-authentication
+capacity/deadlines. Main sing-box and the adapted handler remain GPL-3.0-or-later.
+
+Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 ==============================================================================
 github.com/ajg/form v1.5.1
@@ -5207,7 +5229,7 @@ THE SOFTWARE.
 --- END NOTICE a3beb8ccdb8febadb0a52425:c693279643b8cd5d ---
 
 ==============================================================================
-github.com/sagernet/sing-box v1.14.3-discordaccess.1
+github.com/sagernet/sing-box v1.14.3-discordaccess.2
 Source: https://github.com/SagerNet/sing-box/archive/7054cac5124465ffdb145870d7c01885566711b1.zip
 
 --- BEGIN NOTICE sing-box-v1.14.3:c693279643b8cd5d ---

@@ -1,4 +1,4 @@
-DiscordAccess v4.19 — Windows x64 paketi
+DiscordAccess v4.20 — Windows x64 paketi
 
 ZIP'i tamamen kısa, kalıcı bir yerel klasöre çıkarın. DiscordAccess.exe ile
 engine/sing-box.exe aynı pakette bulunmalıdır. Baslat.cmd kaldırıldı.
@@ -82,10 +82,13 @@ Başlangıç kurtarması: startup-session\journal.json (kişisel veri, paylaşma
 Windows 10/11 x64, .NET Framework 4.8 ve yazılabilir resmi Discord Stable gerekir.
 Yönetici olarak açmayın. EXE'ler Windows güvenlik değerlendirmesine tabidir.
 
-Bu sürüm düz HTTP Upgrade isteklerini reddeder; otomatik başlangıç
-hedefinin yazma izinlerini, tek oturum kilidini ve dosya işlemlerindeki
-çakışma davranışını sağlamlaştırır. sing-box 1.14.3 kaynakları güncellenmiş
-Go/bağımlılık kilitleriyle 1.14.3-discordaccess.1 olarak yeniden derlenmiştir.
+Bu sürüm v4.19 korumalarını korur; geçici çalıştırılabilir destek ve kurtarma
+dosyalarının kendi izinlerini kontrol eder. Açma/durum/başlangıç bildirimleri
+kullanıcıya özel ad alanındadır; kilit devri ikinci bağlantıya izin vermez.
+Motorun HTTP doğrulama öncesi sınırları: 128 bekleyen bağlantı, mutlak 5 saniye
+ve istek satırı/başlık toplamı 64 KiB. Doğrulanmış büyük dosya gövdeleri ve uzun
+CONNECT/WSS tünelleri bu boyut/süre sınırlarına tabi değildir. Sabit kaynak
+değişiklikleri ve Go/bağımlılıklarla motor 1.14.3-discordaccess.2 derlenir.
 
 Otomatik başlangıç için paket yalnız kendi hesabınızın yazabildiği kalıcı
 kişisel bir klasörde bulunmalıdır. Başka standart kullanıcıların yazabildiği
@@ -93,10 +96,10 @@ hedef veya üst klasörler reddedilir; Windows izinleri değiştirilmez.
 Dosya çakışmasında .discordaccess-fs-*.preserved / .rollback-preserved yedekleri
 korunabilir. Bunları silmeyin veya herkese açık hata kaydına yüklemeyin.
 
-Windows derleme, regresyon ve motorun altı DNS ayarını kabul etme kontrolü
-ayrı GitHub Actions ortamında yapılır. Yerelde engellenen EXE farklı bir
-çalıştırma yöntemiyle açılmaz; güvenlik ayarları değiştirilmez. Güncel kontrol
-sonucuna ilgili PR/Actions kaydından bakın. Gerçek hesapla mesaj/dosya/yayın,
+GitHub Actions kaldırıldı. Windows derleme, regresyon ve motorun altı DNS
+ayarını kabul etme kontrolü izin verilen geliştirme ortamında elle yapılır.
+Engellenen EXE farklı yöntemle açılmaz; güvenlik ayarları değiştirilmez.
+Tamamlanan kontrol ve commit bilgisi ilgili PR içinde belirtilir. Gerçek hesapla mesaj/dosya/yayın,
 Windows yeniden başlatması ve tepsi etkileşimi bu otomatik testlerden ayrıdır.
 Bu sürümde bu kullanıcı testleri henüz tamamlanmadı.
 

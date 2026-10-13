@@ -7,7 +7,7 @@ using System.Text;
 
 namespace DiscordAccess
 {
-    // Separate CI entry point: do not enter Program.Main, discover Discord,
+    // Separate explicit test entry point: do not enter Program.Main, discover Discord,
     // start a controller/process, read a profile or edit Windows settings.
     internal static class EngineConfigExport
     {
@@ -19,10 +19,10 @@ namespace DiscordAccess
         {
             try
             {
-                if (!String.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase) ||
-                    Environment.OSVersion.Platform != PlatformID.Win32NT || !Environment.Is64BitProcess)
-                    throw new InvalidOperationException("This fixture is restricted to GitHub Actions Windows x64.");
-                if (args == null || args.Length != 2) throw new ArgumentException("Expected repository and fixture directory.");
+                if (Environment.OSVersion.Platform != PlatformID.Win32NT || !Environment.Is64BitProcess)
+                    throw new InvalidOperationException("This fixture requires Windows x64.");
+                if (args == null || args.Length != 3 || args[2] != "--write-fixture-configs")
+                    throw new ArgumentException("Expected repository, fixture directory and explicit fixture export option.");
                 string repository = Path.GetFullPath(args[0]), output = Path.GetFullPath(args[1]);
                 string work = Path.Combine(repository, "work");
                 if (!Directory.Exists(repository) || !Safety.Under(output, work) || !Safety.NoReparse(repository) || !Safety.NoReparse(output))

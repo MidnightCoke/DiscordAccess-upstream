@@ -1,19 +1,24 @@
 DiscordAccess — üçüncü taraf lisansları
 
-engine/sing-box.exe: sing-box 1.14.3-discordaccess.1, Windows amd64.
+engine/sing-box.exe: sing-box 1.14.3-discordaccess.2, Windows amd64.
 Motor ayrı süreçtir; GPL-3.0-or-later lisansı aşağıda korunmuştur.
 Bu motor DiscordAccess için yeniden derlenmiştir; upstream hazır EXE'si değildir.
-Değişiklik: sabit güvenlik güncellemeleri içeren go.mod/go.sum, Go 1.26.9 ve
-kullanılan HTTP/DoH/TLS akışına uygun sınırlı build tag'leri. Ana sing-box Go
-kaynak dosyaları değişmemiştir.
+Değişiklik: sabit go.mod/go.sum, Go 1.26.9, sınırlı build tag'leri ve
+kimlik doğrulamasından önce HTTP başlık/bekleme/bağlantı sınırları.
+Ana kaynak üzerindeki tam dosya değişiklikleri ve testler
+engine-patches/http-limits/manifest.json ile hash düzeyinde sabitlenmiştir.
+protocol/http/handshake_discordaccess.go, sing'in HTTP handler'ından türetilmiş
+GPL-3.0-or-later koddur; telif ve değişiklik bildirimi
+engine-patches/http-limits/source/protocol/http/DISCORDACCESS-NOTICE içindedir.
 Ana kaynak commit: 7054cac5124465ffdb145870d7c01885566711b1
 Kaynak arşivi: https://github.com/SagerNet/sing-box/archive/7054cac5124465ffdb145870d7c01885566711b1.zip
 Upstream yayın: https://github.com/SagerNet/sing-box/releases/tag/v1.14.3
-Motor SHA-256: 22b6fc758fb36108486819259a3df7c46381819f3b312e504bf979796fee5d14
+Motor SHA-256: 8bb84e511d9c4dd86e7685c9654d25248b7ff23ea0226fc52a64f9a4066587a0
 
 Yeniden üretim için bu depodaki scripts/Build-SecurityEngine.ps1 ve
-engine-build/go.mod, engine-build/go.sum kullanılır. Sabit kaynak/Go arşivi
-hash'leri ve sonuç EXE hash'i betikte doğrulanır. Dağıtılan motorun karşılık
+engine-build/go.mod, engine-build/go.sum ve engine-patches/http-limits/
+altındaki dosyalar kullanılır. Sabit kaynak/Go arşivi, değişiklik öncesi/sonrası
+dosya hash'leri ve sonuç EXE hash'i betikte doğrulanır. Dağıtılan motorun karşılık
 gelen kaynak arşivi ve derleme kanıtları motor paketiyle birlikte sağlanmalıdır.
 
 Bu motorun 63 sabit Go modülü ve Go 1.26.9 runtime kaynaklarının ek bildirimleri:

@@ -56,7 +56,7 @@ namespace DiscordAccess
         {
             StartupStage stage = StartupStage.Source;
             changed(false, "Bağlanıyor");
-            log("Discord Erişim v4.19: bağlantı hazırlanıyor.");
+            log("Discord Erişim v4.20: bağlantı hazırlanıyor.");
             try
             {
                 if (InstalledClientRunning())
@@ -226,6 +226,9 @@ namespace DiscordAccess
             }
             finally
             {
+                // Support has ended even when a running client defers restore.
+                // Release its file lease without discarding recovery evidence.
+                if (integration != null) integration.Dispose();
                 try { if (connection != null) connection.Dispose(); }
                 finally
                 {

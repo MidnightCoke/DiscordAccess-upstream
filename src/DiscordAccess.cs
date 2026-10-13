@@ -87,8 +87,7 @@ namespace DiscordAccess
                         else Console.WriteLine("DiscordAccess zaten çalışıyor; ikinci bağlantı başlatılmadı.");
                         return 0;
                     }
-                    using (var startupRequests = new ResidentStartupRequests())
-                    using (ResidentStateLease.Acquire())
+                    using (var startupRequests = ResidentStartupRequests.ForLaunch(restoring, fromIcon))
                     {
                         if (Controller.InstalledClientRunning() && InstalledDiscord.HasPendingRecovery)
                             throw new UserActionException("Önce Discord'u sistem tepsisinden tamamen kapatın; ardından DiscordAccess.exe'yi açın. Bekleyen geri alma kaydı korunuyor.");
@@ -316,7 +315,7 @@ namespace DiscordAccess
     }
     internal sealed class Package : IDisposable
     {
-        internal const string EngineSha256 = "22b6fc758fb36108486819259a3df7c46381819f3b312e504bf979796fee5d14";
+        internal const string EngineSha256 = "8bb84e511d9c4dd86e7685c9654d25248b7ff23ea0226fc52a64f9a4066587a0";
         internal readonly string Engine;
         private readonly DnsOptions dns;
         private TrustedImage image;

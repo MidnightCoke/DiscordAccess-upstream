@@ -126,6 +126,11 @@ namespace DiscordAccess
             return true;
         }
 
+        // The same owner/effective-rights policy is also used for private
+        // executable data opened by handle. Startup chain behavior is unchanged.
+        internal static bool DescriptorTrustedFile(RawSecurityDescriptor security, SecurityIdentifier user)
+        { return DescriptorTrusted(security, false, user); }
+
         private static UserActionException Rejected()
         {
             return new UserActionException("Bu klasör otomatik başlangıç için güvenli doğrulanamadı. Paketi yalnız sizin yazabildiğiniz kişisel bir klasöre taşıyıp yeniden deneyin.");

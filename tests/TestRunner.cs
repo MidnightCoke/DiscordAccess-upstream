@@ -11,7 +11,41 @@ namespace DiscordAccess
                 if (args.Length != 2 || !Guid.TryParseExact(args[1], "N", out fixture)) return 64;
                 return ResidentInstanceChecks.RunNamespaceChild(args[1]);
             }
+            if (args.Length > 0 && args[0] == "--resident-namespace-hold-child")
+            {
+                Guid fixture;
+                if (args.Length != 2 || !Guid.TryParseExact(args[1], "N", out fixture)) return 64;
+                return ResidentInstanceChecks.RunHoldingNamespaceChild(args[1]);
+            }
+            if (args.Length > 0 && args[0] == "--resident-static-alias-hold-child")
+            {
+                Guid fixture;
+                if (args.Length != 2 || !Guid.TryParseExact(args[1], "N", out fixture)) return 64;
+                return ResidentInstanceChecks.RunHoldingStaticNamespaceChild(args[1]);
+            }
+            if (args.Length > 0 && args[0] == "--resident-signal-child")
+            {
+                Guid fixture;
+                if ((args.Length != 3 && args.Length != 4) || !Guid.TryParseExact(args[1], "N", out fixture) ||
+                    (args[2] != "open" && args[2] != "status" && args[2] != "startup") ||
+                    (args.Length == 4 && args[3] != "--no-owner")) return 64;
+                return ResidentInstanceChecks.RunSignalChild(args[1], args[2], args.Length == 4);
+            }
             Program.PackageDirectory = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
+            if (args.Length == 1 && args[0] == "--resident-ipc-checks")
+            {
+                // A bounded CI preflight for namespace/ownership regressions;
+                // no engine, Discord installation, profile or production lock.
+                try
+                {
+                    Console.WriteLine("Resident launch signal: PASS (" + ManualLaunchSignal.RunOfflineChecks() + " checks)");
+                    Console.WriteLine("Resident instance: PASS (" + ResidentInstanceChecks.Run() + " checks)");
+                    Console.WriteLine("Resident startup intent queue: PASS (" + ResidentStartupRequests.RunOfflineChecks() + " checks)");
+                    return 0;
+                }
+                catch (Exception ex)
+                { Console.WriteLine("FAIL " + ex.GetType().Name + ": " + ex.Message); return 1; }
+            }
             if (args.Length == 1 && args[0] == "--resident-only")
             {
                 try
