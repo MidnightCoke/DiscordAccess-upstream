@@ -1,12 +1,14 @@
 #if TEST_BUILD
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text;
 
 namespace DiscordAccess
 {
@@ -105,6 +107,7 @@ namespace DiscordAccess
                 if (rule.IdentityReference.Value == world.Value && rule.AccessControlType == AccessControlType.Allow) worldRetained = true;
             assert(worldRetained && ResidentInstance.NamespaceReferencesForChecks(fixture) == 0,
                 "Rejected state ACL was rewritten or a namespace was created.");
+            CheckPublicationRecords(user, assert);
 
             fixture = Fixture();
             using (var missing = ResidentInstance.OpenNamespaceForChecks(fixture))
@@ -170,6 +173,7 @@ namespace DiscordAccess
             // from later processes that create/open the same SID boundary.
             string handoverFixture = Fixture();
             for (int takeover = 0; takeover < 3; takeover++) CheckCreatorHandover(handoverFixture, assert);
+            CheckRetainedStaticOpener(Fixture(), assert);
 
             fixture = Fixture();
             using (var primary = ResidentInstance.AcquireForChecks(fixture))
@@ -203,8 +207,7 @@ namespace DiscordAccess
                 using (var reclaimed = ResidentInstance.AcquireForChecks(fixture))
                     assert(!reclaimed.CreatedNew && reclaimed.IsPrimary, "Existing unowned mutex was mistaken for a running instance.");
                 using (var reclaimedAgain = ResidentInstance.AcquireForChecks(fixture))
-                    assert(reclaimedAgain.CreatedNew && reclaimedAgain.IsPrimary,
-                        "A later takeover did not acquire the fresh namespace after the previous Owner was disposed.");
+                    assert(!reclaimedAgain.CreatedNew && reclaimedAgain.IsPrimary, "Acquired existing mutex was not released on disposal.");
             }
 
             fixture = Fixture(); Mutex abandoned = null; Exception abandonError = null; bool abandonCreated = false;
@@ -328,6 +331,135 @@ namespace DiscordAccess
             }
             catch (Exception error)
             { Console.Error.WriteLine("Holding namespace fixture failed: " + error.GetType().Name + "; " + ResidentInstance.FailureForChecks()); return 1; }
+        }
+
+        internal static int RunHoldingStaticNamespaceChild(string fixture)
+        {
+            try
+            {
+                using (var lease = ResidentInstance.OpenStaticNamespaceForChecks(fixture))
+                {
+                    if (lease == null) throw new InvalidOperationException("Static fixture namespace was absent.");
+                    Console.WriteLine("opened"); Console.Out.Flush();
+                    Stream input = Console.OpenStandardInput();
+                    foreach (byte expected in Encoding.ASCII.GetBytes("release\n"))
+                        if (input.ReadByte() != expected) throw new InvalidOperationException("Static fixture control frame differed.");
+                    return 0;
+                }
+            }
+            catch (Exception error)
+            { Console.Error.WriteLine("Static namespace fixture failed: " + error.GetType().Name + "; " + ResidentInstance.FailureForChecks()); return 1; }
+        }
+
+        private static void CheckPublicationRecords(SecurityIdentifier user, Action<bool, string> assert)
+        {
+            int session;
+            using (var process = Process.GetCurrentProcess()) session = process.SessionId;
+            string fixture = Fixture(), generation = "abcdef0123456789abcdef0123456789";
+            assert(ResidentStateLease.ReadGenerationForChecks(fixture, user, session) == null &&
+                !ResidentStateLease.PublicationExistsForChecks(fixture), "An absent publication read created a file.");
+            using (var writer = ResidentStateLease.TryAcquireForChecks(fixture))
+            {
+                writer.Publish(user, session, generation);
+                assert(ResidentStateLease.ReadGenerationForChecks(fixture, user, session) == generation,
+                    "Read-only discovery could not read a live writer publication.");
+                using (var second = ResidentStateLease.TryAcquireForChecks(fixture))
+                    assert(second == null, "Publication sharing admitted a second writer.");
+                using (var reader = new FileStream(ResidentStateLease.PathForChecks(fixture), FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    writer.Dispose();
+                    using (var successor = ResidentStateLease.TryAcquireForChecks(fixture))
+                        assert(successor != null, "A retained read-only handle prevented a successor writer.");
+                }
+            }
+            assert(new FileInfo(ResidentStateLease.PathForChecks(fixture)).Length == 0,
+                "Closing a writer did not invalidate its publication.");
+
+            fixture = Fixture(); bool created;
+            using (var raw = ResidentInstance.NamespaceForChecks(fixture))
+            using (var legacy = new EventWaitHandle(false, EventResetMode.AutoReset, ManualLaunchSignal.NameForChecks(fixture, "status"),
+                out created, ManualLaunchSignal.SecurityForChecks(user)))
+            {
+                assert(created, "Malformed publication fallback fixture collided.");
+                using (var seed = ResidentStateLease.TryAcquireForChecks(fixture)) { }
+                string record = "DiscordAccess.Resident.V3\n" + user.Value + "\n" + session.ToString(CultureInfo.InvariantCulture) + "\n" + generation + "\n";
+                byte[][] invalid = {
+                    new byte[0], Encoding.ASCII.GetBytes(record.Substring(0, record.Length - 1)),
+                    Encoding.ASCII.GetBytes(record + "extra\n"), Encoding.ASCII.GetBytes(new string('x', 513)),
+                    Encoding.ASCII.GetBytes(record.Replace("V3", "V2")),
+                    Encoding.ASCII.GetBytes(record.Replace(user.Value, "S-1-5-21-1-2-3-1002")),
+                    Encoding.ASCII.GetBytes(record.Replace("\n" + session.ToString(CultureInfo.InvariantCulture) + "\n", "\n" + (session + 1).ToString(CultureInfo.InvariantCulture) + "\n")),
+                    Encoding.ASCII.GetBytes(record.Replace(generation, generation.ToUpperInvariant())),
+                    Encoding.ASCII.GetBytes(record.Replace(generation, Guid.Empty.ToString("N"))),
+                    Encoding.ASCII.GetBytes(record.Replace(generation, "../../other")),
+                    Encoding.ASCII.GetBytes(record.Replace("V3", "V3\0")), new byte[] { 0xff, 0xfe, 0x41 },
+                };
+                foreach (byte[] bytes in invalid)
+                {
+                    File.WriteAllBytes(ResidentStateLease.PathForChecks(fixture), bytes);
+                    string response;
+                    assert(ResidentStateLease.ReadGenerationForChecks(fixture, user, session) == null &&
+                        !ManualLaunchSignal.RequestFixture(fixture, "status", out response) && !legacy.WaitOne(0) &&
+                        ResidentInstance.NamespaceReferencesForChecks(fixture) == 1,
+                        "A malformed publication used a raw fixture fallback or created a generation.");
+                }
+                File.WriteAllBytes(ResidentStateLease.PathForChecks(fixture), Encoding.ASCII.GetBytes(record));
+                string staleResponse;
+                assert(!ManualLaunchSignal.RequestFixture(fixture, "status", out staleResponse) && !legacy.WaitOne(0) &&
+                    ResidentInstance.NamespaceReferencesForChecks(fixture) == 1,
+                    "A stale valid publication used a raw namespace fallback.");
+            }
+        }
+
+        private static void CheckRetainedStaticOpener(string fixture, Action<bool, string> assert)
+        {
+            Process opener = null;
+            var creator = ResidentInstance.NamespaceForChecks(fixture);
+            try
+            {
+                opener = Process.Start(new ProcessStartInfo(Assembly.GetExecutingAssembly().Location,
+                    "--resident-static-alias-hold-child " + fixture) {
+                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true,
+                    RedirectStandardOutput = true, RedirectStandardError = true });
+                if (opener == null) throw new InvalidOperationException("Static opener fixture was not created.");
+                Task<string> output = opener.StandardOutput.ReadLineAsync(), errors = opener.StandardError.ReadToEndAsync();
+                assert(output.Wait(5000) && output.Result == "opened", "Static opener fixture was not ready.");
+                using (var first = ResidentInstance.AcquireForChecks(fixture))
+                using (var received = new AutoResetEvent(false))
+                using (var listener = ManualLaunchSignal.ListenFixture(fixture, "status", () => received.Set()))
+                {
+                    assert(first.IsPrimary, "First retained-static-opener primary did not acquire.");
+                    creator.Dispose();
+                    assert(RunSignalChildForChecks(fixture, "status") == "sent" && received.WaitOne(2000),
+                        "Closing the static creator orphaned the first generation.");
+                }
+                // The old STATIC opener remains alive across both creator and
+                // first-primary closure. A successor must still be discoverable.
+                using (var successor = ResidentInstance.AcquireForChecks(fixture))
+                using (var received = new AutoResetEvent(false))
+                using (var listener = ManualLaunchSignal.ListenFixture(fixture, "status", () => received.Set()))
+                {
+                    assert(successor.IsPrimary && RunSignalChildForChecks(fixture, "status") == "sent" && received.WaitOne(2000),
+                        "A retained retired static opener prevented successor generation delivery.");
+                    byte[] release = Encoding.ASCII.GetBytes("release\n");
+                    opener.StandardInput.BaseStream.Write(release, 0, release.Length); opener.StandardInput.BaseStream.Flush();
+                    Task<string> remainder = opener.StandardOutput.ReadToEndAsync();
+                    assert(opener.WaitForExit(5000) && Task.WaitAll(new Task[] { errors, remainder }, 2000) && opener.ExitCode == 0 &&
+                        String.IsNullOrWhiteSpace(errors.Result) && String.IsNullOrWhiteSpace(remainder.Result), "Static opener did not close cleanly.");
+                    assert(RunSignalChildForChecks(fixture, "status") == "sent" && received.WaitOne(2000),
+                        "Closing the retired static opener affected the successor generation.");
+                }
+                assert(ResidentInstance.NamespaceReferencesForChecks(fixture) == 0, "Retired static opener fixture leaked an alias.");
+            }
+            finally
+            {
+                creator.Dispose();
+                if (opener != null)
+                {
+                    try { if (!opener.HasExited) { opener.Kill(); opener.WaitForExit(2000); } }
+                    finally { opener.Dispose(); }
+                }
+            }
         }
 
         private static void CheckCreatorHandover(string fixture, Action<bool, string> assert)

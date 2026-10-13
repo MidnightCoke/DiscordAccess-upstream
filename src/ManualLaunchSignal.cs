@@ -67,6 +67,7 @@ namespace DiscordAccess
         { return Request(StartupChannel, null, out message); }
 
 #if TEST_BUILD
+        internal static EventWaitHandleSecurity SecurityForChecks(SecurityIdentifier user) { return Security(user); }
         internal static IDisposable ListenStartupFixture(string fixture, Action callback)
         { return ListenFixture(fixture, "startup", callback); }
         internal static bool RequestStartupFixture(string fixture, out string message)

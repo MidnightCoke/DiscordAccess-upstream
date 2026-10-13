@@ -17,6 +17,12 @@ namespace DiscordAccess
                 if (args.Length != 2 || !Guid.TryParseExact(args[1], "N", out fixture)) return 64;
                 return ResidentInstanceChecks.RunHoldingNamespaceChild(args[1]);
             }
+            if (args.Length > 0 && args[0] == "--resident-static-alias-hold-child")
+            {
+                Guid fixture;
+                if (args.Length != 2 || !Guid.TryParseExact(args[1], "N", out fixture)) return 64;
+                return ResidentInstanceChecks.RunHoldingStaticNamespaceChild(args[1]);
+            }
             if (args.Length > 0 && args[0] == "--resident-signal-child")
             {
                 Guid fixture;
