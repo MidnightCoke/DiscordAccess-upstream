@@ -2,6 +2,14 @@
 
 Bu dosya doğrulanmış kaynak geçmişinin kısa özetidir. Tam kaynak sürümleri Git etiketlerinde, paket ve doğrulama ayrıntıları ilgili Release notlarında tutulur. Gerçek hesap, ses/yayın, tepsi etkileşimi ve Windows yeniden başlatması sentetik testlerden ayrı değerlendirilir.
 
+## macos-v0.1 (macOS ön sürümü)
+
+- Apple Silicon için yerel Swift sürümü: menü çubuğu uygulaması ve `--console` Terminal modu. Mevcut resmi Discord ve hesabı kullanılır; Discord'u kendi simgesinden açarsınız.
+- Windows ile aynı motor kaynağı, Go 1.26.9, bağımlılık kilitleri ve HTTP sınırları; macOS arm64 için ayrı sabit SHA-256 ve cdhash. Kapı politikası ve güncelleme köprüsü Windows'takiyle aynıdır.
+- Discord'un profilinde oturum sarmalayıcısı ve iki güncelleme ayarı günlüklü olarak değişir. Değişiklikler çıkışta, bir sonraki açılışta ya da `--restore` ile geri alınır; Discord açıkken geri alma yapılmaz.
+- Tam Disk Erişimi yönlendirmesi, oturum açılışında başlatma (konum güveni denetimiyle), tek oturum kilidi ve çökme sonrası kurtarma eklendi.
+- Uygulama Apple tarafından imzalanmamıştır; ilk açılış "Open Anyway" ile onaylanır. Yalnız macOS 27'de canlı denendi; Windows paketleri değişmez.
+
 ## v4.22
 
 - Başka standart kullanıcıların yazabildiği masaüstü/indirme paketleri, normal elle açılışta doğrulanan kişisel klasöre kopyalanıp oradan çalıştırılır. Windows başlangıcı artık güvenli paket kopyasına kaydedilebilir.

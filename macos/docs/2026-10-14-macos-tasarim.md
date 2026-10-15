@@ -455,6 +455,16 @@ module.exports = require('./core.asar');
 
 **Aşama 3 — Yayın.** Ayrı karar gerektirir.
 
+- **macos-v0.1 durumu (2026-10-15):** Kullanıcı kararları ve yapılanlar:
+  - Evrensel ikili yapılmadı; Intel cihaz yok.
+  - Uygulama imzasız dağıtılır. İndirilen paket karantina işaretli olarak denendi: macOS "Open Anyway" onayından sonra uygulamayı App Translocation altında çalıştırdı ve işaretli gömülü motor da başladı, bağlantı kuruldu.
+  - Lisans ve kaynak envanteri `macos/scripts/release.py notices` ile Windows'un doğrulanmış kayıtlarından süzüldü. Mac motoru aynı ana kaynak, Go, kilitler ve yamalarla derlenir. Kaydettiği 61 modülün hepsi Windows listesinde aynı sürüm ve h1 ile var; Windows'a özgü `go-ole`, `mousetrap` ve Wintun/WireGuard yerel bileşenleri yok. Bileşen sayısı 63 (61 modül, Go ve sing-box), bildirim sayısı 129. Sonuç `macos/licenses/` altında.
+  - `release.py fetch` 63 kaynak arşivini indirip SHA-256, boyut ve Go h1 ile doğrular.
+  - `release.py package` dört yayın dosyasını hazırlar: `DiscordAccess-macos-v<sürüm>.zip` (uygulama, `OKU-BENI.md`, `LISANSLAR.txt`, `KAYNAK.txt`), `DiscordAccess-macos-v<sürüm>-engine-source.zip`, `engine-source-manifest.json` ve `SHA256SUMS.txt`. Bunun için temiz HEAD, ondan derlenmiş paket ve güncel tarifle testli motor derleme kanıtı gerekir.
+  - Kaynak paketindeki değiştirilmiş ana kaynak, tarifin uyguladığı hash'li girdilerden kurulur: upstream kaynak, kilitler ve yamalar.
+  - Kök README'ye Mac bölümü ve CHANGELOG'a `macos-v0.1` girdisi eklendi; Windows içeriği değişmedi.
+  - `gh` kurulu olmadığı için Release'i kullanıcı GitHub sitesinden oluşturur ve dosyaları yükler. Depo private olduğundan indirme yalnız erişimi olanlara açıktır.
+
 - Evrensel ikili (macOS 26 ve öncesindeki Intel Mac'ler).
 - İmza ve notarization kararı.
 - Paketleme.

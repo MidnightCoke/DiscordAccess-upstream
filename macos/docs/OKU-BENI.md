@@ -1,6 +1,6 @@
 # DiscordAccess (macOS) — kullanım
 
-macOS sürümü geliştirme aşamasındadır. Henüz hazır paket olarak dağıtılmaz; dağıtım ayrı bir karardır (Aşama 3). Yalnız Apple Silicon'da (arm64) ve macOS 27'de denendi. Ayrıntılı tasarım: [2026-10-14-macos-tasarim.md](2026-10-14-macos-tasarim.md).
+Bu notlar **macos-v0.1** ön sürümünü anlatır. Ön sürüm yalnız Apple Silicon (arm64) Mac'lerde çalışır ve yalnız macOS 27'de denendi. Ayrıntılı tasarım: [2026-10-14-macos-tasarim.md](2026-10-14-macos-tasarim.md).
 
 ## Gereksinimler
 
@@ -8,7 +8,25 @@ macOS sürümü geliştirme aşamasındadır. Henüz hazır paket olarak dağıt
 - Resmi Discord (Stable) uygulaması: `/Applications/Discord.app` ya da `~/Applications/Discord.app`. PTB ve Canary desteklenmez.
 - Normal kullanıcı hesabı. DiscordAccess yönetici (root) olarak çalışmaz.
 
-## Derleme ve kurulum
+## Hazır paketi kurma
+
+1. [Releases](https://github.com/alpertknn/DiscordAccess/releases) sayfasındaki **macos-v0.1** sürümünden `DiscordAccess-macos-v0.1.zip` dosyasını indirip açın. `DiscordAccess-macos-v0.1-engine-source.zip` motorun kaynak paketidir; çalıştırmak için gerekmez.
+2. `DiscordAccess.app`'i Finder'da Uygulamalar klasörüne sürükleyin.
+3. Uygulama Apple tarafından imzalanmamış ve onaylanmamıştır. Bu yüzden ilk açılışta macOS "Apple, DiscordAccess'in kötü amaçlı yazılım içermediğini doğrulayamadı" der:
+   - **Done**'a basın.
+   - System Settings > Privacy & Security'yi açın. En alttaki **Security** bölümünde DiscordAccess için **Open Anyway**'e basıp parolanızı girin.
+   - Uygulamayı yeniden açın; son pencerede de **Open Anyway**'i seçin.
+
+   Bu onay bir kez yapılır.
+4. Ardından aşağıdaki "İlk açılış" adımlarını izleyin.
+
+Paketteki `LISANSLAR.txt` lisans bildirimlerini, `KAYNAK.txt` kaynak paketinin kimliğini içerir. İndirilen dosyaların SHA-256 değerlerini aynı sürümdeki `SHA256SUMS.txt` ile karşılaştırabilirsiniz:
+```bash
+shasum -a 256 DiscordAccess-macos-v0.1.zip
+```
+Hash dosyası kod imzası sağlamaz.
+
+## Kaynaktan derleme
 
 1. Motoru derleyin. Betik, sabit SHA-256 ve cdhash'le eşleşmeyen bir motoru kopyalamaz:
    ```bash
@@ -22,7 +40,7 @@ macOS sürümü geliştirme aşamasındadır. Henüz hazır paket olarak dağıt
    ```bash
    DISCORDACCESS_SIGN_IDENTITY="DiscordAccess Local Signing" macos/scripts/build-app.sh
    ```
-3. Paketi Uygulamalar klasörüne kopyalayın:
+3. Paketi Uygulamalar klasörüne kopyalayın. Kendi derlediğiniz paket internetten gelmediği için "Open Anyway" adımı gerekmez:
    ```bash
    ditto macos/build/apps.noindex/<zaman>/DiscordAccess.app /Applications/DiscordAccess.app
    ```
