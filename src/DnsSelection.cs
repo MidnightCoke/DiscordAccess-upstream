@@ -15,7 +15,7 @@ namespace DiscordAccess
     internal sealed class DnsSelectionException : InvalidOperationException
     {
         internal DnsSelectionException()
-            : base("Discord'a erişebilen bir DNS bağlantısı bulunamadı. İnternet bağlantısını kontrol edip yeniden başlatın.") { }
+            : base("No DNS connection that can reach Discord was found. Check your internet connection and start again.") { }
     }
 
     internal static class DnsSelection
@@ -32,14 +32,14 @@ namespace DiscordAccess
                 // Package integrity and process startup failures are fatal. They
                 // must not be hidden by trying a different DNS provider.
                 IDnsCandidateConnection candidate = open(option, token);
-                if (candidate == null) throw new InvalidOperationException("DNS bağlantısı hazırlanamadı.");
+                if (candidate == null) throw new InvalidOperationException("The DNS connection could not be prepared.");
                 bool retained = false;
                 try
                 {
                     token.ThrowIfCancellationRequested();
                     if (requested.Automatic)
                     {
-                        if (log != null) log("DNS erişim kontrolü: " + option.Description);
+                        if (log != null) log("DNS access check: " + option.Description);
                         try { candidate.Verify(token); }
                         catch (ConnectivityFailureException error)
                         {
@@ -48,12 +48,12 @@ namespace DiscordAccess
                             // Discord rate limit by retrying the same endpoint.
                             if ((error.Reason == ConnectivityFailureReason.Http && error.HttpStatus == 429) ||
                                 error.Reason == ConnectivityFailureReason.Canceled) throw;
-                            if (log != null) log("DNS erişim kontrolü: " + error.Message);
+                            if (log != null) log("DNS access check: " + error.Message);
                             continue;
                         }
                     }
                     token.ThrowIfCancellationRequested();
-                    if (log != null) log("DNS bağlantısı seçildi: " + option.Description);
+                    if (log != null) log("DNS connection selected: " + option.Description);
                     retained = true;
                     return candidate;
                 }

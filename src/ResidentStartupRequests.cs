@@ -29,7 +29,7 @@ namespace DiscordAccess
         {
             if (register == null) throw new ArgumentNullException("register");
             signal = register(Receive);
-            if (signal == null) throw new InvalidOperationException("Otomatik başlatma dinleyicisi oluşturulamadı.");
+            if (signal == null) throw new InvalidOperationException("The automatic startup listener could not be created.");
         }
 
         internal void Listen(Action callback)
@@ -38,7 +38,7 @@ namespace DiscordAccess
             lock (sync)
             {
                 if (disposed) throw new ObjectDisposedException("ResidentStartupRequests");
-                if (handler != null) throw new InvalidOperationException("Otomatik başlatma işleyicisi zaten kurulu.");
+                if (handler != null) throw new InvalidOperationException("The automatic startup handler is already installed.");
                 handler = callback;
                 ScheduleLocked();
             }

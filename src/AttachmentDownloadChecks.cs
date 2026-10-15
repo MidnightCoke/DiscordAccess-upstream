@@ -195,11 +195,11 @@ namespace DiscordAccess
                                 Body = new MemoryStream(Encoding.ASCII.GetBytes("sensitive-fixture")) }); }, delegate { }); }
                         catch (AttachmentDownloadException error) { rateLimitMessage = error.Message; throw; }
                     }, badDestination, fixture);
-                    Require(calls == 1 && rateLimitMessage != null && rateLimitMessage.Contains("HTTP 429") && rateLimitMessage.Contains("bekleyip yeniden deneyin") &&
-                        !rateLimitMessage.Contains("yeni dosya bağlantısı") && !rateLimitMessage.Contains("sensitive-fixture"),
+                    Require(calls == 1 && rateLimitMessage != null && rateLimitMessage.Contains("HTTP 429") && rateLimitMessage.Contains("and try again") &&
+                        !rateLimitMessage.Contains("new file link") && !rateLimitMessage.Contains("sensitive-fixture"),
                         "Rate limit retried, exposed data, or was misreported as an expired attachment.");
-                    if (retryAfter == "12.25") Require(rateLimitMessage.Contains("13 saniye"), "Rate-limit wait was not rounded up.");
-                    if (retryAfter == null || retryAfter == "sensitive-fixture") Require(!rateLimitMessage.Contains("saniye"), "Unknown wait received a fabricated estimate.");
+                    if (retryAfter == "12.25") Require(rateLimitMessage.Contains("13 seconds"), "Rate-limit wait was not rounded up.");
+                    if (retryAfter == null || retryAfter == "sensitive-fixture") Require(!rateLimitMessage.Contains("seconds"), "Unknown wait received a fabricated estimate.");
                     checks++;
                 }
                 using (var cancellation = new CancellationTokenSource())

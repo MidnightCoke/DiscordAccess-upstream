@@ -112,27 +112,27 @@ namespace DiscordAccess
             switch (endpoint)
             {
                 case ConnectivityEndpoint.Gateway: label = "Discord Gateway API"; break;
-                case ConnectivityEndpoint.Manifest: label = "Discord modül listesi"; break;
-                case ConnectivityEndpoint.Updates: label = "Discord güncelleme sunucusu"; break;
-                default: label = "Bağlantı denetimi"; break;
+                case ConnectivityEndpoint.Manifest: label = "Discord module list"; break;
+                case ConnectivityEndpoint.Updates: label = "Discord update server"; break;
+                default: label = "Connection"; break;
             }
             string detail;
             switch (reason)
             {
-                case ConnectivityFailureReason.Http: detail = status == 0 ? "HTTP hata yanıtı" : "HTTP " + status.ToString(System.Globalization.CultureInfo.InvariantCulture); break;
-                case ConnectivityFailureReason.Dns: detail = "DNS çözümleme başarısız"; break;
-                case ConnectivityFailureReason.Tls: detail = "TLS bağlantısı veya sertifika doğrulaması başarısız"; break;
-                case ConnectivityFailureReason.Connect: detail = "ağ veya yerel proxy bağlantısı kurulamadı"; break;
-                case ConnectivityFailureReason.Timeout: detail = "zaman aşımı"; break;
-                case ConnectivityFailureReason.InvalidResponse: detail = "beklenen yanıt biçimi doğrulanamadı"; break;
-                case ConnectivityFailureReason.ResponseTooLarge: detail = "yanıt boyut sınırını aşıyor"; break;
-                case ConnectivityFailureReason.IncompleteResponse: detail = "yanıt aktarımı tamamlanamadı"; break;
-                case ConnectivityFailureReason.Canceled: detail = "işlem iptal edildi"; break;
-                default: detail = "erişim doğrulanamadı"; break;
+                case ConnectivityFailureReason.Http: detail = status == 0 ? "HTTP error response" : "HTTP " + status.ToString(System.Globalization.CultureInfo.InvariantCulture); break;
+                case ConnectivityFailureReason.Dns: detail = "DNS resolution failed"; break;
+                case ConnectivityFailureReason.Tls: detail = "TLS connection or certificate verification failed"; break;
+                case ConnectivityFailureReason.Connect: detail = "could not connect to the network or the local proxy"; break;
+                case ConnectivityFailureReason.Timeout: detail = "timed out"; break;
+                case ConnectivityFailureReason.InvalidResponse: detail = "the expected response format could not be verified"; break;
+                case ConnectivityFailureReason.ResponseTooLarge: detail = "the response exceeds the size limit"; break;
+                case ConnectivityFailureReason.IncompleteResponse: detail = "the response transfer could not be completed"; break;
+                case ConnectivityFailureReason.Canceled: detail = "the operation was canceled"; break;
+                default: detail = "access could not be verified"; break;
             }
-            if (kind != ConnectivityResponseKind.None) detail += "; yanıt türü " +
-                (kind == ConnectivityResponseKind.Json ? "JSON" : kind == ConnectivityResponseKind.Html ? "HTML" : "diğer");
-            return label + " kontrolü başarısız (" + detail + ").";
+            if (kind != ConnectivityResponseKind.None) detail += "; response type " +
+                (kind == ConnectivityResponseKind.Json ? "JSON" : kind == ConnectivityResponseKind.Html ? "HTML" : "other");
+            return label + " check failed (" + detail + ").";
         }
     }
 
@@ -150,7 +150,7 @@ namespace DiscordAccess
             if (proxyPort < 1 || proxyPort > 65535) throw new ArgumentOutOfRangeException("proxyPort");
             Version parsed;
             if (!Version.TryParse(version, out parsed) || parsed.Build < 0 || parsed.Revision >= 0)
-                throw new ArgumentException("Discord sürümü üç sayısal bileşen içermeli.", "version");
+                throw new ArgumentException("The Discord version must contain three numeric components.", "version");
             TlsPolicy.UseSystemDefaults();
             CheckGateway(proxyPort);
             // Match module47924 in the installed official app: platform is added
@@ -163,8 +163,8 @@ namespace DiscordAccess
                 moduleCount = InspectManifestResponse(response);
             });
             if (moduleCount == 0)
-                return "Discord API erişimi proxy üzerinden doğrulandı. Sunucu boş modül listesi döndürdü; ayrı test kopyasına aktarılan kurulu modüller kullanılacak. Hesap girişi ve sesli sohbet ayrıca kontrol edilmelidir.";
-            return "Discord API ve masaüstü modül güncellemelerine proxy üzerinden erişim doğrulandı. Hesap girişi ve sesli sohbet ayrıca kontrol edilmelidir.";
+                return "Discord API access was verified through the proxy. The server returned an empty module list; the installed modules copied to the separate test copy will be used. Account sign-in and voice chat must be checked separately.";
+            return "Access to the Discord API and desktop module updates was verified through the proxy. Account sign-in and voice chat must be checked separately.";
         }
 
         internal static string Check(int proxyPort)
@@ -179,7 +179,7 @@ namespace DiscordAccess
                 if (!AcceptsUpdateStatus(response.StatusCode))
                     throw StatusFailure(ConnectivityEndpoint.Updates, response);
             });
-            return "Discord API ve güncelleme sunucusuna proxy üzerinden HTTPS erişimi doğrulandı. Masaüstü güncellemesi, hesap girişi ve sesli sohbet ayrıca kontrol edilmelidir.";
+            return "HTTPS access to the Discord API and the update server was verified through the proxy. The desktop update, account sign-in and voice chat must be checked separately.";
         }
 
         internal static void CheckDnsCandidate(int proxyPort, CancellationToken token)
@@ -448,7 +448,7 @@ namespace DiscordAccess
             foreach (int code in new[] { -1, 0, 99, 600, Int32.MaxValue })
             {
                 var failure = ConnectivityFailureException.Create(ConnectivityEndpoint.Manifest, ConnectivityFailureReason.Http, code);
-                require(failure.HttpStatus == 0 && failure.Message.Contains("HTTP hata yanıtı"), "Out-of-range HTTP status was accepted.");
+                require(failure.HttpStatus == 0 && failure.Message.Contains("HTTP error response"), "Out-of-range HTTP status was accepted.");
             }
             var unknown = ConnectivityFailureException.Create((ConnectivityEndpoint)555, (ConnectivityFailureReason)666, 429, (ConnectivityResponseKind)777);
             require(unknown.Endpoint == ConnectivityEndpoint.Unknown && unknown.Reason == ConnectivityFailureReason.Other &&

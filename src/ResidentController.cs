@@ -34,8 +34,8 @@ namespace DiscordAccess
         private volatile bool active, disposed, stopping;
         internal bool Active { get { return active; } }
         internal string ReadyMessage { get { return shortcuts != null && shortcuts.BoundCount != 0
-            ? "Bağlantı hazır. Discord'u kendi simgesinden açabilirsiniz; kısayol hedefi resmi Discord olarak korunur."
-            : "Bağlantı hazır. Bu kurulumun kısayolu bulunamadı; Discord'u A + Enter ile açabilirsiniz."; } }
+            ? "Connection ready. You can open Discord from your own icon; the shortcut target stays the official Discord."
+            : "Connection ready. No shortcut was found for this installation; you can open Discord with A + Enter."; } }
         internal Action<string> Notice;
         internal Controller(Action<string> log, Action<bool, string> changed, DnsOptions dns)
         {
@@ -55,12 +55,12 @@ namespace DiscordAccess
         private void ConnectCore()
         {
             StartupStage stage = StartupStage.Source;
-            changed(false, "Bağlanıyor");
-            log("Discord Erişim v4.21: bağlantı hazırlanıyor.");
+            changed(false, "Connecting");
+            log("DiscordAccess v4.21: preparing the connection.");
             try
             {
                 if (InstalledClientRunning())
-                    throw new UserActionException("Önce Discord'u sistem tepsisinden tamamen kapatın; ardından DiscordAccess.exe'yi açın. Açık Discord değiştirilmedi.");
+                    throw new UserActionException("First fully close Discord from the system tray, then open DiscordAccess.exe. The open Discord was not changed.");
                 image = new TrustedImage(Safety.FindDiscord(), true);
                 discordVersion = Path.GetFileName(Path.GetDirectoryName(image.Path)).Substring(4);
                 stage = StartupStage.Package;
@@ -81,7 +81,7 @@ namespace DiscordAccess
                 stage = StartupStage.Configure;
                 connectLifetime.Token.ThrowIfCancellationRequested();
                 if (InstalledClientRunning())
-                    throw new UserActionException("Hazırlık sırasında Discord açıldı. Discord'u tamamen kapatıp DiscordAccess.exe'yi yeniden açın; ayarlar değiştirilmedi.");
+                    throw new UserActionException("Discord was opened during preparation. Fully close Discord and open DiscordAccess.exe again; settings were not changed.");
                 string proxy = "http://127.0.0.1:" + gate.Port;
                 launchArguments = "--proxy-server=" + proxy + " --proxy-bypass-list=" + NativeProcess.Quote("127.0.0.1;localhost") + " --disable-quic";
                 integration = InstalledDiscord.PrepareExternal(image.Path, proxy, log);
@@ -99,13 +99,13 @@ namespace DiscordAccess
                 if (observed.Engine.HasExited) throw new IOException("Engine exited");
                 active = true;
                 shortcutRefresh = new Timer(RefreshShortcuts, observed, 500, 1000);
-                changed(true, "Bağlantı hazır; resmi Discord simgesinden açılabilir.");
+                changed(true, "Connection ready; Discord can be opened from its official icon.");
             }
             catch (Exception ex)
             {
                 Exception reported = ex is UserActionException || ex is PackageLoadException ? ex : StartupFailureException.From(stage, ex);
-                try { DisconnectCore(); } catch { log("Başlangıç sonrası geri alma tamamlanamadı; kurtarma kaydı korundu."); }
-                changed(false, "Bağlantı kurulamadı"); throw reported;
+                try { DisconnectCore(); } catch { log("Cleanup after startup could not be completed; the recovery record was kept."); }
+                changed(false, "Could not connect"); throw reported;
             }
         }
         internal async Task<string> OpenDiscordAsync()
@@ -117,14 +117,14 @@ namespace DiscordAccess
         private string OpenDiscordCore()
         {
             if (disposed || !active || connection == null || image == null || external == null)
-                throw new UserActionException("Bağlantı hazır değil. DiscordAccess.exe penceresindeki sonucu kontrol edin.");
+                throw new UserActionException("The connection is not ready. Check the result in the DiscordAccess.exe window.");
             connectLifetime.Token.ThrowIfCancellationRequested();
             if (!String.Equals(Safety.FindDiscord(), image.Path, StringComparison.OrdinalIgnoreCase))
-                throw new UserActionException("Discord sürümü değişti. Discord'u tamamen kapatıp Q ile çıkın; DiscordAccess.exe'yi yeniden açın.");
-            if (InstalledClientRunning()) return "Discord zaten açık; ikinci açılış yapılmadı.";
+                throw new UserActionException("The Discord version changed. Fully close Discord and quit with Q, then open DiscordAccess.exe again.");
+            if (InstalledClientRunning()) return "Discord is already open; it was not opened a second time.";
             using (var launched = Process.Start(new ProcessStartInfo(image.Path, launchArguments) {
                 UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(image.Path) })) { }
-            return "Resmi Discord'a açılış isteği gönderildi.";
+            return "Launch request sent to the official Discord.";
         }
         internal static bool InstalledClientRunning()
         {
@@ -148,7 +148,7 @@ namespace DiscordAccess
             }
             catch
             {
-                if (!shortcutRefreshFailed) log("Discord kısayolunun bağlantı seçenekleri yenilenemedi; mevcut kayıtlar korundu.");
+                if (!shortcutRefreshFailed) log("The connection options of the Discord shortcut could not be refreshed; the existing records were kept.");
                 shortcutRefreshFailed = true;
             }
             finally { operations.Release(); }
@@ -186,7 +186,7 @@ namespace DiscordAccess
                 try
                 {
                     if (!stopping && connection == observed)
-                    { DisconnectCore(); changed(false, "Bağlantı motoru durdu; bağlantı kapatıldı."); }
+                    { DisconnectCore(); changed(false, "The connection engine stopped; the connection was closed."); }
                 }
                 finally { operations.Release(); }
             }
@@ -196,7 +196,7 @@ namespace DiscordAccess
         {
             CancelConnect();
             await operations.WaitAsync().ConfigureAwait(false);
-            try { await Task.Run((Action)DisconnectCore).ConfigureAwait(false); changed(false, "Bağlantı kesildi"); }
+            try { await Task.Run((Action)DisconnectCore).ConfigureAwait(false); changed(false, "Disconnected"); }
             finally { operations.Release(); }
         }
         private void DisconnectCore()
@@ -208,7 +208,7 @@ namespace DiscordAccess
             {
                 if (downloadLifetime != null) { downloadLifetime.Cancel(); downloadLifetime.Dispose(); downloadLifetime = null; }
                 try { if (shortcuts != null) shortcuts.Restore(); }
-                catch { restoreFailed = true; log("Kısayol seçenekleri geri alınamadı; kurtarma kaydı korundu."); }
+                catch { restoreFailed = true; log("The shortcut options could not be restored; the recovery record was kept."); }
                 shortcuts = null;
                 try
                 {
@@ -221,7 +221,7 @@ namespace DiscordAccess
                     }
                     if (InstalledDiscord.HasPendingRecovery || DiscordShortcuts.HasPendingRecovery) restoreFailed = true;
                 }
-                catch { restoreFailed = true; log("Discord ayarları geri alınamadı; kurtarma kaydı korundu."); }
+                catch { restoreFailed = true; log("The temporary Discord settings could not be restored; the recovery record was kept."); }
                 try { if (bridge != null) bridge.Dispose(); } finally { bridge = null; }
             }
             finally
@@ -238,7 +238,7 @@ namespace DiscordAccess
                     stopping = false;
                 }
             }
-            if (restoreFailed) throw new UserActionException("Bağlantı kapandı. Discord'u sistem tepsisinden tamamen kapatıp DiscordAccess.exe --restore çalıştırın veya DiscordAccess.exe'yi yeniden açın. Geçici ayarların kurtarma kaydı korundu.");
+            if (restoreFailed) throw new UserActionException("The connection closed. Fully close Discord from the system tray and run DiscordAccess.exe --restore, or open DiscordAccess.exe again. The recovery record for the temporary settings was kept.");
         }
         internal async Task<long> DownloadFileAsync(string link, string destination, CancellationToken token, IProgress<long> progress)
         {
@@ -247,7 +247,7 @@ namespace DiscordAccess
             try
             {
                 if (disposed || !active || gate == null || downloadLifetime == null)
-                    throw new UserActionException("Dosya indirmek için önce DiscordAccess.exe ile bağlantıyı açın.");
+                    throw new UserActionException("To download a file, first open the connection with DiscordAccess.exe.");
                 port = gate.Port; session = CancellationTokenSource.CreateLinkedTokenSource(token, downloadLifetime.Token);
             }
             finally { operations.Release(); }
@@ -258,7 +258,7 @@ namespace DiscordAccess
             await operations.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (!active || connection == null || connection.Engine.HasExited || gate == null) return "Bağlantı açık değil.";
+                if (!active || connection == null || connection.Engine.HasExited || gate == null) return "The connection is not open.";
                 return await Task.Run(() => { log(ConnectivityChecks.CheckLaunch(gate.Port, discordVersion)); return GatewayChecks.Check(gate.Port); }).ConfigureAwait(false);
             }
             finally { operations.Release(); }

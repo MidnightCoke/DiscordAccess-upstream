@@ -43,7 +43,7 @@ namespace DiscordAccess
                     transferred = true;
                     for (int index = 0; index < kinds.Length; index++)
                         if (saved[index] != null && !SetStdHandle(kinds[index], saved[index].DangerousGetHandle()))
-                            throw new IOException("Konsol yönlendirmesi geri bağlanamadı.");
+                            throw new IOException("The console redirection could not be reattached.");
                     Console.InputEncoding = new UTF8Encoding(false);
                     Console.OutputEncoding = new UTF8Encoding(false);
                     Console.SetIn(new StreamReader(Console.OpenStandardInput(), Console.InputEncoding));
@@ -70,7 +70,7 @@ namespace DiscordAccess
             if (!DuplicateHandle(current, original, current, out duplicate, 0, false, 2))
             {
                 if (duplicate != null) duplicate.Dispose();
-                throw new IOException("Konsol yönlendirmesi korunamadı.");
+                throw new IOException("The console redirection could not be preserved.");
             }
             return duplicate;
         }
@@ -137,7 +137,7 @@ namespace DiscordAccess
             return Open(Path.Combine(Safety.StateRoot, "v3", "resident.lock"));
         }
         private static UserActionException Busy()
-        { return new UserActionException("Bu kullanıcı için başka bir DiscordAccess oturumu açık. Önce o oturumu kapatın."); }
+        { return new UserActionException("Another DiscordAccess session is open for this user. Close that session first."); }
         private static Lease Open(string path)
         {
             path = Path.GetFullPath(path);

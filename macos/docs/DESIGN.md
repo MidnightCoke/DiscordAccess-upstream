@@ -23,7 +23,7 @@ Reasons, from the repository:
 | `Test.cmd` compiles `src\*.cs`; `Build.cmd` compiles the `build-production.rsp` list. | No files are added under `src/`. |
 | `scripts/ReleaseChecks.py` rejects undeclared files under `engine-patches/http-limits/source/`, and the Windows engine hash depends on these inputs. | The patches and their manifest do not change. |
 | The hash of `scripts/Build-SecurityEngine.ps1` is pinned in `licenses/engine-source-manifest.json`. | The Mac engine is built by its own script. |
-| `docs/OKU-BENI.txt` goes into the Windows package (`scripts/Package-Release.py`). | The Mac documents live under `macos/`. |
+| `docs/README.txt` goes into the Windows package (`scripts/Package-Release.py`). | The Mac documents live under `macos/`. |
 | The release script (`exact_head`) stops when an untracked file is not ignored. | Mac build outputs are kept out of Git by `macos/.gitignore`. |
 
 ## 3. Findings the design rests on

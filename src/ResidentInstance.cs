@@ -212,7 +212,7 @@ namespace DiscordAccess
 
         private static UserActionException Rejected()
         {
-            return new UserActionException("DiscordAccess'in oturum kilidi güvenli doğrulanamadı. Açık DiscordAccess'i kapatıp yeniden deneyin.");
+            return new UserActionException("The DiscordAccess session lock could not be verified as safe. Close the open DiscordAccess and try again.");
         }
 
         public void Dispose()

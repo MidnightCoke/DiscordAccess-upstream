@@ -188,7 +188,7 @@ namespace DiscordAccess
                 (expected != null && expected.Length > limit)) throw new ArgumentException("Invalid file transaction arguments.");
         }
         private static InvalidDataException Conflict()
-        { return new InvalidDataException("Dosya işlem sırasında değişti veya doğrulanamadı. Bilinmeyen dosya ve varsa kurtarma yedeği korundu."); }
+        { return new InvalidDataException("The file changed during the operation or could not be verified. The unknown file and any recovery backup were kept."); }
         private static void Interleave(string phase, string path)
         {
 #if TEST_BUILD

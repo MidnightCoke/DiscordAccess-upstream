@@ -120,7 +120,7 @@ def verify_companion(repo: Path, version: str, commit: str, evidence: Path,
 
 
 def runtime_archive(prefix: str, contents: dict[str, bytes]) -> bytes:
-    if set(contents) != {"DiscordAccess.exe", "engine/sing-box.exe", "OKU-BENI.txt", "LISANSLAR.txt", "KAYNAK.txt"}:
+    if set(contents) != {"DiscordAccess.exe", "engine/sing-box.exe", "README.txt", "LICENSES.txt", "SOURCE.txt"}:
         raise ValueError("Runtime must contain exactly the five approved files")
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
@@ -239,12 +239,12 @@ def package(repo: Path, version: str, commit: str, engine_path: Path, source_pat
             "Optional historical reports are identified separately and do not replace current proof.\n"
             "Distribute this exact source companion together with the runtime package.\n"
             "The companion is not needed to run DiscordAccess.\n").encode("utf-8")
-    instructions = checks.read(repo / "docs/OKU-BENI.txt", repo)
+    instructions = checks.read(repo / "docs/README.txt", repo)
     for text in (instructions.decode("utf-8-sig"), note.decode("utf-8")):
         if "v" + version not in text or re.search(r"candidate|\bunreleased\b|\baday(?:ı|ını|ın|lar|lardan)?\b|\bRC\d*\b|henüz yayımlanmamış", text, re.I):
             raise ValueError("Runtime instructions do not identify the final release status/version")
-    contents = {"DiscordAccess.exe": executable, "engine/sing-box.exe": engine, "OKU-BENI.txt": instructions,
-                "LISANSLAR.txt": licenses, "KAYNAK.txt": note}
+    contents = {"DiscordAccess.exe": executable, "engine/sing-box.exe": engine, "README.txt": instructions,
+                "LICENSES.txt": licenses, "SOURCE.txt": note}
     assets = {prefix + ".zip": runtime_archive(prefix, contents), source_name: source_bytes, "engine-source-manifest.json": manifest_bytes}
     assets["SHA256SUMS.txt"] = "".join(checks.sha(data) + "  " + name + "\n" for name, data in sorted(assets.items())).encode("ascii")
     checks.exact_head(repo, commit)

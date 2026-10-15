@@ -226,7 +226,7 @@ class Fixtures(unittest.TestCase):
         with self.assertRaises(ValueError): release.native_amd64(bytes(image))
 
     def test_runtime_exact_five_and_reproducible(self):
-        contents = {name: name.encode() for name in ("DiscordAccess.exe", "engine/sing-box.exe", "OKU-BENI.txt", "LISANSLAR.txt", "KAYNAK.txt")}
+        contents = {name: name.encode() for name in ("DiscordAccess.exe", "engine/sing-box.exe", "README.txt", "LICENSES.txt", "SOURCE.txt")}
         a = release.runtime_archive("DiscordAccess-v4.21", contents)
         self.assertEqual(a, release.runtime_archive("DiscordAccess-v4.21", contents))
         with zipfile.ZipFile(io.BytesIO(a)) as archive: self.assertEqual(len(archive.namelist()), 5); self.assertIsNone(archive.testzip())

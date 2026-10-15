@@ -41,7 +41,7 @@ namespace DiscordAccess
                 string command = text.Trim();
                 if (command.Length == 0) return;
                 if (command.Equals("q", StringComparison.OrdinalIgnoreCase) ||
-                    command.Equals("çıkış", StringComparison.OrdinalIgnoreCase) || command.Equals("cikis", StringComparison.OrdinalIgnoreCase))
+                    command.Equals("quit", StringComparison.OrdinalIgnoreCase) || command.Equals("exit", StringComparison.OrdinalIgnoreCase))
                     RequestStop(0);
                 else if (command.Length <= 8192)
                 {
@@ -80,8 +80,8 @@ namespace DiscordAccess
             args = args ?? new string[0];
             if (args.Any(arg => arg == "--help" || arg == "-h" || arg == "/?")) { Help(); return 0; }
             if (args.Any(arg => arg != "--connect" && arg != "--start" && !DnsOptions.IsArgument(arg)))
-            { WriteConsole("Tanınmayan seçenek. Kullanım için --help yazın."); return 64; }
-            try { Console.OutputEncoding = new UTF8Encoding(false); Console.Title = "Discord Erişim v4.21"; } catch { }
+            { WriteConsole("Unrecognized option. Type --help for usage."); return 64; }
+            try { Console.OutputEncoding = new UTF8Encoding(false); Console.Title = "DiscordAccess v4.21"; } catch { }
             using (var output = new ConsoleOutput(SessionLog.Write, WriteConsole))
             using (var state = new SessionState())
             using (var launchSignal = ManualLaunchSignal.Listen(() => state.Command("A")))
@@ -90,9 +90,9 @@ namespace DiscordAccess
                 // arrived while the resident was recovering or discovering.
                 if (startupRequests != null) startupRequests.Listen(() => {
                     try { state.Startup(startupIntent); }
-                    catch (Exception error) { SessionLog.Write("Konsol otomatik açılışı: " + SafeError(error)); }
+                    catch (Exception error) { SessionLog.Write("Automatic console launch: " + SafeError(error)); }
                 });
-                output.Show("Discord Erişim v4.21 | Bağlanıyor...");
+                output.Show("DiscordAccess v4.21 | Connecting...");
                 var controller = new Controller(output.File, (active, message) =>
                 {
                     state.StateChanged(active);
@@ -105,7 +105,7 @@ namespace DiscordAccess
                     OpenDiscord = controller.OpenDiscordAsync,
                     Disconnect = controller.DisconnectAsync, Diagnose = controller.DiagnoseAsync, Dispose = controller.Dispose,
                     Download = link => Task.Run(() => ConsoleDownload.DownloadAsync(controller, link)),
-                    MessageReport = () => "Bu sürümde Discord içindeki mesaj gözlemcisi kaldırıldı." };
+                    MessageReport = () => "The in-Discord message observer was removed in this version." };
                 ConsoleCancelEventHandler cancel = (sender, e) => { e.Cancel = true; state.RequestStop(130); };
                 Console.CancelKeyPress += cancel;
                 var input = new Thread(() =>
@@ -150,7 +150,7 @@ namespace DiscordAccess
                     if (WaitOperation(connecting, state))
                     {
                         connecting.GetAwaiter().GetResult();
-                        log(session.ReadyMessage == null ? "Bağlantı hazır. Discord'u kendi simgesinden açabilirsiniz." : session.ReadyMessage());
+                        log(session.ReadyMessage == null ? "Connection ready. You can open Discord from your own icon." : session.ReadyMessage());
                         while (!state.StopRequested && !state.Ended)
                         {
                             string command;
@@ -164,10 +164,10 @@ namespace DiscordAccess
                             {
                                 try
                                 {
-                                    if (session.MessageReport == null) log("Mesaj tanısı bu oturumda kullanılamıyor.");
+                                    if (session.MessageReport == null) log("Message diagnostics are not available in this session.");
                                     else foreach (string line in (session.MessageReport() ?? "").Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)) log(line);
                                 }
-                                catch { log("Yerel mesaj tanı kaydı okunamadı; yeni ağ isteği gönderilmedi."); }
+                                catch { log("The local message diagnostic record could not be read; no new network request was sent."); }
                                 continue;
                             }
                             if (command.Equals("d", StringComparison.OrdinalIgnoreCase))
@@ -176,19 +176,19 @@ namespace DiscordAccess
                                 continue;
                             }
                             if (!command.Equals("t", StringComparison.OrdinalIgnoreCase))
-                            { log("A: Discord aç | Q: kapat | T: tanılama | D: dosya indir"); continue; }
+                            { log("A: open Discord | Q: quit | T: diagnostics | D: download file"); continue; }
                             try
                             {
                                 Task<string> diagnosis = session.Diagnose();
                                 if (WaitOperation(diagnosis, state)) log(diagnosis.GetAwaiter().GetResult());
                             }
-                            catch (Exception error) { log("Tanılama tamamlanamadı: " + ErrorMessage(error)); }
+                            catch (Exception error) { log("Diagnostics could not be completed: " + ErrorMessage(error)); }
                         }
                     }
                 }
                 if (state.StopRequested) result = state.ExitCode;
             }
-            catch (Exception error) { log("Bağlantı kurulamadı: " + ErrorMessage(error)); result = 1; }
+            catch (Exception error) { log("Could not connect: " + ErrorMessage(error)); result = 1; }
             finally
             {
                 var shutdownClock = Stopwatch.StartNew();
@@ -207,11 +207,11 @@ namespace DiscordAccess
                         // Never enter Dispose while Connect holds its lock.
                         // Main returns, background work ends and the OS closes
                         // the non-inherited kill-on-close job for our tree only.
-                        log("Kapanış süresi doldu; bağlantı motoru program kapanırken durdurulacak.");
+                        log("The shutdown time ran out; the connection engine will be stopped when the program exits.");
                         result = 130;
                     }
                 }
-                catch (Exception error) { log("Oturum temizliği: " + ErrorMessage(error)); result = result == 0 ? 1 : result; }
+                catch (Exception error) { log("Session cleanup: " + ErrorMessage(error)); result = result == 0 ? 1 : result; }
                 // Disconnect cancels the session token. Await the download's
                 // final cleanup too, so its partial file can be removed before
                 // Main exits. This uses the same total shutdown budget.
@@ -221,11 +221,11 @@ namespace DiscordAccess
                     {
                         try { pendingDownload.GetAwaiter().GetResult(); }
                         catch (OperationCanceledException) { }
-                        catch (Exception error) { log("İndirme temizliği: " + ErrorMessage(error)); result = result == 0 ? 1 : result; }
+                        catch (Exception error) { log("Download cleanup: " + ErrorMessage(error)); result = result == 0 ? 1 : result; }
                     }
                     else
                     {
-                        log("İndirmenin kapanış süresi doldu; yarım kalan dosya temizliği tamamlanamadı.");
+                        log("The download shutdown time ran out; cleanup of the partial file could not be completed.");
                         result = 130;
                     }
                 }
@@ -235,15 +235,15 @@ namespace DiscordAccess
                     {
                         try { pendingOpen.GetAwaiter().GetResult(); }
                         catch (OperationCanceledException) { }
-                        catch (Exception error) { log("Discord açılış temizliği: " + ErrorMessage(error)); result = result == 0 ? 1 : result; }
+                        catch (Exception error) { log("Discord launch cleanup: " + ErrorMessage(error)); result = result == 0 ? 1 : result; }
                     }
                     else
                     {
-                        log("Discord açılışının kapanış süresi doldu.");
+                        log("The Discord launch shutdown time ran out.");
                         result = 130;
                     }
                 }
-                if (result != 130) log("Bağlantı kapatıldı.");
+                if (result != 130) log("Connection closed.");
             }
             return result;
         }
@@ -257,7 +257,7 @@ namespace DiscordAccess
 
         private static void OpenDiscord(SessionOperations session, SessionState state, Action<string> show, ref Task pendingOpen)
         {
-            if (session.OpenDiscord == null) { show("Discord açma bu oturumda kullanılamıyor."); return; }
+            if (session.OpenDiscord == null) { show("Opening Discord is not available in this session."); return; }
             Task<string> opening = null;
             try
             {
@@ -268,20 +268,20 @@ namespace DiscordAccess
                     if (!String.IsNullOrWhiteSpace(message)) show(Clean(message));
                 }
             }
-            catch (Exception error) { show("Discord açılamadı: " + ErrorMessage(error)); }
+            catch (Exception error) { show("Could not open Discord: " + ErrorMessage(error)); }
             finally { if (opening != null && opening.IsCompleted) pendingOpen = null; }
         }
 
         private static void Download(SessionOperations session, SessionState state, Action<string> show, ref Task pendingDownload, ref Task pendingOpen)
         {
-            if (session.Download == null) { show("Dosya indirme bu oturumda kullanılamıyor."); return; }
-            show("Discord ek dosyasının bağlantısını yapıştırıp Enter'a basın. Q: kapat.");
+            if (session.Download == null) { show("File download is not available in this session."); return; }
+            show("Paste the Discord attachment link and press Enter. Q: quit.");
             string link;
             while (!state.StopRequested && !state.Ended)
             {
                 if (!state.TryCommand(out link))
                 {
-                    if (state.InputClosed) { show("Dosya bağlantısı alınamadı; komut girişi kapalı."); return; }
+                    if (state.InputClosed) { show("Could not get the file link; command input is closed."); return; }
                     state.Wait(); continue;
                 }
                 // An icon click is an open command even while D waits for a URL.
@@ -298,10 +298,10 @@ namespace DiscordAccess
                     if (WaitOperation(download, state))
                     {
                         string saved = download.GetAwaiter().GetResult();
-                        show("Kaydedildi: " + Clean(Path.GetFileName(saved)) + " | " + Clean(Path.GetDirectoryName(saved)));
+                        show("Saved: " + Clean(Path.GetFileName(saved)) + " | " + Clean(Path.GetDirectoryName(saved)));
                     }
                 }
-                catch (Exception error) { show("Dosya indirilemedi: " + ErrorMessage(error)); }
+                catch (Exception error) { show("Could not download the file: " + ErrorMessage(error)); }
                 finally { if (download != null && download.IsCompleted) pendingDownload = null; }
                 return;
             }
@@ -316,8 +316,8 @@ namespace DiscordAccess
             if (error is PackageLoadException || error is AttachmentDownloadException ||
                 error is StartupFailureException || error is ConnectivityFailureException || error is GatewayProbeException ||
                 error is DnsSelectionException || error is UserActionException) return Clean(error.Message);
-            if (error is OperationCanceledException) return "İşlem iptal edildi.";
-            return "İşlem tamamlanamadı (" + (error == null ? "Unknown" : error.GetType().Name) + ").";
+            if (error is OperationCanceledException) return "The operation was canceled.";
+            return "The operation could not be completed (" + (error == null ? "Unknown" : error.GetType().Name) + ").";
         }
         internal static string SafeError(Exception error) { return ErrorMessage(error); }
 
@@ -344,9 +344,9 @@ namespace DiscordAccess
                     Connect = () => { state.StateChanged(true); return complete(); },
                     OpenDiscord = () => { opened++; return Task.FromResult("must-not-open"); },
                     Disconnect = () => { disconnected++; return complete(); }, Dispose = () => { disposed++; } };
-                int result = RunSession(session, state, line => { logs.Add(line); if (line.StartsWith("Bağlantı hazır.")) state.Command("Q"); }, 20);
+                int result = RunSession(session, state, line => { logs.Add(line); if (line.StartsWith("Connection ready.")) state.Command("Q"); }, 20);
                 require(result == 0 && opened == 0 && disconnected == 1 && disposed == 1 &&
-                    logs.All(line => !line.Contains("Discord başlatıldı")), "Connect opened Discord without an A request."); checks++;
+                    logs.All(line => !line.Contains("Discord started")), "Connect opened Discord without an A request."); checks++;
             }
             using (var state = new SessionState())
             {
@@ -371,7 +371,7 @@ namespace DiscordAccess
                     OpenDiscord = () => { opened++; if (opened == 1) { state.Command("A"); throw new IOException("SYNTHETIC_PRIVATE_PATH"); } return Task.FromResult("opened-fixture"); },
                     Disconnect = () => { disconnected++; return complete(); }, Dispose = () => { } };
                 int result = RunSession(session, state, line => { logs.Add(line); if (line == "opened-fixture") state.Command("Q"); }, 20);
-                require(result == 0 && opened == 2 && disconnected == 1 && logs.Any(line => line.StartsWith("Discord açılamadı:")) &&
+                require(result == 0 && opened == 2 && disconnected == 1 && logs.Any(line => line.StartsWith("Could not open Discord:")) &&
                     logs.All(line => !line.Contains("SYNTHETIC_PRIVATE_PATH")), "Recoverable launch error ended the connection or exposed data."); checks++;
             }
             using (var state = new SessionState())
@@ -382,7 +382,7 @@ namespace DiscordAccess
                     OpenDiscord = () => { opened++; return Task.FromResult("opened-fixture"); },
                     Download = link => { received = link; return Task.FromResult(@"C:\fixture\sample.txt"); },
                     Disconnect = complete, Dispose = () => { } };
-                int result = RunSession(session, state, line => { if (line.StartsWith("Kaydedildi:")) state.Command("Q"); }, 20);
+                int result = RunSession(session, state, line => { if (line.StartsWith("Saved:")) state.Command("Q"); }, 20);
                 require(result == 0 && opened == 1 && received == "fixture-link", "Icon open request was consumed as an attachment link."); checks++;
             }
             using (var state = new SessionState())
@@ -421,12 +421,12 @@ namespace DiscordAccess
                 var logs = new List<string>();
                 var session = new SessionOperations {
                     Connect = () => { state.StateChanged(true); state.Command("M"); return complete(); },
-                    MessageReport = () => { reports++; state.Command("Q"); return "yerel rapor\r\nikinci satır"; },
+                    MessageReport = () => { reports++; state.Command("Q"); return "local report\r\nsecond line"; },
                     Diagnose = () => { diagnosis++; return Task.FromResult(""); },
                     Download = link => { downloads++; return Task.FromResult(""); },
                     Disconnect = () => { disconnected++; return complete(); }, Dispose = () => { disposed++; } };
                 require(RunSession(session, state, logs.Add, 20) == 0 && reports == 1 && diagnosis == 0 && downloads == 0 &&
-                    disconnected == 1 && disposed == 1 && logs.Contains("yerel rapor") && logs.Contains("ikinci satır"),
+                    disconnected == 1 && disposed == 1 && logs.Contains("local report") && logs.Contains("second line"),
                     "M invoked network operations, lost report lines or changed session cleanup."); checks++;
             }
             using (var state = new SessionState())
@@ -438,7 +438,7 @@ namespace DiscordAccess
                     Diagnose = () => { throw new InvalidOperationException("M must not probe HTTP."); },
                     Disconnect = () => { disconnected++; return complete(); }, Dispose = () => { } };
                 require(RunSession(session, state, logs.Add, 20) == 0 && disconnected == 1 &&
-                    logs.Any(line => line.Contains("yeni ağ isteği gönderilmedi")) && logs.All(line => !line.Contains("SYNTHETIC_SECRET_URL")),
+                    logs.Any(line => line.Contains("no new network request was sent")) && logs.All(line => !line.Contains("SYNTHETIC_SECRET_URL")),
                     "M diagnostic error leaked data or prevented cleanup."); checks++;
             }
             using (var state = new SessionState())
@@ -447,7 +447,7 @@ namespace DiscordAccess
                     Connect = () => { state.StateChanged(true); state.Command("M"); return complete(); },
                     Diagnose = () => { throw new InvalidOperationException("Missing M must not probe HTTP."); },
                     Disconnect = complete, Dispose = () => { } };
-                require(RunSession(session, state, line => { if (line.Contains("bu oturumda kullanılamıyor")) state.Command("Q"); }, 20) == 0,
+                require(RunSession(session, state, line => { if (line.Contains("not available in this session")) state.Command("Q"); }, 20) == 0,
                     "Unavailable M handler could not exit cleanly."); checks++;
             }
             using (var state = new SessionState())
@@ -504,7 +504,7 @@ namespace DiscordAccess
                     Diagnose = () => { state.Command("Q"); throw new IOException("SYNTHETIC_SECRET_TOKEN"); },
                     Disconnect = complete, Dispose = () => { } };
                 require(RunSession(session, state, logs.Add, 20) == 0 &&
-                    logs.Any(line => line.StartsWith("Tanılama tamamlanamadı:")) && logs.All(line => !line.Contains("SYNTHETIC_SECRET_TOKEN")),
+                    logs.Any(line => line.StartsWith("Diagnostics could not be completed:")) && logs.All(line => !line.Contains("SYNTHETIC_SECRET_TOKEN")),
                     "Console diagnostic failure leaked data or prevented user exit."); checks++;
             }
             using (var state = new SessionState())
@@ -523,8 +523,8 @@ namespace DiscordAccess
                     Connect = () => { state.StateChanged(true); state.Command("D"); state.Command(link); return complete(); },
                     Download = value => { received = value; return Task.FromResult(@"C:\fixture\sample.txt"); },
                     Disconnect = complete, Dispose = () => { } };
-                int result = RunSession(session, state, line => { messages.Add(line); if (line.StartsWith("Kaydedildi:")) state.Command("Q"); }, 20);
-                require(result == 0 && received == link && messages.Any(line => line.StartsWith("Kaydedildi: sample.txt")) &&
+                int result = RunSession(session, state, line => { messages.Add(line); if (line.StartsWith("Saved:")) state.Command("Q"); }, 20);
+                require(result == 0 && received == link && messages.Any(line => line.StartsWith("Saved: sample.txt")) &&
                     messages.All(line => !line.Contains("FIXTURE_SECRET") && !line.Contains("https://")),
                     "D command changed or exposed the signed attachment URL."); checks++;
             }
@@ -570,8 +570,8 @@ namespace DiscordAccess
                     Connect = () => { state.StateChanged(true); state.Command("D"); state.Command(null); return complete(); },
                     Download = value => { throw new InvalidOperationException("EOF should not request a file."); },
                     Disconnect = complete, Dispose = () => { } };
-                int result = RunSession(session, state, line => { messages.Add(line); if (line.Contains("komut girişi kapalı")) state.Command("Q"); }, 20);
-                require(result == 0 && messages.Any(line => line.Contains("komut girişi kapalı")), "D command waited forever after EOF."); checks++;
+                int result = RunSession(session, state, line => { messages.Add(line); if (line.Contains("command input is closed")) state.Command("Q"); }, 20);
+                require(result == 0 && messages.Any(line => line.Contains("command input is closed")), "D command waited forever after EOF."); checks++;
             }
             using (var state = new SessionState())
             {
@@ -612,23 +612,23 @@ namespace DiscordAccess
         }
         private static void Help()
         {
-            WriteConsole("Discord Erişim v4.21 — sistem tepsisi ve komut satırı");
-            WriteConsole("DiscordAccess.exe                 Sistem tepsisinde bağlantıyı hazır tutar; açık CMD bırakmaz.");
-            WriteConsole("DiscordAccess.exe --console       Önceki Q / T / D konsolunu açar.");
-            WriteConsole("--tray                           Sistem tepsisi modu (varsayılan).");
-            WriteConsole("--startup                        Kayıtlı Windows açılış tercihini uygular; elle açılış değildir.");
-            WriteConsole("DiscordAccess.exe --open-discord  Açık bağlantı oturumuna Discord açma isteği gönderir.");
-            WriteConsole("DiscordAccess.exe --verify-package  Motoru başlatmadan paketi doğrular.");
-            WriteConsole("DiscordAccess.exe --restore       Discord kapalıyken bağlantı ve başlangıç ayarlarını geri alır.");
-            WriteConsole("DiscordAccess.exe --discord-path \"D:\\Programlar\\Discord\\Discord.exe\"  Özel kurulum yolu; hatırlanır.");
-            WriteConsole("--dns=auto                        Discord erişimiyle otomatik DNS seçimi (varsayılan).");
-            WriteConsole("--dns=cloudflare                  Sabit Cloudflare DoH (v4.7 ile aynı).");
-            WriteConsole("--dns=cloudflare-ip               Cloudflare DoH; sertifika 1.1.1.1 adresiyle doğrulanır.");
-            WriteConsole("--dns=google                      Sabit Google DoH; yalnız bu sağlayıcı kullanılır.");
-            WriteConsole("--dns-record-fragment             Seçilen DoH bağlantısında TLS kayıt parçalamayı açar.");
-            WriteConsole("A + Enter: Discord aç. Q + Enter / Ctrl+C: bağlantıyı kapat. T: tanılama. D: dosya indir.");
-            WriteConsole("D ile indirilen dosyalar İndirilenler/DiscordAccess altında kaydedilir. Boş Enter bağlantıyı kapatmaz.");
-            WriteConsole("--start ve --connect eski başlatıcılar için desteklenir.");
+            WriteConsole("DiscordAccess v4.21 — system tray and command line");
+            WriteConsole("DiscordAccess.exe                 Keeps the connection ready in the system tray; leaves no CMD open.");
+            WriteConsole("DiscordAccess.exe --console       Opens the earlier Q / T / D console.");
+            WriteConsole("--tray                           System tray mode (default).");
+            WriteConsole("--startup                        Applies the saved Windows startup preference; not a manual launch.");
+            WriteConsole("DiscordAccess.exe --open-discord  Sends an Open Discord request to the running connection session.");
+            WriteConsole("DiscordAccess.exe --verify-package  Verifies the package without starting the engine.");
+            WriteConsole("DiscordAccess.exe --restore       Undoes the connection and startup settings while Discord is closed.");
+            WriteConsole("DiscordAccess.exe --discord-path \"D:\\Programs\\Discord\\Discord.exe\"  Custom installation path; remembered.");
+            WriteConsole("--dns=auto                        Automatic DNS selection by Discord access (default).");
+            WriteConsole("--dns=cloudflare                  Fixed Cloudflare DoH (same as v4.7).");
+            WriteConsole("--dns=cloudflare-ip               Cloudflare DoH; the certificate is verified against 1.1.1.1.");
+            WriteConsole("--dns=google                      Fixed Google DoH; only this provider is used.");
+            WriteConsole("--dns-record-fragment             Turns on TLS record fragmentation for the selected DoH connection.");
+            WriteConsole("A + Enter: open Discord. Q + Enter / Ctrl+C: close the connection. T: diagnostics. D: download file.");
+            WriteConsole("Files downloaded with D are saved under Downloads/DiscordAccess. An empty Enter does not close the connection.");
+            WriteConsole("--start and --connect are supported for older launchers.");
         }
     }
 }

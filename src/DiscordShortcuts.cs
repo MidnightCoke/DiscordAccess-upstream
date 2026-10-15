@@ -161,9 +161,9 @@ namespace DiscordAccess
             // Besides ambiguous ownership, adding fresh records could exceed
             // recovery's bounded record count and strand otherwise valid links.
             if (Pending(paths))
-                throw new InvalidOperationException("Önceki Discord kısayol oturumu tamamen geri alınamadı. Yeni kısayol değişikliği yapılmadı; kurtarma kayıtları korundu.");
+                throw new InvalidOperationException("The previous Discord shortcut session could not be fully restored. No new shortcut change was made; the recovery records were kept.");
             if (!File.Exists(paths.Image) || !Safety.NoReparse(paths.Image))
-                throw new InvalidDataException("DiscordAccess uygulama yolu doğrulanamadı; Discord kısayolları değiştirilmedi.");
+                throw new InvalidDataException("The DiscordAccess app path could not be verified; the Discord shortcuts were not changed.");
             var binding = new DiscordShortcuts(paths, log, proxyArguments);
             try
             {
@@ -173,8 +173,8 @@ namespace DiscordAccess
                     binding.BindOne(shortcut);
                 }
                 if (log != null) log(binding.BoundCount == 0
-                    ? "Uyumlu mevcut Discord kısayolu bulunamadı; aynı kurulumu CMD’de A + Enter ile açabilirsiniz."
-                    : "Mevcut Discord kısayolları bağlantı için hazırlandı: " + binding.BoundCount + ". Discord kendiliğinden açılmaz.");
+                    ? "No compatible existing Discord shortcut was found; you can open the same installation with A + Enter in CMD."
+                    : "Existing Discord shortcuts prepared for the connection: " + binding.BoundCount + ". Discord does not open on its own.");
                 return binding;
             }
             catch { binding.Restore(); throw; }
@@ -187,7 +187,7 @@ namespace DiscordAccess
             PrepareJournal(paths);
             string[] entries = Directory.GetFiles(paths.Journal, "*.json", SearchOption.TopDirectoryOnly);
             if (entries.Length > MaxLinks)
-                throw new InvalidDataException("Kısayol kurtarma kaydı sınırı aşıldı; mevcut kısayollara dokunulmadı.");
+                throw new InvalidDataException("The shortcut recovery record limit was exceeded; existing shortcuts were not touched.");
             foreach (string entry in entries) RestoreRecord(paths, entry, log);
         }
 
@@ -222,7 +222,7 @@ namespace DiscordAccess
                 catch { /* A locked/foreign link stays unchanged and journaled. */ }
             }
             if (refreshed != 0 && log != null)
-                log("Oturum sırasında resmi Discord hedefiyle yenilenen kısayollar bağlantı için yeniden hazırlandı: " + refreshed + ".");
+                log("Shortcuts refreshed to the official Discord target during the session were prepared again for the connection: " + refreshed + ".");
             return refreshed;
         }
 
@@ -254,7 +254,7 @@ namespace DiscordAccess
                 if (!AcceptedTarget(paths, target, true))
                 {
                     if (LegacyIsolatedTarget(paths, target) && trace != null)
-                        trace("Eski ayrı Discord test kopyasına giden bir kısayol bulundu; bu kısayol değiştirilmedi. Windows'a kurulu resmi Discord kısayolunu kullanın.");
+                        trace("A shortcut to the old separate Discord test copy was found; this shortcut was not changed. Use the shortcut of the official Discord installed in Windows.");
                     return;
                 }
                 string arguments = DirectArguments(paths, target, proxyArguments);
@@ -263,7 +263,7 @@ namespace DiscordAccess
                 paths.Adapter.Rewrite(inspection, target.Path, arguments, Path.GetDirectoryName(target.Path), target.Icon ?? "");
                 Target changed = paths.Adapter.Read(inspection);
                 if (!String.Equals(changed.Path, target.Path, StringComparison.Ordinal) || changed.Arguments != arguments)
-                    throw new InvalidDataException("Kısayol değişikliği doğrulanamadı.");
+                    throw new InvalidDataException("The shortcut change could not be verified.");
                 byte[] installed = ReadBytes(inspection, MaxShortcutBytes);
                 record = new Record { Version = 3, Id = id, Path = Path.GetFullPath(shortcut), Original = Convert.ToBase64String(original),
                     OriginalHash = Safety.HashBytes(original), InstalledHash = Safety.HashBytes(installed), Image = target.Path,
@@ -279,7 +279,7 @@ namespace DiscordAccess
                 {
                     CleanupByHash(temporary, record.InstalledHash);
                     DeletePlain(entry);
-                    if (trace != null) trace("Bir Discord kısayolu hazırlık sırasında değişti; kullanıcı değişikliği korundu.");
+                    if (trace != null) trace("A Discord shortcut changed during preparation; the user change was kept.");
                     return;
                 }
                 CleanupByHash(backup, record.OriginalHash);
@@ -293,7 +293,7 @@ namespace DiscordAccess
                     // The journal determines whether rollback is appropriate.
                     RestoreRecord(paths, entry, trace);
                 }
-                if (trace != null) trace("Bir Discord kısayolu hazırlanamadı; diğer kısayollar korunuyor (" + ex.GetType().Name + ").");
+                if (trace != null) trace("A Discord shortcut could not be prepared; the other shortcuts are kept (" + ex.GetType().Name + ").");
             }
             finally { DeletePlain(inspection); }
         }
@@ -319,7 +319,7 @@ namespace DiscordAccess
                 Target originalTarget = paths.Adapter.Read(inspection);
                 if (!AcceptedTarget(paths, originalTarget, false) ||
                     (record.Version == 3 && !String.Equals(record.Image, originalTarget.Path, StringComparison.Ordinal)))
-                    throw new InvalidDataException("Kısayol kaydındaki özgün hedef tanınmadı.");
+                    throw new InvalidDataException("The original target in the shortcut record was not recognized.");
                 if (!File.Exists(record.Path) || !paths.OwnedByUser(record.Path))
                 {
                     CleanupRecord(record);
@@ -358,7 +358,7 @@ namespace DiscordAccess
             }
             catch (Exception ex)
             {
-                if (log != null) log("Bir Discord kısayolunun kurtarma kaydı korundu; otomatik geri alma tamamlanamadı (" + ex.GetType().Name + ").");
+                if (log != null) log("The recovery record of a Discord shortcut was kept; the automatic restore could not be completed (" + ex.GetType().Name + ").");
             }
             finally { if (inspection != null) DeletePlain(inspection); }
         }
@@ -377,8 +377,8 @@ namespace DiscordAccess
                     if (!VerifiedOfficialLink(paths, record, expectedHash, lease)) return false;
                     CleanupRecord(record);
                     DeletePlain(entry);
-                    if (File.Exists(entry)) throw new IOException("Kısayol oturum kaydı kaldırılamadı.");
-                    if (log != null) log("Oturum sırasında resmi Discord hedefiyle yenilenen kısayol korundu; geçici kısayol kaydı temizlendi.");
+                    if (File.Exists(entry)) throw new IOException("The shortcut session record could not be removed.");
+                    if (log != null) log("A shortcut refreshed to the official Discord target during the session was kept; the temporary shortcut record was cleared.");
                     return true;
                 }
             }
@@ -396,7 +396,7 @@ namespace DiscordAccess
         {
             string id = Path.GetFileNameWithoutExtension(entry);
             if (!IdPattern.IsMatch(id) || !SamePath(entry, JournalChild(paths, id + ".json")))
-                throw new InvalidDataException("Kısayol kaydı adı geçersiz.");
+                throw new InvalidDataException("The shortcut record name is invalid.");
             Record record = Serializer().Deserialize<Record>(Utf8.GetString(ReadBytes(entry, MaxRecordBytes)));
             if (record == null || (record.Version != 1 && record.Version != 2 && record.Version != 3) || record.Id != id || !AllowedShortcut(paths, record.Path) ||
                 !HashPattern.IsMatch(record.OriginalHash ?? "") || !HashPattern.IsMatch(record.InstalledHash ?? "") ||
@@ -408,11 +408,11 @@ namespace DiscordAccess
                 (record.Version != 3 && !String.IsNullOrEmpty(record.ProxyArguments)) ||
                 (record.Version >= 2 && (String.IsNullOrEmpty(record.Root) || !Path.IsPathRooted(record.Root) ||
                     !String.Equals(record.Root, Path.GetFullPath(record.Root).TrimEnd(Path.DirectorySeparatorChar), StringComparison.Ordinal))))
-                throw new InvalidDataException("Kısayol kurtarma kaydı geçersiz.");
+                throw new InvalidDataException("The shortcut recovery record is invalid.");
             if (record.Version == 3) ValidateProxyArguments(record.ProxyArguments);
             byte[] original = Convert.FromBase64String(record.Original ?? "");
             if (original.Length == 0 || original.Length > MaxShortcutBytes || Safety.HashBytes(original) != record.OriginalHash)
-                throw new InvalidDataException("Özgün kısayol kaydı bozuk.");
+                throw new InvalidDataException("The original shortcut record is corrupt.");
             return record;
         }
 
@@ -423,9 +423,9 @@ namespace DiscordAccess
                 root = paths.LegacyDiscordRoot ?? Safety.DefaultDiscordRoot;
             else
             {
-                if (paths.VerifyRecoveryRoot == null) throw new InvalidDataException("Kısayol kurtarma kökü doğrulanamadı.");
+                if (paths.VerifyRecoveryRoot == null) throw new InvalidDataException("The shortcut recovery root could not be verified.");
                 root = paths.VerifyRecoveryRoot(record.Root);
-                if (!SamePath(root, record.Root)) throw new InvalidDataException("Kısayol kurtarma kökü değişti.");
+                if (!SamePath(root, record.Root)) throw new InvalidDataException("The shortcut recovery root changed.");
             }
             var result = new EnvironmentPaths {
                 Journal = paths.Journal, DiscordRoot = root, Image = paths.Image,
@@ -463,7 +463,7 @@ namespace DiscordAccess
                     CleanupByHash(rollbackBackup, installedHash);
                 }
             }
-            throw new IOException("Kısayol değiştirme sırasında kullanıcı değişikliği bulundu.");
+            throw new IOException("A user change was found while changing the shortcut.");
         }
 
         private static void CleanupRecord(Record record)
@@ -480,12 +480,12 @@ namespace DiscordAccess
         {
             string archive = JournalChild(paths, Path.GetFileNameWithoutExtension(entry) + ".conflict");
             if (!File.Exists(archive) && Safety.NoReparse(entry) && Safety.NoReparse(archive)) File.Move(entry, archive);
-            if (log != null) log("Bir Discord kısayolu oturum sırasında değiştirilmiş veya kaldırılmış; üzerine yazılmadı. Özgün kopyası kurtarma kaydında saklandı.");
+            if (log != null) log("A Discord shortcut was changed or removed during the session; it was not overwritten. Its original copy was saved in the recovery record.");
         }
 
         private static string Sidecar(Record record, string suffix)
         {
-            if (!IdPattern.IsMatch(record.Id ?? "")) throw new InvalidDataException("Kısayol işlem kimliği geçersiz.");
+            if (!IdPattern.IsMatch(record.Id ?? "")) throw new InvalidDataException("The shortcut operation ID is invalid.");
             return Path.Combine(Path.GetDirectoryName(record.Path), ".DiscordAccess-" + record.Id + "-" + suffix);
         }
 
@@ -574,7 +574,7 @@ namespace DiscordAccess
             Match match = Regex.Match(arguments ?? "", @"\A--proxy-server=http://127\.0\.0\.1:([1-9][0-9]{0,4}) --proxy-bypass-list=(?:""127\.0\.0\.1;localhost""|127\.0\.0\.1;localhost) --disable-quic\z", RegexOptions.CultureInvariant);
             int port;
             if (!match.Success || !Int32.TryParse(match.Groups[1].Value, out port) || port < 1 || port > 65535)
-                throw new InvalidDataException("Discord kısayolu için yalnız yerel bağlantı seçenekleri kullanılabilir.");
+                throw new InvalidDataException("Only local connection options can be used for a Discord shortcut.");
         }
 
         private static string DirectArguments(EnvironmentPaths paths, Target target, string arguments)
@@ -623,24 +623,24 @@ namespace DiscordAccess
             if (paths == null || paths.Adapter == null || paths.PrepareState == null || paths.OwnedByUser == null || paths.Locations == null ||
                 paths.Locations.Length == 0 || paths.VerifyRecoveryRoot == null || String.IsNullOrEmpty(paths.Journal) || String.IsNullOrEmpty(paths.DiscordRoot) || String.IsNullOrEmpty(paths.Image) ||
                 !Path.IsPathRooted(paths.Journal) || !Path.IsPathRooted(paths.DiscordRoot) || !Path.IsPathRooted(paths.Image))
-                throw new ArgumentException("Kısayol ortamı geçersiz.");
+                throw new ArgumentException("The shortcut environment is invalid.");
             if (!Safety.NoReparse(paths.Journal) || !Safety.NoReparse(paths.DiscordRoot) || !Safety.NoReparse(paths.Image))
-                throw new InvalidDataException("Kısayol ortamında yeniden yönlendirilmiş dosya yolu var.");
+                throw new InvalidDataException("The shortcut environment contains a redirected file path.");
         }
 
         private static void PrepareJournal(EnvironmentPaths paths)
         {
             paths.PrepareState();
-            if (!Safety.NoReparse(paths.Journal)) throw new InvalidDataException("Kısayol kayıt yolu güvenli değil.");
+            if (!Safety.NoReparse(paths.Journal)) throw new InvalidDataException("The shortcut record path is not safe.");
             Directory.CreateDirectory(paths.Journal);
-            if (!Safety.NoReparse(paths.Journal)) throw new InvalidDataException("Kısayol kayıt yolu değişti.");
+            if (!Safety.NoReparse(paths.Journal)) throw new InvalidDataException("The shortcut record path changed.");
         }
 
         private static string JournalChild(EnvironmentPaths paths, string name)
         {
-            if (Path.GetFileName(name) != name || String.IsNullOrEmpty(name)) throw new InvalidDataException("Kısayol kayıt dosyası geçersiz.");
+            if (Path.GetFileName(name) != name || String.IsNullOrEmpty(name)) throw new InvalidDataException("The shortcut record file is invalid.");
             string result = Path.Combine(paths.Journal, name);
-            if (!Safety.Under(result, paths.Journal) || !Safety.NoReparse(result)) throw new InvalidDataException("Kısayol kayıt dosyası güvenli değil.");
+            if (!Safety.Under(result, paths.Journal) || !Safety.NoReparse(result)) throw new InvalidDataException("The shortcut record file is not safe.");
             return result;
         }
 
@@ -648,7 +648,7 @@ namespace DiscordAccess
         {
             using (var stream = Safety.ReadLease(path))
             {
-                if (stream.Length < 1 || stream.Length > limit) throw new InvalidDataException("Kısayol dosyası boyutu beklenen sınırda değil.");
+                if (stream.Length < 1 || stream.Length > limit) throw new InvalidDataException("The shortcut file size is not within the expected limit.");
                 var bytes = new byte[(int)stream.Length];
                 int position = 0;
                 while (position < bytes.Length)
@@ -671,10 +671,10 @@ namespace DiscordAccess
 
         private static void WriteNew(string path, byte[] bytes)
         {
-            if (!Safety.NoReparse(path)) throw new InvalidDataException("Kısayol yazma yolu güvenli değil.");
+            if (!Safety.NoReparse(path)) throw new InvalidDataException("The shortcut write path is not safe.");
             using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
             {
-                if (!SamePath(path, NativeFile.FinalPath(stream.SafeFileHandle))) throw new InvalidDataException("Kısayol yazma hedefi değişti.");
+                if (!SamePath(path, NativeFile.FinalPath(stream.SafeFileHandle))) throw new InvalidDataException("The shortcut write target changed.");
                 stream.Write(bytes, 0, bytes.Length); stream.Flush(true);
             }
         }
@@ -742,7 +742,7 @@ namespace DiscordAccess
                     Safety.EnsureStateDirectory();
                     if (Directory.Exists(journal))
                     {
-                        if (!Safety.NoReparse(journal)) throw new InvalidDataException("Kısayol kaydı güvenli değil.");
+                        if (!Safety.NoReparse(journal)) throw new InvalidDataException("The shortcut record is not safe.");
                         using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
                         {
                             var acl = Directory.GetAccessControl(journal);
@@ -750,7 +750,7 @@ namespace DiscordAccess
                             if (!allowed.Contains(((SecurityIdentifier)acl.GetOwner(typeof(SecurityIdentifier))).Value) ||
                                 acl.GetAccessRules(true, true, typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>()
                                     .Any(rule => rule.AccessControlType == AccessControlType.Allow && !allowed.Contains(rule.IdentityReference.Value)))
-                                throw new InvalidDataException("Kısayol kaydının izinleri beklenen kullanıcılarla sınırlı değil.");
+                                throw new InvalidDataException("The permissions of the shortcut record are not limited to the expected users.");
                         }
                     }
                 }

@@ -144,7 +144,7 @@ namespace DiscordAccess
                 finally { result.Dispose(); }
                 throw;
             }
-            if (log != null) log("Kurulu Discord için geçici bağlantı desteği hazırlandı.");
+            if (log != null) log("Temporary connection support was prepared for the installed Discord.");
             return result;
         }
 
@@ -279,7 +279,7 @@ namespace DiscordAccess
             var recovered = Create(Path.Combine(installedRoot, "app-" + version, "Discord.exe"), installedRoot, profile, session, legacyRoot);
             recovered.externalProxy = JournalProxy(saved);
             recovered.Restore();
-            if (log != null) log("Önceki oturumun geçici Discord ayarları geri alındı.");
+            if (log != null) log("The temporary Discord settings of the previous session were restored.");
         }
 
         private static Dictionary<string, object> ValidateJournal(byte[] bytes, string version, string expectedRoot, string legacyRoot)
@@ -539,11 +539,11 @@ namespace DiscordAccess
                 value != "http://127.0.0.1:" + uri.Port.ToString(System.Globalization.CultureInfo.InvariantCulture)) throw Conflict();
         }
         private static InvalidDataException Conflict()
-        { return new InvalidDataException("Kurulu Discord'un geçici ayarları güvenli biçimde doğrulanamadı. Değişmiş dosya veya tercihin üzerine yazılmadı."); }
+        { return new InvalidDataException("The temporary settings of the installed Discord could not be verified safely. A changed file or preference was not overwritten."); }
         private static InvalidDataException Unsupported()
-        { return new InvalidDataException("Kurulu Discord'un resmi sürümü veya başlangıç modülü tanınmadı; uygulama dosyaları değiştirilmedi."); }
+        { return new InvalidDataException("The official version or startup module of the installed Discord was not recognized; the app files were not changed."); }
         private static InvalidDataException MissingModule()
-        { return new InvalidDataException("Kurulu Discord'un beklenen başlangıç modülü bulunamadı; indirme desteği etkinleştirilmedi."); }
+        { return new InvalidDataException("The expected startup module of the installed Discord was not found; download support was not enabled."); }
 
 #if TEST_BUILD
         private static HashSet<string> fixtureRoots;

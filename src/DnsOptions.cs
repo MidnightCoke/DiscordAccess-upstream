@@ -21,12 +21,12 @@ namespace DiscordAccess
                 new DnsOptions("cloudflare", RecordFragment), new DnsOptions("google", RecordFragment) } : new[] { this }; }
         }
         private void RequireResolved()
-        { if (Automatic) throw new InvalidOperationException("Otomatik DNS seçimi henüz tamamlanmadı."); }
+        { if (Automatic) throw new InvalidOperationException("Automatic DNS selection has not finished yet."); }
         internal string Address { get { RequireResolved(); return Provider == "google" ? "8.8.8.8" : "1.1.1.1"; } }
         internal string ServerName { get { RequireResolved(); return Provider == "google" ? "dns.google" : (Provider == "cloudflare-ip" ? "1.1.1.1" : "cloudflare-dns.com"); } }
         internal string Description
         {
-            get { return (Automatic ? "Otomatik seçim" : (Provider == "google" ? "Google" : (Provider == "cloudflare-ip" ? "Cloudflare (IP sertifikası)" : "Cloudflare"))) + " DoH | DNS TLS kayıt parçalama: " + (RecordFragment ? "açık" : "kapalı"); }
+            get { return (Automatic ? "Automatic selection" : (Provider == "google" ? "Google" : (Provider == "cloudflare-ip" ? "Cloudflare (IP certificate)" : "Cloudflare"))) + " DoH | DNS TLS record fragmentation: " + (RecordFragment ? "on" : "off"); }
         }
         internal static DnsOptions Parse(string[] args)
         {
@@ -53,7 +53,7 @@ namespace DiscordAccess
         }
         private static ArgumentException Invalid()
         {
-            return new ArgumentException("DNS seçeneği geçersiz veya tekrarlanmış. --dns=auto, --dns=cloudflare, --dns=cloudflare-ip ya da --dns=google seçin; gerekirse bir kez --dns-record-fragment ekleyin.");
+            return new ArgumentException("The DNS option is invalid or repeated. Choose --dns=auto, --dns=cloudflare, --dns=cloudflare-ip or --dns=google; if needed, add --dns-record-fragment once.");
         }
     }
 }

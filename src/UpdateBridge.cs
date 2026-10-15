@@ -45,7 +45,7 @@ namespace DiscordAccess
         {
             get
             {
-                if (Port == 0 || Volatile.Read(ref disposed) != 0) throw new InvalidOperationException("Güncelleme köprüsü açık değil.");
+                if (Port == 0 || Volatile.Read(ref disposed) != 0) throw new InvalidOperationException("The update bridge is not open.");
                 return "http://127.0.0.1:" + Port.ToString(CultureInfo.InvariantCulture) + "/" + token;
             }
         }
@@ -71,7 +71,7 @@ namespace DiscordAccess
         private static extern bool SetHandleInformation(IntPtr handle, uint mask, uint flags);
         private static void NoInheritance(Socket socket)
         {
-            if (!SetHandleInformation(socket.Handle, 1, 0)) throw new IOException("Güncelleme soketi güvenli biçimde kurulamadı.");
+            if (!SetHandleInformation(socket.Handle, 1, 0)) throw new IOException("The update socket could not be set up safely.");
         }
 
         internal void Start()
@@ -469,7 +469,7 @@ namespace DiscordAccess
                 if (!cancellation.IsCancellationRequested && log != null && failureBudget.Admit(true, DateTime.UtcNow))
                 {
                     // URLs/tokens and response bodies may contain sensitive data.
-                    try { log("Güncelleme köprüsü isteği tamamlanamadı: " + DescribeFailure(stage, failure, responseStatus)); } catch { }
+                    try { log("The update bridge request could not be completed: " + DescribeFailure(stage, failure, responseStatus)); } catch { }
                 }
                 if (!responseStarted && !cancellation.IsCancellationRequested)
                 {

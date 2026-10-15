@@ -59,7 +59,7 @@ namespace DiscordAccess
                 foreach (string item in queue.GetConsumingEnumerable())
                 {
                     int skipped = Interlocked.Exchange(ref dropped, 0);
-                    if (skipped > 0) Emit("Yoğun kayıt nedeniyle " + skipped + " tanılama satırı atlandı.");
+                    if (skipped > 0) Emit("Skipped " + skipped + " diagnostic lines because of heavy logging.");
                     Emit(item);
                 }
             }

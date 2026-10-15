@@ -39,15 +39,15 @@ namespace DiscordAccess
         {
             root = Path.GetFullPath(root);
             string name = AttachmentDownloader.SuggestedName(uri);
-            if (!Safety.NoReparse(root)) throw new AttachmentDownloadException("İndirme klasöründe yönlendirilmiş dosya yolu kullanılamıyor.");
+            if (!Safety.NoReparse(root)) throw new AttachmentDownloadException("A redirected file path cannot be used in the download folder.");
             Directory.CreateDirectory(root);
             string unique = Path.Combine(root, DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N"));
-            if (!Safety.Under(unique, root) || !Safety.NoReparse(unique)) throw new AttachmentDownloadException("İndirme klasörü doğrulanamadı.");
+            if (!Safety.Under(unique, root) || !Safety.NoReparse(unique)) throw new AttachmentDownloadException("The download folder could not be verified.");
             // Keep room for the downloader's fixed temporary filename and the
             // Windows Internet zone stream on this legacy .NET runtime.
             int maximumName = Math.Min(160, 230 - unique.Length - 1);
             if (maximumName < 16 || unique.Length > 200)
-                throw new AttachmentDownloadException("İndirilenler klasörünün yolu çok uzun; daha kısa bir İndirilenler konumu gerekiyor.");
+                throw new AttachmentDownloadException("The Downloads folder path is too long; a shorter Downloads location is needed.");
             if (name.Length > maximumName)
             {
                 string extension = Path.GetExtension(name);
@@ -56,7 +56,7 @@ namespace DiscordAccess
             }
             Directory.CreateDirectory(unique);
             string destination = Path.Combine(unique, name);
-            if (!Safety.Under(destination, unique) || !Safety.NoReparse(destination)) throw new AttachmentDownloadException("İndirme dosyası doğrulanamadı.");
+            if (!Safety.Under(destination, unique) || !Safety.NoReparse(destination)) throw new AttachmentDownloadException("The download file could not be verified.");
             return destination;
         }
 
