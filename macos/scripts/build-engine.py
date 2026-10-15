@@ -49,7 +49,7 @@ LOCK_SUM_SHA256 = "c391d32564c5c66c7eb76fae8595129e234784b03a0e4100ecb762beec9a1
 BUILD_TAGS = "with_purego,badlinkname,tfogo_checklinkname0"
 LINKER_FLAGS = "-X github.com/sagernet/sing-box/constant.Version=" + ENGINE_VERSION + " -checklinkname=0 -s -w -buildid="
 SOURCE_TEST_PACKAGES = ("./internal/discordaccess/httpguard", "./protocol/http", "./common/listener")
-# Pinned after Aşama 0 reproduced two identical builds; must equal EngineIdentity.pinned in
+# Pinned after stage 0 reproduced two identical builds; must equal EngineIdentity.pinned in
 # macos/Sources/DiscordAccessKit/Engine/EngineImage.swift (checked by the tests).
 ENGINE_SHA256 = "013ba5d5055988953ebec1a1ac0eceb8aead52415e3ef186a5c7481083472cb0"
 ENGINE_BYTES = 33315362
@@ -78,12 +78,12 @@ def sha256_file(path: Path) -> str:
 
 def require_digest(path: Path, expected: str, label: str) -> None:
     if not path.is_file() or sha256_file(path) != expected:
-        raise BuildError(label + " sabit SHA-256 ile eşleşmedi: " + str(path))
+        raise BuildError(label + " does not match its pinned SHA-256: " + str(path))
 
 
 def require_locks(go_mod: Path, go_sum: Path) -> None:
-    require_digest(go_mod, LOCK_MOD_SHA256, "go.mod kilidi")
-    require_digest(go_sum, LOCK_SUM_SHA256, "go.sum kilidi")
+    require_digest(go_mod, LOCK_MOD_SHA256, "go.mod lock")
+    require_digest(go_sum, LOCK_SUM_SHA256, "go.sum lock")
 
 
 def require_inside(path: Path, root: Path) -> Path:
@@ -93,21 +93,21 @@ def require_inside(path: Path, root: Path) -> Path:
     try:
         relative = full.relative_to(root)
     except ValueError:
-        raise BuildError("Yol izin verilen klasörün dışına çıktı: " + str(full)) from None
+        raise BuildError("Path leaves the allowed folder: " + str(full)) from None
     current = root
     for part in relative.parts:
         current = current / part
         if current.is_symlink():
-            raise BuildError("Yolda sembolik bağ var: " + str(current))
+            raise BuildError("Path contains a symbolic link: " + str(current))
     return full
 
 
 def _relative_member(name: str, prefix: str) -> str:
     if not name.startswith(prefix) or "\\" in name or ":" in name or "\x00" in name or name.startswith("/"):
-        raise BuildError("Beklenmeyen arşiv yolu: " + name)
+        raise BuildError("Unexpected archive path: " + name)
     relative = name[len(prefix):]
     if relative and any(part in ("", ".", "..") for part in relative.rstrip("/").split("/")):
-        raise BuildError("Arşivde yol geçişi yasak: " + name)
+        raise BuildError("Path traversal in archive: " + name)
     return relative
 
 
@@ -119,14 +119,14 @@ def extract_zip(archive: Path, destination: Path, prefix: str, max_bytes: int, m
     with zipfile.ZipFile(archive) as source:
         entries = source.infolist()
         if len(entries) > max_entries:
-            raise BuildError("Kaynak arşivi girdi sınırını aştı.")
+            raise BuildError("Source archive exceeds its entry limit.")
         for entry in entries:
             relative = _relative_member(entry.filename, prefix)
             if not relative:
                 continue
             total += entry.file_size
             if entry.file_size > 268435456 or total > max_bytes:
-                raise BuildError("Kaynak arşivi boyut sınırını aştı.")
+                raise BuildError("Source archive exceeds its size limit.")
             target = require_inside(destination / relative.rstrip("/"), destination)
             if entry.is_dir():
                 target.mkdir(parents=True, exist_ok=True)
@@ -147,7 +147,7 @@ def extract_go_toolchain(archive: Path, destination: Path, max_bytes: int = 1073
         for member in source:
             count += 1
             if count > max_entries:
-                raise BuildError("Araç zinciri arşivi girdi sınırını aştı.")
+                raise BuildError("Toolchain archive exceeds its entry limit.")
             if member.name == "go" and member.isdir():
                 continue
             relative = _relative_member(member.name, "go/")
@@ -158,14 +158,14 @@ def extract_go_toolchain(archive: Path, destination: Path, max_bytes: int = 1073
                 target.mkdir(parents=True, exist_ok=True)
                 continue
             if not member.isfile():
-                raise BuildError("Araç zinciri arşivinde normal dosya olmayan girdi: " + member.name)
+                raise BuildError("Toolchain archive entry is not a regular file: " + member.name)
             total += member.size
             if member.size > 268435456 or total > max_bytes:
-                raise BuildError("Araç zinciri arşivi boyut sınırını aştı.")
+                raise BuildError("Toolchain archive exceeds its size limit.")
             target.parent.mkdir(parents=True, exist_ok=True)
             data = source.extractfile(member)
             if data is None:
-                raise BuildError("Araç zinciri dosyası okunamadı: " + member.name)
+                raise BuildError("Cannot read toolchain file: " + member.name)
             with data, open(target, "xb") as output:
                 shutil.copyfileobj(data, output)
             os.chmod(target, 0o755 if member.mode & 0o111 else 0o644)
@@ -174,13 +174,13 @@ def extract_go_toolchain(archive: Path, destination: Path, max_bytes: int = 1073
 
 
 def load_overlay_manifest(path: Path = PATCH_MANIFEST) -> dict:
-    require_digest(path, PATCH_MANIFEST_SHA256, "Yama manifesti")
+    require_digest(path, PATCH_MANIFEST_SHA256, "Patch manifest")
     manifest = json.loads(path.read_bytes())
     files = manifest.get("files")
     if (manifest.get("schema") != 1 or manifest.get("main_source_commit") != SOURCE_COMMIT or
             manifest.get("source_archive_sha256") != SOURCE_SHA256 or manifest.get("engine_version") != ENGINE_VERSION or
             not isinstance(files, list) or not 1 <= len(files) <= 16):
-        raise BuildError("Yama manifestinin kimliği geçersiz.")
+        raise BuildError("Invalid patch manifest identity.")
     return manifest
 
 
@@ -196,25 +196,25 @@ def apply_overlay(manifest: dict, repo_root: Path, source_root: Path) -> list:
                 record.get("payload_relative") != "engine-patches/http-limits/source/" + name or
                 not isinstance(after, str) or not DIGEST_PATTERN.match(after) or
                 type(size) is not int or not 1 <= size <= 1048576):
-            raise BuildError("Yama yolu veya kimliği geçersiz: " + str(name))
+            raise BuildError("Invalid patch path or identity: " + str(name))
         seen.add(name)
         target = require_inside(source_root / name, source_root)
         payload = require_inside(repo_root / record["payload_relative"], repo_root)
         before = record.get("before_sha256")
         if before is None:
             if os.path.lexists(target):
-                raise BuildError("Eklenen yama dosyası upstream kaynakta zaten var: " + name)
+                raise BuildError("Added patch file already exists in the upstream source: " + name)
         elif (not isinstance(before, str) or not DIGEST_PATTERN.match(before) or
               not target.is_file() or sha256_file(target) != before):
-            raise BuildError("Yamanın temel kaynak baytları eşleşmedi: " + name)
+            raise BuildError("Patch base source bytes do not match: " + name)
         data = payload.read_bytes() if payload.is_file() else b""
         if len(data) != size or hashlib.sha256(data).hexdigest() != after:
-            raise BuildError("Yama yükünün baytları eşleşmedi: " + name)
+            raise BuildError("Patch payload bytes do not match: " + name)
         target.parent.mkdir(parents=True, exist_ok=True)
         with open(target, "wb") as output:
             output.write(data)
         if sha256_file(target) != after:
-            raise BuildError("Uygulanan yama baytları eşleşmedi: " + name)
+            raise BuildError("Applied patch bytes do not match: " + name)
         applied.append(name)
     return applied
 
@@ -239,7 +239,7 @@ def go_environment(build_root: Path, go_root: Path, base: dict | None = None) ->
 def parse_cdhash(output: str) -> str:
     match = re.search(r"^CDHash=([0-9a-f]{40}|[0-9a-f]{64})$", output, re.MULTILINE)
     if match is None:
-        raise BuildError("codesign çıktısında CDHash bulunamadı.")
+        raise BuildError("No CDHash in the codesign output.")
     return match.group(1)
 
 
@@ -254,20 +254,20 @@ def require_build_record(lines: list) -> None:
             settings[key] = value
     if (repeated or not lines or not lines[0].endswith(": " + GO_VERSION) or
             "\tpath\tgithub.com/sagernet/sing-box/cmd/sing-box" not in lines or settings != EXPECTED_BUILD_SETTINGS):
-        raise BuildError("Motorun Go derleme kaydı sabit araç zinciri, hedef veya etiketlerle eşleşmedi.")
+        raise BuildError("The engine's Go build info does not match the pinned toolchain, target or tags.")
 
 
 def require_engine_identity(digest: str, size: int, cdhash: str, evidence: str = "") -> None:
     """Only the pinned engine is ever published: its SHA-256, size and cdhash must all match."""
     if (digest, size, cdhash) != (ENGINE_SHA256, ENGINE_BYTES, ENGINE_CDHASH):
-        raise BuildError("Derlenen motor sabit SHA-256, boyut ve cdhash ile eşleşmedi; kopyalanmadı. Ölçülen: SHA-256 " + digest +
-                         ", " + str(size) + " bayt, cdhash " + cdhash + "." + (" Kanıtlar: " + evidence if evidence else ""))
+        raise BuildError("The built engine does not match the pinned SHA-256, size and cdhash; it was not copied. Measured: SHA-256 " + digest +
+                         ", " + str(size) + " bytes, cdhash " + cdhash + "." + (" Evidence: " + evidence if evidence else ""))
 
 
 def read_cdhash(binary: Path) -> str:
     result = subprocess.run(["/usr/bin/codesign", "-dv", "--verbose=4", str(binary)], capture_output=True, text=True)
     if result.returncode != 0:
-        raise BuildError("codesign motor imzasını okuyamadı: " + result.stderr.strip())
+        raise BuildError("codesign could not read the engine signature: " + result.stderr.strip())
     return parse_cdhash(result.stderr + result.stdout)
 
 
@@ -287,7 +287,7 @@ def fetch_verified(url: str, destination: Path, expected: str, max_bytes: int) -
             for chunk in iter(lambda: response.read(1 << 20), b""):
                 received += len(chunk)
                 if received > max_bytes:
-                    raise BuildError("İndirilen arşiv boyut sınırını aştı: " + url)
+                    raise BuildError("Downloaded archive exceeds its size limit: " + url)
                 output.write(chunk)
     except BaseException:
         if os.path.lexists(partial):
@@ -295,7 +295,7 @@ def fetch_verified(url: str, destination: Path, expected: str, max_bytes: int) -
         raise
     if sha256_file(partial) != expected:
         partial.unlink()
-        raise BuildError("İndirilen arşiv sabit SHA-256 ile eşleşmedi: " + url)
+        raise BuildError("Downloaded archive does not match its pinned SHA-256: " + url)
     os.replace(partial, destination)
     return destination
 
@@ -303,7 +303,7 @@ def fetch_verified(url: str, destination: Path, expected: str, max_bytes: int) -
 def run_go(go: Path, arguments: list, environment: dict, cwd: Path) -> str:
     result = subprocess.run([str(go), *arguments], cwd=cwd, env=environment, capture_output=True, text=True)
     if result.returncode != 0:
-        raise BuildError("Sabit Go komutu başarısız (çıkış " + str(result.returncode) + "): go " + " ".join(arguments) +
+        raise BuildError("Pinned Go command failed (exit " + str(result.returncode) + "): go " + " ".join(arguments) +
                          "\n" + result.stdout[-4000:] + result.stderr[-4000:])
     return result.stdout
 
@@ -313,7 +313,7 @@ def publish(engine: Path, output: Path, digest: str, root: Path = MACOS_ROOT) ->
     output = require_inside(output, root)
     if os.path.lexists(output):
         if output.is_symlink() or not output.is_file() or sha256_file(output) != digest:
-            raise BuildError("Mevcut çıktı motoru farklı; üzerine yazılmadı. Yeni derleme: " + str(engine))
+            raise BuildError("The existing output engine differs; it was not overwritten. New build: " + str(engine))
         return
     output.parent.mkdir(parents=True, exist_ok=True)
     output = require_inside(output, root)
@@ -323,26 +323,26 @@ def publish(engine: Path, output: Path, digest: str, root: Path = MACOS_ROOT) ->
         with os.fdopen(descriptor, "wb") as target, open(engine, "rb") as source:
             shutil.copyfileobj(source, target)
         if sha256_file(partial) != digest:
-            raise BuildError("Kopyalanan motor doğrulanamadı; yayımlanmadı.")
+            raise BuildError("The copied engine could not be verified; it was not published.")
         try:
             os.link(partial, output)
         except FileExistsError:
-            raise BuildError("Çıktı motoru derleme sırasında oluştu; üzerine yazılmadı.") from None
+            raise BuildError("An output engine appeared during the build; it was not overwritten.") from None
     finally:
         partial.unlink()
 
 
 def build(run_source_tests: bool, output: Path | None) -> dict:
     if platform.system() != "Darwin" or platform.machine() != "arm64":
-        raise BuildError("Bu hedef macOS arm64 gerektirir.")
+        raise BuildError("This target requires macOS arm64.")
     require_locks(LOCK_MOD, LOCK_SUM)
     manifest = load_overlay_manifest()
     if output is not None:
         output = require_inside(output, MACOS_ROOT)
         if output.name != "sing-box" or not (output.parent == OUTPUT_ROOT or WORK_ROOT in output.parents):
-            raise BuildError("--out yalnız macos/build/engine/sing-box veya macos/work altında bir sing-box yolu olabilir.")
+            raise BuildError("--out must be macos/build/engine/sing-box or a sing-box path under macos/work.")
         if output.is_dir():
-            raise BuildError("Çıktı yolu bir klasör; değiştirilmedi.")
+            raise BuildError("The output path is a folder; it was not changed.")
     build_root = require_inside(WORK_ROOT / ("engine-build-" + uuid.uuid4().hex), WORK_ROOT)
     build_root.mkdir(parents=True)
     for folder in ("home", "tmp"):
@@ -356,7 +356,7 @@ def build(run_source_tests: bool, output: Path | None) -> dict:
     extract_go_toolchain(go_archive, go_root)
     go = go_root / "bin" / "go"
     if not go.is_file():
-        raise BuildError("Sabit Go çalıştırılabilir dosyası doğrulanmış arşivde yok.")
+        raise BuildError("The pinned Go executable is missing from the verified archive.")
     shutil.copyfile(source_root / "go.mod", artifacts / "upstream-go.mod")
     shutil.copyfile(source_root / "go.sum", artifacts / "upstream-go.sum")
     shutil.copyfile(LOCK_MOD, source_root / "go.mod")
@@ -365,7 +365,7 @@ def build(run_source_tests: bool, output: Path | None) -> dict:
     environment = go_environment(build_root, go_root)
     toolchain = run_go(go, ["version"], environment, source_root).strip()
     if toolchain != "go version " + GO_VERSION + " darwin/arm64":
-        raise BuildError("Sabit araç zinciri kimliği eşleşmedi: " + toolchain)
+        raise BuildError("Pinned toolchain identity does not match: " + toolchain)
     run_go(go, ["mod", "download"], environment, source_root)
     run_go(go, ["mod", "verify"], environment, source_root)
     require_locks(source_root / "go.mod", source_root / "go.sum")
@@ -378,7 +378,7 @@ def build(run_source_tests: bool, output: Path | None) -> dict:
     packages = run_go(go, ["list", "-mod=readonly", "-tags=" + BUILD_TAGS, "-deps", "./cmd/sing-box"], environment, source_root)
     (artifacts / "compiled-packages.txt").write_text(packages, encoding="utf-8")
     if any(line == "golang.org/x/crypto/openpgp" or line.startswith("golang.org/x/crypto/openpgp/") for line in packages.splitlines()):
-        raise BuildError("Bakımı bırakılmış OpenPGP paketi bu hedefe derlenmemeli.")
+        raise BuildError("The unmaintained OpenPGP package must not be compiled into this target.")
     engine = artifacts / "sing-box"
     run_go(go, ["build", "-trimpath", "-buildvcs=false", "-mod=readonly", "-tags=" + BUILD_TAGS, "-ldflags=" + LINKER_FLAGS,
                 "-o", str(engine), "./cmd/sing-box"], environment, source_root)
@@ -411,17 +411,17 @@ def build(run_source_tests: bool, output: Path | None) -> dict:
 
 
 def main(argv: list | None = None) -> int:
-    parser = argparse.ArgumentParser(description="DiscordAccess motorunu macOS arm64 için sabit girdilerle derler; motoru çalıştırmaz.")
-    parser.add_argument("--run-source-tests", action="store_true", help="Yamaların Go testlerini de çalıştır")
-    parser.add_argument("--out", type=Path, help="macos/build/engine/sing-box (verilmezse yalnız kanıt klasörüne derlenir)")
+    parser = argparse.ArgumentParser(description="Builds the DiscordAccess engine for macOS arm64 from pinned inputs; never runs the engine.")
+    parser.add_argument("--run-source-tests", action="store_true", help="Also run the patches' Go tests")
+    parser.add_argument("--out", type=Path, help="macos/build/engine/sing-box (without it, the engine is built only into the evidence folder)")
     args = parser.parse_args(argv)
     try:
         result = build(args.run_source_tests, Path(os.path.abspath(args.out)) if args.out else None)
     except BuildError as error:
-        print("HATA: " + str(error), file=sys.stderr)
+        print("ERROR: " + str(error), file=sys.stderr)
         return 1
     except OSError as error:
-        print("HATA: Dosya veya ağ işlemi başarısız oldu (" + type(error).__name__ + "): " + str(error)[:300], file=sys.stderr)
+        print("ERROR: A file or network operation failed (" + type(error).__name__ + "): " + str(error)[:300], file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0

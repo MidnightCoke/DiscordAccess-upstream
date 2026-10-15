@@ -68,7 +68,7 @@
       "sha256": "14f99d93af5f910bd5c00f0f536b8ae2e018dea910400043c821493c0569e367"
     },
     "script": "macos/scripts/build-engine.py",
-    "script_sha256": "1bb7415c54a29d92eae40f4be0a697a9b89b73bee973b89d5f938785594c9ac6"
+    "script_sha256": "cc2b781762857bded34a56b66ca78d9cac72a6988b66884cdc94a571b63dbd36"
   },
   "build_settings": {
     "-buildmode": "exe",

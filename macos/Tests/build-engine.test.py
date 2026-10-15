@@ -365,11 +365,11 @@ class PinTests(unittest.TestCase):
 
 
 class MainTests(unittest.TestCase):
-    def test_os_errors_are_reported_in_turkish(self):
+    def test_os_errors_are_reported_without_a_traceback(self):
         stream = io.StringIO()
         with mock.patch.object(build, "build", side_effect=OSError(2, "No such file or directory")), contextlib.redirect_stderr(stream):
             self.assertEqual(build.main([]), 1)
-        self.assertTrue(stream.getvalue().startswith("HATA: "))
+        self.assertTrue(stream.getvalue().startswith("ERROR: "))
         self.assertNotIn("Traceback", stream.getvalue())
 
 

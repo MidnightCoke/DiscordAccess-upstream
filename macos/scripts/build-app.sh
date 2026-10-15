@@ -22,16 +22,16 @@ fail() {
     exit 1
 }
 
-[ -x "$engine" ] || fail "Motor bulunamadı: $engine. Önce macos/scripts/build-engine.py ile derleyin."
-[ -f "$hook" ] || fail "Ek dosyası kancası bulunamadı: $hook."
+[ -x "$engine" ] || fail "Engine not found: $engine. Build it first with macos/scripts/build-engine.py."
+[ -f "$hook" ] || fail "Attachment download hook not found: $hook."
 
 swift build --package-path "$macos" -c release --product DiscordAccess
 binary="$(swift build --package-path "$macos" -c release --show-bin-path)/DiscordAccess"
-[ -x "$binary" ] || fail "Derlenen uygulama bulunamadı: $binary."
+[ -x "$binary" ] || fail "Built app not found: $binary."
 
 output="$macos/build/apps.noindex/$(date -u +%Y%m%d-%H%M%S)"
 app="$output/DiscordAccess.app"
-[ ! -e "$output" ] || fail "Çıktı klasörü zaten var: $output. Bir saniye sonra yeniden deneyin."
+[ ! -e "$output" ] || fail "Output folder already exists: $output. Try again in a second."
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources" "$app/Contents/Library/LaunchAgents"
 install -m 0644 "$macos/Resources/Info.plist" "$app/Contents/Info.plist"
 install -m 0644 "$macos/Resources/$agent" "$app/Contents/Library/LaunchAgents/$agent"
@@ -42,7 +42,7 @@ cp "$engine" "$app/Contents/Helpers/sing-box"
 chmod 0755 "$app/Contents/Helpers/sing-box"
 
 if [ "$identity" = "-" ]; then
-    echo "build-app: İmza kimliği verilmedi; uygulama ad-hoc imzalanıyor. Tam Disk Erişimi her yeni derlemede yeniden verilmelidir." >&2
+    echo "build-app: No signing identity given; signing the app ad hoc. Full Disk Access must be granted again after every new build." >&2
 fi
 codesign --force --sign "$identity" --options runtime --timestamp=none "$app/Contents/MacOS/DiscordAccess"
 codesign --force --sign "$identity" --options runtime --timestamp=none "$app"
