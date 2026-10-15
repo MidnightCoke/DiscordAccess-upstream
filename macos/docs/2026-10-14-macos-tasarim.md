@@ -447,7 +447,7 @@ module.exports = require('./core.asar');
   - Yeniden açılış çalışan örneğe gitti ve durumu bildirdi.
   - Çıkış'ta profil değişiklikleri geri alındı, günlük silindi; geride süreç kalmadı.
   - Yapılmayanlar: gerçek oturum açılışı (`--startup`) ve "Girişte Discord'u da aç", sertifikalı imza.
-- `macos/docs/` altına kullanım ve güven sınırları belgeleri yazılır.
+- `macos/docs/` altına kullanım ve güven sınırları belgeleri yazılır. **2e durumu:** [OKU-BENI.md](OKU-BENI.md) ve [SECURITY-NOTES.md](SECURITY-NOTES.md) yazıldı (Windows `docs/OKU-BENI.txt` ve `docs/SECURITY-NOTES.md` karşılığı); kök README'deki Mac bölümü Aşama 3'te.
 - Çıkış: canlı doğrulama listesi bu Mac'te tamamlanır ve sonuçlar ayrı raporlanır.
 
 **Aşama 3 — Yayın.** Ayrı karar gerektirir.
