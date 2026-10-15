@@ -30,23 +30,23 @@ namespace DiscordAccess
         {
             switch (stage)
             {
-                case StartupStage.Source: return "[START-SOURCE] Kurulu Discord'u bulma";
-                case StartupStage.Package: return "[START-PACKAGE] Motor paketini doğrulama";
-                case StartupStage.Copy: return "[START-COPY] Ayrı Discord kopyasını hazırlama";
-                case StartupStage.Engine: return "[START-ENGINE] Bağlantı motorunu başlatma";
-                case StartupStage.Proxy: return "[START-PROXY] Uygulamaya özel proxy'yi hazırlama";
-                case StartupStage.Preflight: return "[START-PREFLIGHT] Discord erişimini kontrol etme";
-                case StartupStage.UpdateBridge: return "[START-UPDATE] Güncelleme köprüsünü hazırlama";
-                case StartupStage.Configure: return "[START-CONFIGURE] Ayrı Discord bağlantısını ayarlama";
-                case StartupStage.DiscordLaunch: return "[START-DISCORD] Ayrı Discord'u başlatma";
-                case StartupStage.Lifetime: return "[START-LIFETIME] Ayrı Discord oturumunu izleme";
-                default: return "[START-UNKNOWN] Başlangıç işlemi";
+                case StartupStage.Source: return "[START-SOURCE] Finding the installed Discord";
+                case StartupStage.Package: return "[START-PACKAGE] Verifying the engine package";
+                case StartupStage.Copy: return "[START-COPY] Preparing the separate Discord copy";
+                case StartupStage.Engine: return "[START-ENGINE] Starting the connection engine";
+                case StartupStage.Proxy: return "[START-PROXY] Preparing the app-only proxy";
+                case StartupStage.Preflight: return "[START-PREFLIGHT] Checking access to Discord";
+                case StartupStage.UpdateBridge: return "[START-UPDATE] Preparing the update bridge";
+                case StartupStage.Configure: return "[START-CONFIGURE] Configuring the separate Discord connection";
+                case StartupStage.DiscordLaunch: return "[START-DISCORD] Starting the separate Discord";
+                case StartupStage.Lifetime: return "[START-LIFETIME] Monitoring the separate Discord session";
+                default: return "[START-UNKNOWN] Startup operation";
             }
         }
 
         private static string BuildMessage(StartupStage stage, Exception error)
         {
-            string reason = "Beklenen işlem tamamlanamadı.";
+            string reason = "The expected operation could not be completed.";
             // Bound traversal even for deeply nested framework/task failures.
             // Only sealed types with fixed-vocabulary constructors are trusted.
             Exception current = error;
@@ -62,17 +62,17 @@ namespace DiscordAccess
                     if (aggregate.InnerExceptions.Count != 1) break;
                     current = aggregate.InnerExceptions[0]; continue;
                 }
-                if (current is OperationCanceledException) reason = "İşlem iptal edildi.";
-                else if (current is TimeoutException) reason = "İşlem zaman aşımına uğradı.";
-                else if (current is UnauthorizedAccessException || current is SecurityException) reason = "Gerekli dosya veya süreç erişimine izin verilmedi.";
-                else if (current is FileNotFoundException || current is DirectoryNotFoundException) reason = "Gerekli dosya veya klasör bulunamadı.";
-                else if (current is InvalidDataException) reason = "Gerekli dosya veya yanıt doğrulanamadı.";
+                if (current is OperationCanceledException) reason = "The operation was canceled.";
+                else if (current is TimeoutException) reason = "The operation timed out.";
+                else if (current is UnauthorizedAccessException || current is SecurityException) reason = "Access to a required file or process was denied.";
+                else if (current is FileNotFoundException || current is DirectoryNotFoundException) reason = "A required file or folder was not found.";
+                else if (current is InvalidDataException) reason = "A required file or response could not be verified.";
                 else if (current is IOException) reason = ((current.HResult & 0xffff) == 32 || (current.HResult & 0xffff) == 33)
-                    ? "Gerekli dosya başka bir işlem tarafından kullanılıyor." : "Dosya veya veri erişimi tamamlanamadı.";
-                else if (current is Win32Exception) reason = "Windows süreç işlemi tamamlanamadı.";
-                else if (current is WebException) reason = "Ağ erişimi doğrulanamadı.";
-                else if (current is NotSupportedException) reason = "Gerekli işlem bu ortamda desteklenmiyor.";
-                else if (current is PackageLoadException) reason = "Motor paketi doğrulanamadı; tam paketi yeni bir klasöre çıkarın.";
+                    ? "A required file is in use by another process." : "File or data access could not be completed.";
+                else if (current is Win32Exception) reason = "A Windows process operation could not be completed.";
+                else if (current is WebException) reason = "Network access could not be verified.";
+                else if (current is NotSupportedException) reason = "A required operation is not supported in this environment.";
+                else if (current is PackageLoadException) reason = "The engine package could not be verified; extract the full package to a new folder.";
                 current = current.InnerException;
             }
             return StageText(stage) + ": " + reason;
@@ -92,10 +92,10 @@ namespace DiscordAccess
                 require(ConsoleHost.SafeError(failure) == failure.Message, "Console suppressed a typed startup diagnostic.");
             }
             require(From((StartupStage)9876, new Exception(secret)).Message.StartsWith("[START-UNKNOWN]", StringComparison.Ordinal), "Unknown stage was reflected into output.");
-            require(From(StartupStage.Copy, new FileNotFoundException(secret, secret)).Message.Contains("bulunamadı"), "Missing-file reason was lost.");
-            require(From(StartupStage.Copy, new UnauthorizedAccessException(secret)).Message.Contains("izin verilmedi"), "Access-denied reason was lost.");
-            require(From(StartupStage.Engine, new TimeoutException(secret)).Message.Contains("zaman aşımına"), "Timeout reason was lost.");
-            require(From(StartupStage.Engine, new OperationCanceledException(secret)).Message.Contains("iptal edildi"), "Cancellation reason was lost.");
+            require(From(StartupStage.Copy, new FileNotFoundException(secret, secret)).Message.Contains("not found"), "Missing-file reason was lost.");
+            require(From(StartupStage.Copy, new UnauthorizedAccessException(secret)).Message.Contains("was denied"), "Access-denied reason was lost.");
+            require(From(StartupStage.Engine, new TimeoutException(secret)).Message.Contains("timed out"), "Timeout reason was lost.");
+            require(From(StartupStage.Engine, new OperationCanceledException(secret)).Message.Contains("was canceled"), "Cancellation reason was lost.");
             require(From(StartupStage.Engine, new Win32Exception(5, secret)).InnerException == null &&
                 !From(StartupStage.Engine, new Win32Exception(5, secret)).ToString().Contains("PRIVATE"), "Native error message leaked.");
             var typed = ConnectivityFailureException.Create(ConnectivityEndpoint.Manifest, ConnectivityFailureReason.Http, 429, ConnectivityResponseKind.Html);

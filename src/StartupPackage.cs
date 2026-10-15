@@ -12,7 +12,7 @@ namespace DiscordAccess
     // No existing ACL, package, startup preference or recovery record is changed.
     internal static class StartupPackage
     {
-        private static readonly string[] Notes = { "OKU-BENI.txt", "LISANSLAR.txt", "KAYNAK.txt" };
+        private static readonly string[] Notes = { "README.txt", "LICENSES.txt", "SOURCE.txt" };
 
         internal static bool RelaunchIfNeeded(string[] arguments, bool background, bool startup, bool restoring, bool fromIcon)
         {
@@ -29,7 +29,7 @@ namespace DiscordAccess
                 using (var process = Process.Start(new ProcessStartInfo {
                     FileName = target, Arguments = String.Join(" ", arguments.Select(NativeProcess.Quote)),
                     WorkingDirectory = Path.GetDirectoryName(target), UseShellExecute = false, CreateNoWindow = true }))
-                { if (process == null) throw new IOException("Kişisel kurulum başlatılamadı."); }
+                { if (process == null) throw new IOException("The personal installation could not be started."); }
             }
             return true;
         }
@@ -40,7 +40,7 @@ namespace DiscordAccess
         private static string Prepare(string source, string profile, string engineHash,
             Action<string> verifyDirectory, Action<string> verifyImage)
         {
-            if (String.IsNullOrWhiteSpace(profile) || !Directory.Exists(profile)) throw new IOException("Kişisel kurulum klasörü bulunamadı.");
+            if (String.IsNullOrWhiteSpace(profile) || !Directory.Exists(profile)) throw new IOException("The personal installation folder was not found.");
             source = Path.GetFullPath(source); profile = Path.GetFullPath(profile);
             // Verify the profile itself before adding a directory. A secure
             // child cannot compensate for an ancestor's DELETE_CHILD rights.
@@ -50,7 +50,7 @@ namespace DiscordAccess
             {
                 string imageHash = Safety.Hash(image);
                 if (!String.Equals(Safety.Hash(engine), engineHash, StringComparison.Ordinal))
-                    throw Package.Error("PKG-E03", "engine\\sing-box.exe bütünlük kontrolünden geçemedi. Tam paketi yeniden çıkarın.");
+                    throw Package.Error("PKG-E03", "engine\\sing-box.exe failed the integrity check. Extract the full package again.");
                 string parent = Path.Combine(profile, "DiscordAccess");
                 CreateDirectory(parent, verifyDirectory);
                 parent = Path.Combine(parent, "packages"); CreateDirectory(parent, verifyDirectory);
@@ -77,7 +77,7 @@ namespace DiscordAccess
 
         private static void CreateDirectory(string path, Action<string> verify)
         {
-            if (!Safety.NoReparse(path)) throw new IOException("Kişisel kurulum yolu güvenli değil.");
+            if (!Safety.NoReparse(path)) throw new IOException("The personal installation path is not safe.");
             // The parent was verified first. New objects inherit that restricted
             // directory's ACL; existing objects must independently pass trust.
             Directory.CreateDirectory(path);
@@ -86,7 +86,7 @@ namespace DiscordAccess
 
         private static void CopyVerified(FileStream input, string path)
         {
-            if (!Safety.NoReparse(path)) throw new IOException("Kişisel kurulum dosya yolu güvenli değil.");
+            if (!Safety.NoReparse(path)) throw new IOException("The personal installation file path is not safe.");
             input.Position = 0; string hash = Safety.Hash(input); input.Position = 0;
             try
             {
@@ -99,7 +99,7 @@ namespace DiscordAccess
                 // A different/partial existing file is preserved and refused.
             }
             using (var actual = PrivateFileTrust.ReadLease(path))
-                if (Safety.Hash(actual) != hash) throw new IOException("Kişisel kurulum dosyası farklı veya eksik. Mevcut dosya değiştirilmedi.");
+                if (Safety.Hash(actual) != hash) throw new IOException("A personal installation file is different or missing. The existing file was not changed.");
         }
 
 #if TEST_BUILD

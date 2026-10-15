@@ -147,7 +147,7 @@ namespace DiscordAccess
 
         private static UserActionException Rejected()
         {
-            return new UserActionException("Bu klasör otomatik başlangıç için güvenli doğrulanamadı. DiscordAccess'i elle açarak kişisel kurulumu hazırlayın. Kullanıcı klasörünüz de güvenli doğrulanamıyorsa yalnız sizin yazabildiğiniz bir klasör kullanın.");
+            return new UserActionException("This folder could not be verified as safe for automatic startup. Open DiscordAccess manually to prepare the personal installation. If your user folder cannot be verified as safe either, use a folder that only you can write to.");
         }
 
 #if TEST_BUILD

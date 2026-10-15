@@ -11,7 +11,7 @@ namespace DiscordAccess
     {
         private const int MaximumBytes = 256 * 1024;
         private const string Prefix = " [DiscordAccessMessages v4.7] ";
-        private const string Heading = "Mesaj tanısı v4.7 — yalnızca yerel kayıt; M komutu ağ isteği göndermez.";
+        private const string Heading = "Message diagnostics v4.7 — local record only; the M command sends no network request.";
         private static readonly HashSet<string> NetworkCodes = new HashSet<string>(new[] {
             "ERR_ABORTED", "ERR_TIMED_OUT", "ERR_CONNECTION_TIMED_OUT", "ERR_CONNECTION_CLOSED",
             "ERR_CONNECTION_RESET", "ERR_CONNECTION_REFUSED", "ERR_CONNECTION_ABORTED", "ERR_CONNECTION_FAILED",
@@ -46,7 +46,7 @@ namespace DiscordAccess
                 string path = Path.GetFullPath(Path.Combine(root, "v3", "message-network.log"));
                 if (!Safety.Under(path, root) || !Safety.NoReparse(path)) return Unavailable();
                 if (!File.Exists(path)) return Heading + Environment.NewLine +
-                    "Mesaj tanı kaydı henüz yok. v4.7 ile Discord'u açın, sorunlu sohbeti seçin ve M komutunu yeniden çalıştırın.";
+                    "No message diagnostic record yet. Open Discord with v4.7, select the affected chat and run the M command again.";
                 byte[] data;
                 bool tail;
                 using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
@@ -85,7 +85,7 @@ namespace DiscordAccess
 
         private static string Unavailable()
         {
-            return Heading + Environment.NewLine + "Mesaj tanı kaydı güvenli biçimde okunamadı. Ağ veya hesap bilgisi sorgulanmadı.";
+            return Heading + Environment.NewLine + "The message diagnostic record could not be read safely. No network or account information was queried.";
         }
 
         private static bool Number(string value, int maximum, out int number)
@@ -190,48 +190,48 @@ namespace DiscordAccess
                 else if (entry.Event == "MSG_NETWORK" && !entry.Canceled) { failures++; network++; }
             }
             var report = new List<string> { Heading };
-            if (supportedSession) report.Add("Son oturum başlangıcı: " + LocalTime(sessionTime.Value) + " (yerel saat).");
-            else if (sessionTime.HasValue) report.Add("Son oturum başka bir tanı sürümüne ait; eski kayıtlar güncel sonuç olarak kullanılmadı. v4.7 ile Discord'u açın.");
-            else report.Add("Oturum başlangıcı bu kayıt kesitinde yok; kayıtların güncel oturuma ait olduğu doğrulanamadı ve sonuçlar özete alınmadı.");
-            if (tail) report.Add("Dosyanın yalnızca son 256 KB bölümü incelendi.");
+            if (supportedSession) report.Add("Latest session start: " + LocalTime(sessionTime.Value) + " (local time).");
+            else if (sessionTime.HasValue) report.Add("The latest session belongs to another diagnostic version; old records were not used as current results. Open Discord with v4.7.");
+            else report.Add("The session start is not in this record excerpt; the records could not be verified as belonging to the current session, and the results were left out of the summary.");
+            if (tail) report.Add("Only the last 256 KB of the file was examined.");
             if (responses == 0)
             {
-                if (lifecycle == "READY") report.Add("Gözlemci hazır; henüz mesaj isteği sonucu yok. Mesajların yüklenmesi doğrulanamadı.");
-                else if (lifecycle == "DETACHED") report.Add("Gözlemci ayrılmış; mesaj isteği sonucu yok. Yükleme sorunu bu kayıttan belirlenemedi.");
-                else if (lifecycle == "SKIPPED" || lifecycle == "UNAVAILABLE") report.Add("Mesaj gözlemcisi kullanılamadı; yükleme sorunu bu kayıttan belirlenemedi.");
-                else report.Add("Geçerli mesaj isteği sonucu yok. Sorunlu sohbeti açıp M komutunu yeniden çalıştırın.");
+                if (lifecycle == "READY") report.Add("The observer is ready; no message request result yet. Message loading could not be verified.");
+                else if (lifecycle == "DETACHED") report.Add("The observer is detached; no message request result. The loading problem could not be determined from this record.");
+                else if (lifecycle == "SKIPPED" || lifecycle == "UNAVAILABLE") report.Add("The message observer was unavailable; the loading problem could not be determined from this record.");
+                else report.Add("No valid message request result. Open the affected chat and run the M command again.");
             }
             else
             {
-                report.Add("Son " + recent.Count.ToString(CultureInfo.InvariantCulture) + " mesaj GET kaydı:");
+                report.Add("Last " + recent.Count.ToString(CultureInfo.InvariantCulture) + " message GET records:");
                 foreach (Entry entry in recent)
                 {
                     string detail = entry.Event == "MSG_HTTP" ? "HTTP " + entry.Status.ToString(CultureInfo.InvariantCulture) :
-                        entry.Event == "MSG_PENDING" ? "60 saniye içinde tamamlanma sonucu gözlenmedi; istek iptal edilmedi" :
-                        entry.Code + (entry.Canceled ? " (iptal edildi)" : " (ağ hatası)");
-                    if (entry.RetryAfter >= 0) detail += "; Retry-After başlığı " + entry.RetryAfter.ToString(CultureInfo.InvariantCulture) + " sn";
-                    if (entry.RetryAfter == 0) detail += " (hemen tekrar deneme izni değildir)";
-                    if (entry.Scope != null) detail += "; kapsam=" + entry.Scope;
-                    if (entry.Global != null) detail += "; genel=" + entry.Global;
-                    if (entry.ContentType != null) detail += "; yanıt=" + entry.ContentType;
-                    if (entry.Challenge) detail += "; ek doğrulama işareti var";
-                    if (entry.Event != "MSG_PENDING") detail += "; süre " + entry.Elapsed.ToString(CultureInfo.InvariantCulture) + " ms";
+                        entry.Event == "MSG_PENDING" ? "no completion result observed within 60 seconds; the request was not canceled" :
+                        entry.Code + (entry.Canceled ? " (canceled)" : " (network error)");
+                    if (entry.RetryAfter >= 0) detail += "; Retry-After header " + entry.RetryAfter.ToString(CultureInfo.InvariantCulture) + " s";
+                    if (entry.RetryAfter == 0) detail += " (not permission to retry immediately)";
+                    if (entry.Scope != null) detail += "; scope=" + entry.Scope;
+                    if (entry.Global != null) detail += "; global=" + entry.Global;
+                    if (entry.ContentType != null) detail += "; response=" + entry.ContentType;
+                    if (entry.Challenge) detail += "; extra verification flag present";
+                    if (entry.Event != "MSG_PENDING") detail += "; duration " + entry.Elapsed.ToString(CultureInfo.InvariantCulture) + " ms";
                     report.Add(LocalTime(entry.Time) + " — " + detail + ".");
                 }
                 bool limited = htmlLimited + jsonLimited + unknownLimited > 0;
-                if (htmlLimited > 0) report.Add("HTML biçiminde HTTP 429 görüldü; sunucu veya uç ağ katmanındaki bir kısıtlama yanıtıyla uyumlu. Olağan JSON API istek sınırı olduğu doğrulanmadı; kesin neden veya belirli bir IP yasağı bu kayıttan belirlenemez.");
-                if (jsonLimited > 0) report.Add("JSON biçiminde HTTP 429 görüldü; olağan API istek sınırı yanıtıyla uyumlu. Sınırı hangi koşulun tetiklediği bu özetten belirlenemez.");
-                if (unknownLimited > 0) report.Add("HTTP 429 görüldü; yanıt türü olağan API istek sınırını ayırt etmeye yetmiyor. Kesin neden bu kayıttan belirlenemez.");
-                if (challenges > 0) report.Add("Sunucu ek doğrulama işareti bildirdi; doğrulamanın türü veya sonucu bu kayıttan belirlenemez.");
-                if (network > 0) report.Add("Ağ hatası kaydedildi; kesin neden yalnızca bu özetle belirlenemez.");
+                if (htmlLimited > 0) report.Add("HTTP 429 seen in HTML format; consistent with a restriction response from a server or edge network layer. It was not verified to be a normal JSON API rate limit; the exact cause or a specific IP ban cannot be determined from this record.");
+                if (jsonLimited > 0) report.Add("HTTP 429 seen in JSON format; consistent with a normal API rate-limit response. Which condition triggered the limit cannot be determined from this summary.");
+                if (unknownLimited > 0) report.Add("HTTP 429 seen; the response type is not enough to identify a normal API rate limit. The exact cause cannot be determined from this record.");
+                if (challenges > 0) report.Add("The server reported an extra verification flag; the type or result of the verification cannot be determined from this record.");
+                if (network > 0) report.Add("Network error recorded; the exact cause cannot be determined from this summary alone.");
                 else if (limited || challenges > 0) { }
-                else if (failures > 0) report.Add("HTTP hata yanıtı kaydedildi; kesin neden yalnızca bu özetle belirlenemez.");
-                else if (hadSuccess) report.Add("Başarılı HTTP yanıtı var; bu, mesajların ekranda gösterildiğini doğrulamaz.");
-                else report.Add("Bu kayıtlar mesajların ekranda gösterildiğini doğrulamaz.");
+                else if (failures > 0) report.Add("HTTP error response recorded; the exact cause cannot be determined from this summary alone.");
+                else if (hadSuccess) report.Add("A successful HTTP response exists; this does not confirm that the messages were shown on screen.");
+                else report.Add("These records do not confirm that the messages were shown on screen.");
                 if (lifecycle == "DETACHED" || lifecycle == "SKIPPED" || lifecycle == "UNAVAILABLE")
-                    report.Add("Gözlemci sonrasında kullanılamaz duruma geçmiş olabilir; sonraki istekler kayıtta bulunmayabilir.");
+                    report.Add("The observer may have become unavailable afterwards; later requests may be missing from the record.");
             }
-            report.Add("DiscordAccess'in ek otomatik yeniden denemesi devre dışı; M komutu yeniden deneme yapmaz.");
+            report.Add("DiscordAccess's extra automatic retry is disabled; the M command does not retry.");
             return String.Join(Environment.NewLine, report);
         }
 
@@ -268,54 +268,54 @@ namespace DiscordAccess
                 Directory.CreateDirectory(Path.Combine(root, "v3"));
                 string path = Path.Combine(root, "v3", "message-network.log");
                 Action<string> write = body => File.WriteAllText(path, body, new UTF8Encoding(false));
-                require(Read(root).Contains("henüz yok"), "Missing message log was not explained.");
+                require(Read(root).Contains("No message diagnostic record yet"), "Missing message log was not explained.");
                 require(!Read(root).Contains(root), "Missing log exposed its private directory.");
                 write(line("SESSION") + line("READY"));
-                require(Read(root).Contains("henüz mesaj isteği sonucu yok") && Read(root).Contains("doğrulanamadı"), "READY was treated as message success.");
+                require(Read(root).Contains("no message request result yet") && Read(root).Contains("could not be verified"), "READY was treated as message success.");
                 write(line("SESSION") + line("MSG_HTTP status=200 elapsed_ms=10"));
-                require(Read(root).Contains("HTTP 200") && Read(root).Contains("ekranda gösterildiğini doğrulamaz"), "HTTP 200 was treated as visible messages.");
+                require(Read(root).Contains("HTTP 200") && Read(root).Contains("not confirm that the messages were shown on screen"), "HTTP 200 was treated as visible messages.");
                 write(line("SESSION") + line("MSG_HTTP status=429 retry_after_s=10 elapsed_ms=50"));
                 string report = Read(root);
-                require(report.Contains("HTTP 429") && report.Contains("10 sn") && report.Contains("50 ms"), "Rate-limit metadata was lost.");
-                require(report.Contains("yeniden deneme yapmaz"), "Report implied a retry action.");
+                require(report.Contains("HTTP 429") && report.Contains("10 s;") && report.Contains("50 ms"), "Rate-limit metadata was lost.");
+                require(report.Contains("the M command does not retry"), "Report implied a retry action.");
                 write(line("SESSION") + line("MSG_HTTP status=429 retry_after_s=0 scope=shared global=false content_type=json elapsed_ms=24"));
                 report = Read(root);
-                require(report.Contains("hemen tekrar deneme izni değildir") && report.Contains("kapsam=shared") && report.Contains("yanıt=json") && report.Contains("JSON biçiminde HTTP 429"), "Zero header or JSON response was misreported.");
-                require(report.Contains("ek otomatik yeniden denemesi devre dışı") && !report.Contains("429 kurtarma"), "Report implied an active recovery hook.");
+                require(report.Contains("not permission to retry immediately") && report.Contains("scope=shared") && report.Contains("response=json") && report.Contains("HTTP 429 seen in JSON format"), "Zero header or JSON response was misreported.");
+                require(report.Contains("extra automatic retry is disabled") && !report.Contains("429 recovery"), "Report implied an active recovery hook.");
                 write(line("SESSION") + line("MSG_HTTP status=429 retry_after_s=0 content_type=html elapsed_ms=20"));
                 report = Read(root);
-                require(report.Contains("HTML biçiminde HTTP 429") && report.Contains("Olağan JSON API istek sınırı olduğu doğrulanmadı") && report.Contains("IP yasağı bu kayıttan belirlenemez") && !report.Contains("Discord istek sınırı yanıtı verdi"), "HTML response was attributed to an established API rate limit or IP ban.");
+                require(report.Contains("HTTP 429 seen in HTML format") && report.Contains("It was not verified to be a normal JSON API rate limit") && report.Contains("IP ban cannot be determined from this record") && !report.Contains("Discord returned a rate-limit response"), "HTML response was attributed to an established API rate limit or IP ban.");
                 write(line("SESSION") + line("MSG_HTTP status=429 content_type=other elapsed_ms=20"));
-                require(Read(root).Contains("yanıt türü olağan API istek sınırını ayırt etmeye yetmiyor"), "Unknown response format claimed a normal API limit.");
+                require(Read(root).Contains("the response type is not enough to identify a normal API rate limit"), "Unknown response format claimed a normal API limit.");
                 write(line("SESSION") + line("MSG_HTTP status=403 content_type=html elapsed_ms=20 challenge=true"));
                 report = Read(root);
-                require(report.Contains("ek doğrulama işareti var") && report.Contains("türü veya sonucu bu kayıttan belirlenemez") && !report.Contains("HTTP 429"), "Exact challenge metadata was lost or reclassified as a rate limit.");
+                require(report.Contains("extra verification flag present") && report.Contains("type or result of the verification cannot be determined from this record") && !report.Contains("HTTP 429"), "Exact challenge metadata was lost or reclassified as a rate limit.");
                 write(line("SESSION") + line("MSG_HTTP status=429 content_type=html elapsed_ms=20") + line("MSG_HTTP status=429 content_type=json elapsed_ms=30"));
-                require(Read(root).Contains("HTML biçiminde HTTP 429") && Read(root).Contains("JSON biçiminde HTTP 429"), "Mixed response types were conflated.");
+                require(Read(root).Contains("HTTP 429 seen in HTML format") && Read(root).Contains("HTTP 429 seen in JSON format"), "Mixed response types were conflated.");
                 foreach (string recovery in new[] { "MSG_RECOVERY_READY", "MSG_RECOVERY_WAIT wait_ms=30000 attempt=1", "MSG_RECOVERY_RETRY attempt=1", "MSG_RECOVERY_SUCCESS attempt=1", "MSG_RECOVERY_GIVEUP", "MSG_RECOVERY_UNAVAILABLE", "MSG_RECOVERY_CANCELLED" })
                 {
                     write(line("SESSION") + line(recovery)); report = Read(root);
-                    require(!report.Contains("429 kurtarma") && !report.Contains("planlanan bekleme") && report.Contains("Geçerli mesaj isteği sonucu yok"), "Retired recovery event was interpreted as active behavior.");
+                    require(!report.Contains("429 recovery") && !report.Contains("scheduled wait") && report.Contains("No valid message request result"), "Retired recovery event was interpreted as active behavior.");
                 }
                 write(line("SESSION") + line("MSG_NETWORK code=ERR_CONNECTION_RESET canceled=false elapsed_ms=80"));
-                require(Read(root).Contains("ERR_CONNECTION_RESET") && Read(root).Contains("Ağ hatası kaydedildi"), "Known network error missing.");
+                require(Read(root).Contains("ERR_CONNECTION_RESET") && Read(root).Contains("Network error recorded"), "Known network error missing.");
                 write(line("SESSION") + line("MSG_NETWORK code=ERR_ABORTED canceled=true elapsed_ms=1"));
-                require(Read(root).Contains("iptal edildi") && !Read(root).Contains("Ağ hatası kaydedildi"), "Cancellation was called a network failure.");
+                require(Read(root).Contains("(canceled)") && !Read(root).Contains("Network error recorded"), "Cancellation was called a network failure.");
                 write(line("SESSION") + line("MSG_HTTP status=429 retry_after_s=50 elapsed_ms=50") + line("SESSION") + line("READY"));
-                require(!Read(root).Contains("HTTP 429") && Read(root).Contains("henüz mesaj isteği sonucu yok"), "Earlier-session failure leaked into latest session.");
+                require(!Read(root).Contains("HTTP 429") && Read(root).Contains("no message request result yet"), "Earlier-session failure leaked into latest session.");
                 write(line("SESSION") + line("MSG_HTTP status=503 elapsed_ms=1") + line("READY"));
                 require(Read(root).Contains("HTTP 503"), "Another window READY erased current-session evidence.");
                 write(line("MSG_HTTP status=502 elapsed_ms=1"));
-                require(Read(root).Contains("güncel oturuma ait olduğu doğrulanamadı") && !Read(root).Contains("HTTP 502"), "Unanchored tail was interpreted as current results.");
+                require(Read(root).Contains("could not be verified as belonging to the current session") && !Read(root).Contains("HTTP 502"), "Unanchored tail was interpreted as current results.");
                 Func<string, string> oldLine = body => line(body).Replace("[DiscordAccessMessages v4.7]", "[DiscordAccessMessages v4.3]");
                 write(oldLine("SESSION") + oldLine("MSG_HTTP status=429 content_type=html elapsed_ms=20") + line("SESSION") + line("MSG_HTTP status=200 elapsed_ms=10") + oldLine("MSG_HTTP status=503 elapsed_ms=2"));
                 report = Read(root);
                 require(report.Contains("HTTP 200") && !report.Contains("HTTP 429") && !report.Contains("HTTP 503"), "Historical version records polluted current results.");
                 write(line("SESSION") + line("MSG_HTTP status=429 content_type=html elapsed_ms=20") + oldLine("SESSION") + oldLine("READY") + line("MSG_HTTP status=200 elapsed_ms=1"));
                 report = Read(root);
-                require(report.Contains("başka bir tanı sürümüne ait") && !report.Contains("HTTP 429") && !report.Contains("HTTP 200"), "A newer legacy session left a previous v4.7 result active.");
+                require(report.Contains("belongs to another diagnostic version") && !report.Contains("HTTP 429") && !report.Contains("HTTP 200"), "A newer legacy session left a previous v4.7 result active.");
                 write(oldLine("SESSION") + oldLine("MSG_HTTP status=429 elapsed_ms=20"));
-                require(!Read(root).Contains("HTTP 429") && Read(root).Contains("başka bir tanı sürümüne ait"), "Legacy-only log was presented as current evidence.");
+                require(!Read(root).Contains("HTTP 429") && Read(root).Contains("belongs to another diagnostic version"), "Legacy-only log was presented as current evidence.");
                 write(line("SESSION") + line("MSG_HTTP status=429 elapsed_ms=20").Replace("19:40:01", "19:39:59"));
                 require(!Read(root).Contains("HTTP 429"), "An outcome older than the current session was accepted.");
                 write(line("SESSION") + String.Concat(Enumerable.Range(200, 4).Select(status => line("MSG_HTTP status=" + status + " elapsed_ms=1"))));
@@ -323,13 +323,13 @@ namespace DiscordAccess
                 foreach (string lifecycle in new[] { "SKIPPED", "UNAVAILABLE", "DETACHED" })
                 {
                     write(line("SESSION") + line(lifecycle));
-                    require(!Read(root).Contains("Başarılı") && Read(root).Contains("belirlenemedi"), "Unavailable diagnostic claimed message success.");
+                    require(!Read(root).Contains("successful") && Read(root).Contains("could not be determined"), "Unavailable diagnostic claimed message success.");
                 }
                 write(line("SESSION") + line("MSG_COMPLETE elapsed_ms=100"));
-                require(!Read(root).Contains("Başarılı") && Read(root).Contains("Geçerli mesaj isteği sonucu yok"), "Completion without HTTP status claimed success.");
+                require(!Read(root).Contains("successful") && Read(root).Contains("No valid message request result"), "Completion without HTTP status claimed success.");
                 write(line("SESSION") + line("MSG_PENDING elapsed_ms=60000")); report = Read(root);
-                require(report.Contains("60 saniye içinde tamamlanma sonucu gözlenmedi; istek iptal edilmedi") &&
-                    !report.Contains("HTTP hata") && !report.Contains("Ağ hatası") && !report.Contains("zaman aşımı"),
+                require(report.Contains("no completion result observed within 60 seconds; the request was not canceled") &&
+                    !report.Contains("HTTP error") && !report.Contains("network error") && !report.Contains("timed out"),
                     "Observation deadline was confused with a cancelled request, timeout or network failure.");
                 string[] bad = {
                     "MSG_HTTP status=429 retry_after_s=999999 elapsed_ms=1", "MSG_HTTP status=429 elapsed_ms=60001",
@@ -354,17 +354,17 @@ namespace DiscordAccess
                 require(!Read(root).Contains("HTTP 429"), "Partial concurrent-write record was interpreted.");
                 write(line("SESSION") + new string('x', MaximumBytes + 4096) + "\n" + line("MSG_HTTP status=200 elapsed_ms=1"));
                 report = Read(root);
-                require(report.Contains("son 256 KB") && report.Contains("güncel oturuma ait olduğu doğrulanamadı") && !report.Contains("HTTP 200"), "Large log tail was unbounded or misidentified.");
+                require(report.Contains("last 256 KB") && report.Contains("could not be verified as belonging to the current session") && !report.Contains("HTTP 200"), "Large log tail was unbounded or misidentified.");
                 write(new string('x', MaximumBytes + 4096) + "\n" + line("SESSION") + line("MSG_HTTP status=503 elapsed_ms=2"));
-                require(Read(root).Contains("Son oturum başlangıcı") && Read(root).Contains("HTTP 503"), "SESSION within bounded tail was not used.");
+                require(Read(root).Contains("Latest session start") && Read(root).Contains("HTTP 503"), "SESSION within bounded tail was not used.");
                 write(line("SESSION") + line("MSG_HTTP status=200 elapsed_ms=1"));
                 using (var writer = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
                     require(Read(root).Contains("HTTP 200"), "Live shared log writer blocked report reading.");
                 File.WriteAllBytes(path, new byte[] { 255, 254, 10 });
-                require(Read(root).Contains("okunamadı"), "Invalid UTF-8 was accepted.");
-                require(Read(@"\\server\share\SECRET").Contains("okunamadı"), "UNC diagnostic root was accepted.");
-                require(Read(null).Contains("okunamadı"), "Null diagnostic root was accepted.");
-                require(Read(root + ":SECRET").Contains("okunamadı"), "ADS diagnostic root was accepted.");
+                require(Read(root).Contains("could not be read"), "Invalid UTF-8 was accepted.");
+                require(Read(@"\\server\share\SECRET").Contains("could not be read"), "UNC diagnostic root was accepted.");
+                require(Read(null).Contains("could not be read"), "Null diagnostic root was accepted.");
+                require(Read(root + ":SECRET").Contains("could not be read"), "ADS diagnostic root was accepted.");
                 return checks;
             }
             finally

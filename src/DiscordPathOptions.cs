@@ -42,6 +42,6 @@ namespace DiscordAccess
         }
 
         private static ArgumentException Invalid()
-        { return new ArgumentException("Discord yolu seçeneği eksik, geçersiz veya tekrarlanmış. DiscordAccess.exe --discord-path \"D:\\Programlar\\Discord\\Discord.exe\" biçimini kullanın."); }
+        { return new ArgumentException("The Discord path option is missing, invalid or repeated. Use the form DiscordAccess.exe --discord-path \"D:\\Programs\\Discord\\Discord.exe\"."); }
     }
 }

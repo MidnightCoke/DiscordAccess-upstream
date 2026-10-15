@@ -53,7 +53,7 @@ Only these four files are attached to the Release:
 - `engine-source-manifest.json`
 - `SHA256SUMS.txt`
 
-The local `$receipt`, test reports, raw logs and the cache folder are not release files. The receipt may contain machine paths; do not share it as is. The runtime ZIP must not contain test, profile or recovery data; `LISANSLAR.txt` must keep the app, engine, native and dependency notices. A ZIP/hash check is not a code signature.
+The local `$receipt`, test reports, raw logs and the cache folder are not release files. The receipt may contain machine paths; do not share it as is. The runtime ZIP must not contain test, profile or recovery data; `LICENSES.txt` must keep the app, engine, native and dependency notices. A ZIP/hash check is not a code signature.
 
 ## GitHub release and old downloads
 

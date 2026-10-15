@@ -7,37 +7,34 @@ from Releases.
 https://github.com/alpertknn/DiscordAccess/releases
 
 Upgrading from an earlier version / changing folders:
-1. If "Windows ile başlat" (Start with Windows) is on in the old DiscordAccess,
-   turn it off first.
-2. Close Discord completely; choose "Çıkış" (Exit) in the old DiscordAccess.
+1. If "Start with Windows" is on in the old DiscordAccess, turn it off first.
+2. Close Discord completely; choose "Exit" in the old DiscordAccess.
 3. Extract the entire new package into a separate, short, permanent folder. Do
    not overwrite the running package or move its folder.
 4. Prepare the connection with the new EXE. If you want automatic startup,
-   turn "Windows ile başlat" back on from the new location; an off preference
+   turn "Start with Windows" back on from the new location; an off preference
    is kept.
 
 First launch:
 1. Close Discord completely from the system tray. If an old DiscordAccess is
-   open, close the CMD version with Q + Enter and the tray version with "Çıkış".
+   open, close the CMD version with Q + Enter and the tray version with "Exit".
 2. Open DiscordAccess.exe as a normal user. No CMD window stays open.
-3. Wait for the "Bağlantı hazır" (Connection ready) tray notification; then open
-   Discord from your own icon. If there is no compatible personal shortcut,
-   choose "Discord'u aç" (Open Discord) from the tray.
+3. Wait for the "Connection ready" tray notification; then open Discord from
+   your own icon. If there is no compatible personal shortcut, choose
+   "Open Discord" from the tray.
    Your original official Stable installation and account are used; no copy is
    created.
-4. Before exiting, close Discord completely; then choose "Çıkış" from the
+4. Before exiting, close Discord completely; then choose "Exit" from the
    DiscordAccess tray. If you exit while Discord is open, Discord is not killed;
    the recovery record is kept.
 
 Tray menu:
-- "Discord'u aç" (Open Discord): opens the selected official Discord with the
-  ready connection.
-- "Yeniden bağlan" (Reconnect): clears a failed connection and prepares it
-  again.
-- "Bağlantıyı kontrol et" (Check connection): runs an anonymous diagnosis of the
-  current connection.
-- "Windows ile başlat" (Start with Windows): turns automatic startup on/off.
-- "Çıkış" (Exit): closes the connection and the app's own engine.
+- "Open Discord": opens the selected official Discord with the ready
+  connection.
+- "Reconnect": clears a failed connection and prepares it again.
+- "Check connection": runs an anonymous diagnosis of the current connection.
+- "Start with Windows": turns automatic startup on/off.
+- "Exit": closes the connection and the app's own engine.
 The icon may be in the hidden icons (^) area. If the EXE is opened again, no
 second connection or second engine is created; a status request is sent to the
 existing session.
@@ -52,9 +49,9 @@ once. If Discord does not start automatically, only DiscordAccess runs in the
 tray. Opening the EXE manually in the normal way does not start Discord on its
 own.
 
-Turning off "Windows ile başlat" restores the original Discord startup entry
+Turning off "Start with Windows" restores the original Discord startup entry
 without overwriting changed user data. The off preference is kept on later
-manual launches. A normal "Çıkış" does not turn this preference off. For an
+manual launches. A normal "Exit" does not turn this preference off. For an
 enabled HKLM or Startup-folder entry, or for unrecognized or multiple Discord
 entries, no ordering coordination is set up and a warning is shown; those
 entries are not changed. StartupApproved preferences are not written.
@@ -64,7 +61,7 @@ be verified and a warning is shown; an open Discord is not force-closed or
 treated as prepared.
 
 Do not move or delete the package while the connection is open. If you are
-moving it to another folder, first turn off "Windows ile başlat", then enable it
+moving it to another folder, first turn off "Start with Windows", then enable it
 again in the new location. If long startup commands hit the Windows 260
 character limit, choose a shorter permanent folder. The startup preference
 belongs only to that Windows user.
@@ -80,7 +77,7 @@ log file is moved. If the user folder and its parent folders are not secure
 either, the installation is refused. A different existing file is never
 overwritten. Windows startup, restore, console mode and the Discord-opening
 shortcut do not create a new installation. An off startup preference is kept;
-if wanted, turn "Windows ile başlat" on again from the new tray session.
+if wanted, turn "Start with Windows" on again from the new tray session.
 
 One DiscordAccess and one sing-box engine are enough. Discord's Electron child
 processes are normal; they do not count as separate Discord copies and are not
@@ -104,7 +101,7 @@ Advanced commands:
   .\DiscordAccess.exe --verify-package  Verify the package without running the engine
 
 To switch to console downloads while the tray is open, first close Discord
-completely and choose "Çıkış" from the DiscordAccess tray. In the package
+completely and choose "Exit" from the DiscordAccess tray. In the package
 folder, run
   .\DiscordAccess.exe --console
 and when the connection is ready, paste the attachment link with D + Enter.
@@ -152,7 +149,7 @@ notices.
 
 The app's own code is MIT-licensed. The GPL-3.0-or-later terms of the engine
 code derived from upstream and the native components' own licenses are kept.
-The engine and embedded dependency/Go runtime licenses are in LISANSLAR.txt.
+The engine and embedded dependency/Go runtime licenses are in LICENSES.txt.
 Pinned source versions and the notice manifest are in the GitHub licenses/
 folder. The engine's source and rebuild package is provided with the
 distribution. The package contains no test, log or profile files. Success is

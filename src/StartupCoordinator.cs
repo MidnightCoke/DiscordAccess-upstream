@@ -88,13 +88,13 @@ namespace DiscordAccess
         {
             get
             {
-                if (record == null) return "Windows başlangıcı henüz ayarlanmadı.";
-                if (record.Phase == "restoring") return "Başlangıç geri alma kaydı korunuyor; yeniden geri alma deneyin.";
-                if (record.Phase == "prepared") return "Başlangıç hazırlığı tamamlanmadı; kurtarma kaydı korunuyor.";
+                if (record == null) return "Windows startup is not set up yet.";
+                if (record.Phase == "restoring") return "The startup restore record is kept; try restoring again.";
+                if (record.Phase == "prepared") return "Startup preparation was not completed; the recovery record is kept.";
                 return Enabled ? (ShouldLaunchDiscord
-                    ? "Windows oturum açılışında önce bağlantı hazırlanır, sonra resmi Discord açılır."
-                    : "Windows oturum açılışında bağlantı hazırlanır; Discord kendiliğinden açılmaz.")
-                    : "Windows başlangıcı kapalı. Kullanıcı başlangıç tercihi korunuyor.";
+                    ? "At Windows sign-in, the connection is prepared first, then the official Discord opens."
+                    : "At Windows sign-in, the connection is prepared; Discord does not open on its own.")
+                    : "Windows startup is off. The user startup preference is kept.";
             }
         }
 
@@ -139,14 +139,14 @@ namespace DiscordAccess
         {
             if (record == null || record.Phase == "disabled") return false;
             if (!SamePath(record.Helper, helper) || !SamePath(record.Root, root))
-                throw new UserActionException("Başlangıç kaydı farklı paket veya Discord kurulumuna ait. Yeni paketten başlangıcı kapatıp yeniden etkinleştirin.");
+                throw new UserActionException("The startup entry belongs to a different package or Discord installation. Turn startup off and on again from the new package.");
             if (record.Phase == "restoring") { Disable(); return false; }
             if (record.Phase == "prepared") CompleteEnable();
             // Never resurrect a helper disabled/deleted by the user in Windows.
             if (!Enabled) return false;
             RequireUnsupportedAbsent(record.Root);
             if (SelectedEntries(record.Root).Length != 0)
-                throw new UserActionException("Discord başlangıç kaydı bağlantıdan bağımsız yeniden etkinleşmiş. Discord'u tamamen kapatıp DiscordAccess'i elle açın; başlangıç sırası yeniden hazırlanır. Bu oturumda ikinci Discord açılmadı.");
+                throw new UserActionException("The Discord startup entry was re-enabled independently of the connection. Fully close Discord and open DiscordAccess manually; the startup order is prepared again. No second Discord was opened in this session.");
             return ShouldLaunchDiscord;
         }
         // A tray timer calls this before the next sign-in to capture Discord's
@@ -184,10 +184,10 @@ namespace DiscordAccess
             // An independently disabled legacy helper entry is not silently
             // enabled by writing its Run value again.
             if (!ApprovalEnabled(environment.Approval(RunName)))
-                throw new UserActionException("Windows başlangıç ayarlarında DiscordAccess devre dışı. Etkinleştirmek için Windows başlangıç tercihini açın; bu tercih değiştirilmedi.");
+                throw new UserActionException("DiscordAccess is disabled in the Windows startup settings. To enable it, turn on the Windows startup preference; this preference was not changed.");
             var originals = SelectedEntries(root);
             if (originals.Length > 1)
-                throw new UserActionException("Seçilen Discord için birden fazla başlangıç kaydı var. Windows başlangıç ayarlarında tek resmi Discord kaydı bırakın; mevcut kayıtlar değiştirilmedi.");
+                throw new UserActionException("The selected Discord has more than one startup entry. Leave a single official Discord entry in the Windows startup settings; the existing entries were not changed.");
             var original = originals.SingleOrDefault();
             if (original != null) { string image; Recognized(original, root, out image); environment.VerifyDiscordImage(image); }
             byte[] approval = original == null ? null : environment.Approval(original.Name);
@@ -228,9 +228,9 @@ namespace DiscordAccess
                 // A normal failed registry/file write is rolled back. A crash
                 // still has the previously durable prepared/restoring record.
                 try { Disable(); } catch { }
-                throw new UserActionException("Windows başlangıç sırası tamamlanamadı. Geri alma denendi; çözülemeyen kayıt varsa kurtarma bilgisi korundu.");
+                throw new UserActionException("The Windows startup order could not be completed. A restore was attempted; if an entry could not be resolved, its recovery information was kept.");
             }
-            if (log != null) log("Windows başlangıç sırası hazırlandı; yalnız seçilen resmi Discord kaydı koordine ediliyor.");
+            if (log != null) log("The Windows startup order was prepared; only the selected official Discord entry is coordinated.");
         }
 
         private void Disable()
@@ -280,7 +280,7 @@ namespace DiscordAccess
             // StartupApproved was never written. Any independently changed
             // enable/disable preference therefore remains exactly as it is.
             record.Phase = "disabled"; Save();
-            if (log != null) log("DiscordAccess Windows başlangıcı kapatıldı; resmi Discord'un özgün başlangıç kaydı geri alındı.");
+            if (log != null) log("DiscordAccess Windows startup was turned off; the original startup entry of the official Discord was restored.");
         }
 
         private void RequireUnsupportedAbsent(string selectedRoot)
@@ -389,7 +389,7 @@ namespace DiscordAccess
         {
             string command = NativeProcess.Quote(helper) + " --startup --discord-path " + NativeProcess.Quote(selectedRoot) + (values.Length == 0 ? "" : " " + String.Join(" ", values));
             if (command.Length > 260)
-                throw new UserActionException("Windows başlangıç komutu 260 karakter sınırını aşıyor. Paketi daha kısa, kalıcı bir yerel klasöre taşıyıp başlangıcı yeniden etkinleştirin; mevcut başlangıç kayıtları değiştirilmedi.");
+                throw new UserActionException("The Windows startup command exceeds the 260-character limit. Move the package to a shorter, permanent local folder and enable startup again; the existing startup entries were not changed.");
             return command;
         }
         private static bool MentionsRoot(string command, string selectedRoot)
@@ -435,12 +435,12 @@ namespace DiscordAccess
             if (value.Length != 12 || value[1] != 0 || value[2] != 0 || value[3] != 0) throw Conflict();
             if (value[0] == 2 || value[0] == 6) return true;
             if (value[0] == 3 || value[0] == 7) return false;
-            throw new UserActionException("Windows başlangıç onayının biçimi tanınmadı. Başlangıç kayıtları değiştirilmedi.");
+            throw new UserActionException("The format of the Windows startup approval was not recognized. The startup entries were not changed.");
         }
         private static UserActionException Conflict()
-        { return new UserActionException("Windows başlangıç kaydı değişmiş veya doğrulanamadı. Kullanıcı değişikliği üzerine yazılmadı; kurtarma kaydı korundu."); }
+        { return new UserActionException("The Windows startup entry changed or could not be verified. The user change was not overwritten; the recovery record was kept."); }
         private static UserActionException Unsupported()
-        { return new UserActionException("Bu Discord'un etkin başlangıç kaydı HKLM/başlangıç klasöründe veya tanınmayan bir komutta. Sıra garantisi için Windows başlangıç ayarlarında bu kaydı kapatın; program bu kaydı değiştirmedi."); }
+        { return new UserActionException("The active startup entry of this Discord is in HKLM, the Startup folder or an unrecognized command. To guarantee the order, turn this entry off in the Windows startup settings; the program did not change this entry."); }
 
         // Filesystem persistence is separable from the Windows registry backend
         // so its exact call chain can be checked with an inert work journal.

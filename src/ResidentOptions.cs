@@ -34,7 +34,7 @@ namespace DiscordAccess
         }
 
         private static ArgumentException Invalid()
-        { return new ArgumentException("Başlatma seçeneği geçersiz: --tray veya --console kullanın. --startup yalnız Windows açılışı içindir."); }
+        { return new ArgumentException("Invalid launch option: use --tray or --console. --startup is only for Windows startup."); }
 
         internal static int RunOfflineChecks()
         {

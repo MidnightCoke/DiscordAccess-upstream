@@ -68,6 +68,6 @@ namespace DiscordAccess
         }
 
         private static InvalidDataException Rejected()
-        { return new InvalidDataException("Özel destek dosyasının sahibi veya erişim izinleri güvenli doğrulanamadı. Mevcut erişim izinleri otomatik değiştirilmedi."); }
+        { return new InvalidDataException("The owner or access permissions of the private support file could not be verified as safe. The existing access permissions were not changed automatically."); }
     }
 }

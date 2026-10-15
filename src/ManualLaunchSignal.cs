@@ -33,7 +33,7 @@ namespace DiscordAccess
                 SecurityIdentifier user = namespaceLease.User;
                 bool created;
                 signal = new EventWaitHandle(false, EventResetMode.AutoReset, namespaceLease.ObjectName(channel), out created, Security(user));
-                if (!created || !Owned(signal, user)) throw new InvalidOperationException("Discord açma dinleyicisi zaten var veya doğrulanamadı.");
+                if (!created || !Owned(signal, user)) throw new InvalidOperationException("The Open Discord listener already exists or could not be verified.");
                 open = callback;
                 registration = ThreadPool.RegisterWaitForSingleObject(signal, OnSignal, null, Timeout.Infinite, false);
             }
@@ -99,7 +99,7 @@ namespace DiscordAccess
 
         private static bool Request(string channel, string fixture, out string message)
         {
-            message = "Açık bağlantı oturumu bulunamadı. Önce DiscordAccess.exe'yi açın.";
+            message = "No open connection session was found. Open DiscordAccess.exe first.";
             try
             {
 #if TEST_BUILD
@@ -113,7 +113,7 @@ namespace DiscordAccess
                     {
                         if (!Owned(existing, lease.User)) return false;
                         if (!existing.Set()) return false;
-                        message = "Discord açma isteği bağlantı oturumuna iletildi.";
+                        message = "The Open Discord request was passed to the connection session.";
                         return true;
                     }
                 }

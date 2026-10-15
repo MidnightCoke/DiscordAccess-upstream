@@ -15,7 +15,7 @@ namespace DiscordAccess
     {
         internal GatewayProbeException(bool hello, string reason)
             : base("[WS-" + (hello ? "HELLO" : "CONNECT") + "-" + SafeReason(reason) +
-                "] Gateway WebSocket kontrolü tamamlanamadı. HTTP API başarısı canlı mesaj bağlantısını doğrulamaz.") { }
+                "] The Gateway WebSocket check could not be completed. HTTP API success does not confirm the live message connection.") { }
         private static string SafeReason(string reason)
         {
             return Array.IndexOf(new[] { "TIMEOUT", "RESPONSE", "WEBSOCKET", "TRANSPORT", "CANCELLED", "FAILED" }, reason) >= 0
@@ -79,7 +79,7 @@ namespace DiscordAccess
                         }
                     }
                     catch { /* HELLO succeeded; bounded close is best effort. */ }
-                    return "[WS-OK] Gateway WebSocket bağlantısı ve HELLO yanıtı proxy üzerinden doğrulandı. Bu kontrol hesap oturumunu, mesaj gönderimini veya ses/ekran paylaşımını doğrulamaz.";
+                    return "[WS-OK] The Gateway WebSocket connection and HELLO response were verified through the proxy. This check does not confirm the account session, message sending or voice/screen sharing.";
                 }
                 catch (Exception ex)
                 {

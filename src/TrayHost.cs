@@ -26,12 +26,12 @@ namespace DiscordAccess
             private readonly Control dispatcher = new Control();
             private readonly NotifyIcon icon = new NotifyIcon();
             private readonly ContextMenuStrip menu = new ContextMenuStrip();
-            private readonly ToolStripMenuItem status = new ToolStripMenuItem("Bağlantı hazırlanıyor...");
-            private readonly ToolStripMenuItem open = new ToolStripMenuItem("Discord'u aç");
-            private readonly ToolStripMenuItem retry = new ToolStripMenuItem("Yeniden bağlan");
-            private readonly ToolStripMenuItem diagnosis = new ToolStripMenuItem("Bağlantıyı kontrol et");
-            private readonly ToolStripMenuItem automatic = new ToolStripMenuItem("Windows ile başlat");
-            private readonly ToolStripMenuItem quit = new ToolStripMenuItem("Çıkış");
+            private readonly ToolStripMenuItem status = new ToolStripMenuItem("Connecting...");
+            private readonly ToolStripMenuItem open = new ToolStripMenuItem("Open Discord");
+            private readonly ToolStripMenuItem retry = new ToolStripMenuItem("Reconnect");
+            private readonly ToolStripMenuItem diagnosis = new ToolStripMenuItem("Check connection");
+            private readonly ToolStripMenuItem automatic = new ToolStripMenuItem("Start with Windows");
+            private readonly ToolStripMenuItem quit = new ToolStripMenuItem("Exit");
             private readonly DnsOptions dns;
             private readonly StartupCoordinator startup;
             private readonly Timer refresh = new Timer { Interval = 5000 };
@@ -64,7 +64,7 @@ namespace DiscordAccess
                 menu.Items.AddRange(new ToolStripItem[] { status, new ToolStripSeparator(), open, retry, diagnosis,
                     new ToolStripSeparator(), automatic, quit });
                 icon.Icon = SystemIcons.Application;
-                icon.Text = "DiscordAccess — hazırlanıyor";
+                icon.Text = "DiscordAccess — connecting";
                 icon.ContextMenuStrip = menu;
                 icon.Visible = true;
                 icon.DoubleClick += delegate { ShowStatus(); };
@@ -100,8 +100,8 @@ namespace DiscordAccess
             private void Changed(bool active, string message)
             {
                 Post(() => {
-                    status.Text = active ? "Bağlantı hazır" : (connecting ? "Bağlantı hazırlanıyor..." : "Bağlantı kapalı");
-                    icon.Text = active ? "DiscordAccess — bağlantı hazır" : "DiscordAccess — bağlantı kapalı";
+                    status.Text = active ? "Connection ready" : (connecting ? "Connecting..." : "Disconnected");
+                    icon.Text = active ? "DiscordAccess — connection ready" : "DiscordAccess — disconnected";
                     if (!connecting)
                     {
                         open.Enabled = diagnosis.Enabled = active;
@@ -116,13 +116,13 @@ namespace DiscordAccess
                 if (connecting || closing || (lifecycle != null && lifecycle.Ready)) return;
                 connecting = true;
                 open.Enabled = diagnosis.Enabled = retry.Enabled = automatic.Enabled = false;
-                status.Text = "Bağlantı hazırlanıyor...";
+                status.Text = "Connecting...";
                 try
                 {
                     if (lifecycle != null)
                     {
                         bool cleaned = await lifecycle.ShutdownAsync(15000);
-                        if (!cleaned) throw new UserActionException("Önceki bağlantı kapanmayı tamamlayamadı. Discord'u tamamen kapatıp DiscordAccess'i yeniden başlatın.");
+                        if (!cleaned) throw new UserActionException("The previous connection could not finish closing. Fully close Discord and restart DiscordAccess.");
                     }
                     controller = new Controller(SessionLog.Write, Changed, dns);
                     controller.Notice = message => Post(() => Notify(message, ToolTipIcon.Info));
@@ -142,17 +142,17 @@ namespace DiscordAccess
                         startupLaunch = false; startupConsumed = true;
                         await lifecycle.OpenAsync();
                     }
-                    status.Text = "Bağlantı hazır";
-                    icon.Text = "DiscordAccess — bağlantı hazır";
+                    status.Text = "Connection ready";
+                    icon.Text = "DiscordAccess — connection ready";
                     if (!String.IsNullOrEmpty(startup.Status)) SessionLog.Write(startup.Status);
-                    Notify("Bağlantı hazır. Discord'u kendi simgenizden açabilirsiniz.", ToolTipIcon.Info);
+                    Notify("Connection ready. You can open Discord from your own icon.", ToolTipIcon.Info);
                 }
                 catch (Exception error)
                 {
-                    status.Text = lifecycle != null && lifecycle.Ready ? "Bağlantı hazır" : "Bağlantı kurulamadı";
+                    status.Text = lifecycle != null && lifecycle.Ready ? "Connection ready" : "Could not connect";
                     icon.Text = "DiscordAccess — " + status.Text.ToLowerInvariant();
                     string message = ConsoleHost.SafeError(error);
-                    SessionLog.Write("Arka plan başlangıcı: " + message);
+                    SessionLog.Write("Background startup: " + message);
                     if (!closing) Notify(message, ToolTipIcon.Warning);
                 }
                 finally
@@ -202,7 +202,7 @@ namespace DiscordAccess
                 if (refreshWarning) return;
                 refreshWarning = true;
                 string message = ConsoleHost.SafeError(error);
-                SessionLog.Write("Windows başlangıç koordinasyonu: " + message);
+                SessionLog.Write("Windows startup coordination: " + message);
                 Notify(message,ToolTipIcon.Warning);
             }
 
@@ -235,7 +235,7 @@ namespace DiscordAccess
 
             private void ShowStatus()
             {
-                try { Notify(status.Text + ". " + (startup.Enabled ? "Windows ile başlatma açık." : "Windows ile başlatma kapalı."), ToolTipIcon.Info); }
+                try { Notify(status.Text + ". " + (startup.Enabled ? "Start with Windows is on." : "Start with Windows is off."), ToolTipIcon.Info); }
                 catch (Exception error) { StartupWarning(error); }
             }
 
@@ -250,12 +250,12 @@ namespace DiscordAccess
                 if (closing) return;
                 closing = true;
                 quit.Enabled = open.Enabled = retry.Enabled = diagnosis.Enabled = automatic.Enabled = false;
-                status.Text = "Kapatılıyor...";
+                status.Text = "Closing...";
                 try
                 {
                     if (lifecycle != null && !await lifecycle.ShutdownAsync(15000)) ExitCode = 130;
                 }
-                catch (Exception error) { SessionLog.Write("Arka plan kapanışı: " + ConsoleHost.SafeError(error)); ExitCode = 1; }
+                catch (Exception error) { SessionLog.Write("Background shutdown: " + ConsoleHost.SafeError(error)); ExitCode = 1; }
                 finally { icon.Visible = false; ExitThread(); }
             }
 

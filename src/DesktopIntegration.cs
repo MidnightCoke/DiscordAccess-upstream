@@ -21,7 +21,7 @@ namespace DiscordAccess
             RequireLocalRoot(stateRoot);
             Version parsed;
             if (!Regex.IsMatch(version ?? "", @"\A[0-9]+(?:\.[0-9]+){1,3}\z") || !Version.TryParse(version, out parsed))
-                throw new InvalidDataException("Discord sürüm bilgisi doğrulanamadı.");
+                throw new InvalidDataException("The Discord version information could not be verified.");
             string entry = Path.Combine(stateRoot, "profile", "discord", version, "modules", "discord_desktop_core", "index.js");
             RequireOwned(entry, stateRoot);
             byte[] current;
@@ -112,7 +112,7 @@ namespace DiscordAccess
             using (var stream = typeof(DesktopIntegration).Assembly.GetManifestResourceStream("DiscordAccess.AttachmentDownloadHook"))
             {
                 if (stream == null || stream.Length == 0 || stream.Length > MaximumHookBytes)
-                    throw new InvalidDataException("Discord dosya indirme bileşeni pakette eksik veya geçersiz.");
+                    throw new InvalidDataException("The Discord file download component is missing from the package or invalid.");
                 byte[] bytes = ReadBounded(stream, MaximumHookBytes);
                 try { Utf8.GetString(bytes); } catch (DecoderFallbackException) { throw Unsupported(); }
                 return bytes;
@@ -157,16 +157,16 @@ namespace DiscordAccess
         {
             if (root.StartsWith(@"\\", StringComparison.Ordinal) || !Path.IsPathRooted(root) ||
                 root.Length < 3 || root[1] != ':' || root.Substring(2).IndexOf(':') >= 0 || !Safety.NoReparse(root))
-                throw new InvalidDataException("Ayrı Discord klasörünün yerel dosya sınırı doğrulanamadı.");
+                throw new InvalidDataException("The local file boundary of the separate Discord folder could not be verified.");
         }
         private static void RequireOwned(string path, string root)
         {
             if (!Safety.Under(path, root) || !Safety.NoReparse(path))
-                throw new InvalidDataException("Ayrı Discord modülünün klasör sınırı doğrulanamadı.");
+                throw new InvalidDataException("The folder boundary of the separate Discord module could not be verified.");
         }
         private static InvalidDataException Unsupported()
         {
-            return new InvalidDataException("Ayrı Discord modülünün başlangıç dosyası tanınmadı; dosya değiştirilmedi. Güncel resmi kurulumla ayrı kopyanın yeniden hazırlanması gerekiyor.");
+            return new InvalidDataException("The startup file of the separate Discord module was not recognized; the file was not changed. The separate copy must be prepared again from the current official installation.");
         }
 
 #if TEST_BUILD

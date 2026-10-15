@@ -42,7 +42,7 @@ namespace DiscordAccess
 
         internal static Uri ValidateLink(string link)
         {
-            const string message = "Yalnızca Discord ek dosyasının HTTPS bağlantısı kabul edilir. Discord'da bağlantıyı kopyalayıp yeniden yapıştırın.";
+            const string message = "Only the HTTPS link of a Discord attachment is accepted. Copy the link in Discord and paste it again.";
             if (String.IsNullOrEmpty(link) || link.Length > 8192 || link != link.Trim() ||
                 Regex.IsMatch(link, @"[\x00-\x20\x7f\\]")) throw new AttachmentDownloadException(message);
             if (!Regex.IsMatch(link, @"\Ahttps://(?:cdn\.discordapp\.com|media\.discordapp\.net)(?::443)?/", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
@@ -75,7 +75,7 @@ namespace DiscordAccess
             string name = Uri.UnescapeDataString(uri.AbsolutePath.Substring(uri.AbsolutePath.LastIndexOf('/') + 1));
             name = Regex.Replace(name, "[<>:\"/\\\\|?*\\x00-\\x1f\\x7f]", "_").Trim().TrimEnd('.', ' ');
             if (name.Length > 160) name = name.Substring(0, 160).TrimEnd('.', ' ');
-            if (String.IsNullOrWhiteSpace(name)) name = "Discord-dosyasi";
+            if (String.IsNullOrWhiteSpace(name)) name = "Discord-file";
             if (IsDeviceName(name)) name = "_" + name;
             return name;
         }
@@ -88,7 +88,7 @@ namespace DiscordAccess
         internal static HttpWebRequest CreateRequest(Uri uri, int proxyPort)
         {
             uri = ValidateLink(uri == null ? null : uri.OriginalString);
-            if (proxyPort < 1 || proxyPort > 65535) throw new AttachmentDownloadException("Önce DiscordAccess bağlantısını başlatın.");
+            if (proxyPort < 1 || proxyPort > 65535) throw new AttachmentDownloadException("Start the DiscordAccess connection first.");
             var request = (HttpWebRequest)WebRequest.Create(uri);
             request.Proxy = new WebProxy(new Uri("http://127.0.0.1:" + proxyPort), false);
             request.AllowAutoRedirect = false;
@@ -153,9 +153,9 @@ namespace DiscordAccess
         private static string RateLimitMessage(string retryAfter)
         {
             int? seconds = RetryAfterSeconds(retryAfter, DateTimeOffset.UtcNow);
-            return "İndirme sunucusu istek sınırı uyguluyor (HTTP 429). " +
-                (seconds.HasValue ? "Yaklaşık " + seconds.Value.ToString(CultureInfo.InvariantCulture) + " saniye bekleyip yeniden deneyin." :
-                    "Bir süre bekleyip yeniden deneyin.") + " Otomatik tekrar yapılmadı.";
+            return "The download server is applying a rate limit (HTTP 429). " +
+                (seconds.HasValue ? "Wait about " + seconds.Value.ToString(CultureInfo.InvariantCulture) + " seconds and try again." :
+                    "Wait a while and try again.") + " No automatic retry was made.";
         }
 
         // Injectable only within this assembly so tests never contact remote hosts.
@@ -167,16 +167,16 @@ namespace DiscordAccess
             try
             {
                 Uri uri = ValidateLink(link);
-                if (proxyPort < 1 || proxyPort > 65535) throw new AttachmentDownloadException("Önce DiscordAccess bağlantısını başlatın.");
-                if (String.IsNullOrWhiteSpace(destination)) throw new AttachmentDownloadException("Kaydedilecek dosya konumu seçilmedi.");
+                if (proxyPort < 1 || proxyPort > 65535) throw new AttachmentDownloadException("Start the DiscordAccess connection first.");
+                if (String.IsNullOrWhiteSpace(destination)) throw new AttachmentDownloadException("No save location was selected.");
                 string finalPath = Path.GetFullPath(destination);
                 string directory = Path.GetDirectoryName(finalPath);
-                if (!Directory.Exists(directory)) throw new AttachmentDownloadException("Seçilen kayıt klasörü bulunamadı.");
-                if (File.Exists(finalPath) || Directory.Exists(finalPath)) throw new AttachmentDownloadException("Bu adla bir dosya zaten var. Farklı bir ad seçin.");
+                if (!Directory.Exists(directory)) throw new AttachmentDownloadException("The selected save folder was not found.");
+                if (File.Exists(finalPath) || Directory.Exists(finalPath)) throw new AttachmentDownloadException("A file with this name already exists. Choose a different name.");
                 // ADS paths cannot be selected as output files.
                 string finalName = Path.GetFileName(finalPath);
                 if (finalName.IndexOf(':') >= 0 || IsDeviceName(finalName.TrimEnd('.', ' ')) || finalName != finalName.TrimEnd('.', ' '))
-                    throw new AttachmentDownloadException("Geçerli bir dosya adı seçin.");
+                    throw new AttachmentDownloadException("Choose a valid file name.");
                 token.ThrowIfCancellationRequested();
                 using (var total = CancellationTokenSource.CreateLinkedTokenSource(token))
                 using (var idle = CancellationTokenSource.CreateLinkedTokenSource(total.Token))
@@ -189,20 +189,20 @@ namespace DiscordAccess
                         using (Response response = await fetch(current, proxyPort, idle.Token).ConfigureAwait(false))
                         {
                             idle.Token.ThrowIfCancellationRequested();
-                            if (response == null) throw new AttachmentDownloadException("İndirme sunucusundan yanıt alınamadı.");
+                            if (response == null) throw new AttachmentDownloadException("No response was received from the download server.");
                             if (response.Status == 301 || response.Status == 302 || response.Status == 303 || response.Status == 307 || response.Status == 308)
                             {
-                                if (redirects >= MaximumRedirects) throw new AttachmentDownloadException("İndirme sunucusu çok fazla yönlendirme döndürdü.");
+                                if (redirects >= MaximumRedirects) throw new AttachmentDownloadException("The download server returned too many redirects.");
                                 if (String.IsNullOrWhiteSpace(response.Location) || response.Location.Length > 8192 || Regex.IsMatch(response.Location, @"[\x00-\x20\x7f\\]"))
-                                    throw new AttachmentDownloadException("Dosya indirme yönlendirmesi doğrulanamadı.");
+                                    throw new AttachmentDownloadException("The file download redirect could not be verified.");
                                 Uri redirect;
-                                if (!Uri.TryCreate(current, response.Location, out redirect)) throw new AttachmentDownloadException("Dosya indirme yönlendirmesi doğrulanamadı.");
+                                if (!Uri.TryCreate(current, response.Location, out redirect)) throw new AttachmentDownloadException("The file download redirect could not be verified.");
                                 current = ValidateLink(redirect.OriginalString);
                                 continue;
                             }
                             if (response.Status == 429) throw new AttachmentDownloadException(RateLimitMessage(response.RetryAfter));
-                            if (response.Status != 200) throw new AttachmentDownloadException("Dosya indirilemedi (HTTP " + response.Status + "). Discord'dan yeni dosya bağlantısını kopyalayın.");
-                            if (response.Body == null || response.Length < -1) throw new AttachmentDownloadException("İndirme yanıtı doğrulanamadı.");
+                            if (response.Status != 200) throw new AttachmentDownloadException("The file could not be downloaded (HTTP " + response.Status + "). Copy a new file link from Discord.");
+                            if (response.Body == null || response.Length < -1) throw new AttachmentDownloadException("The download response could not be verified.");
                             temporary = Path.Combine(directory, ".DiscordAccess-" + Guid.NewGuid().ToString("N") + ".part");
                             long received = 0;
                             var progressClock = Stopwatch.StartNew();
@@ -217,13 +217,13 @@ namespace DiscordAccess
                                     int count = await response.Body.ReadAsync(buffer, 0, buffer.Length, idle.Token).ConfigureAwait(false);
                                     idle.Token.ThrowIfCancellationRequested();
                                     if (count == 0) break;
-                                    if (response.Length >= 0 && received > response.Length - count) throw new AttachmentDownloadException("Dosya boyutu sunucu yanıtıyla eşleşmedi. İndirme tamamlanmadı.");
+                                    if (response.Length >= 0 && received > response.Length - count) throw new AttachmentDownloadException("The file size did not match the server response. The download was not completed.");
                                     await output.WriteAsync(buffer, 0, count, idle.Token).ConfigureAwait(false);
                                     received = checked(received + count);
                                     if (progress != null && progressClock.ElapsedMilliseconds >= 250)
                                     { progress.Report(received); progressClock.Restart(); }
                                 }
-                                if (response.Length >= 0 && received != response.Length) throw new AttachmentDownloadException("Dosya eksik geldi. İndirme tamamlanmadı.");
+                                if (response.Length >= 0 && received != response.Length) throw new AttachmentDownloadException("The file arrived incomplete. The download was not completed.");
                                 await output.FlushAsync(idle.Token).ConfigureAwait(false);
                             }
                             idle.Token.ThrowIfCancellationRequested();
@@ -242,7 +242,7 @@ namespace DiscordAccess
             catch (Exception)
             {
                 if (token.IsCancellationRequested) throw new OperationCanceledException(token);
-                throw new AttachmentDownloadException("Dosya indirilemedi. Bağlantı veya disk erişimi kesilmiş ya da süre dolmuş olabilir. Discord'dan yeni bağlantıyı kopyalayıp tekrar deneyin.");
+                throw new AttachmentDownloadException("The file could not be downloaded. The connection or disk access may have been interrupted, or the time may have run out. Copy a new link from Discord and try again.");
             }
             finally
             {
@@ -280,7 +280,7 @@ namespace DiscordAccess
                     zone.Flush();
                 }
             }
-            catch { throw new AttachmentDownloadException("Dosyanın Windows internet güvenlik işareti kaydedilemedi. Başka bir kayıt klasörü seçin."); }
+            catch { throw new AttachmentDownloadException("The file's Windows internet security mark could not be saved. Choose another save folder."); }
         }
     }
 }

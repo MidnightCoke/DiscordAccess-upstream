@@ -52,7 +52,7 @@ namespace DiscordAccess
                 catch (Exception ex)
                 {
                     if (!ExpectedDiscoveryFailure(ex)) throw;
-                    throw new UserActionException("Belirtilen Discord yolu doğrulanamadı. Resmi Discord Stable kurulum klasörünü veya Discord.exe yolunu --discord-path ile belirtin.");
+                    throw new UserActionException("The specified Discord path could not be verified. Specify the official Discord Stable installation folder or the Discord.exe path with --discord-path.");
                 }
                 if (saveRoot != null) saveRoot(chosen.Root);
                 return chosen;
@@ -80,9 +80,9 @@ namespace DiscordAccess
                 catch (Exception ex) { if (!ExpectedDiscoveryFailure(ex)) throw; }
             }
             if (discovered.Count > 1)
-                throw new UserActionException("Birden fazla resmi Discord Stable kurulumu bulundu. Kullanılacak kurulumu DiscordAccess.exe --discord-path \"D:\\Programlar\\Discord\\Discord.exe\" ile belirtin.");
+                throw new UserActionException("More than one official Discord Stable installation was found. Specify the one to use with DiscordAccess.exe --discord-path \"D:\\Programs\\Discord\\Discord.exe\".");
             if (discovered.Count == 0)
-                throw new UserActionException("Resmi Discord Stable kurulumu bulunamadı. DiscordAccess.exe --discord-path \"D:\\Programlar\\Discord\\Discord.exe\" ile yol belirtebilirsiniz.");
+                throw new UserActionException("No official Discord Stable installation was found. You can specify the path with DiscordAccess.exe --discord-path \"D:\\Programs\\Discord\\Discord.exe\".");
             DiscordInstallation result = discovered.Values.First();
             if (saveRoot != null) saveRoot(result.Root);
             return result;
@@ -363,6 +363,6 @@ namespace DiscordAccess
         { return new JavaScriptSerializer { MaxJsonLength = MaxJsonBytes, RecursionLimit = 8 }; }
 
         private static InvalidDataException Invalid()
-        { return new InvalidDataException("Discord Stable kurulum yolu veya resmi dosyaları doğrulanamadı."); }
+        { return new InvalidDataException("The Discord Stable installation path or its official files could not be verified."); }
     }
 }

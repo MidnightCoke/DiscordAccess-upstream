@@ -40,7 +40,7 @@ namespace DiscordAccess
                 args = mode.Arguments; background = mode.Background;
                 fromIcon = args.Length == 1 && args[0] == "--open-discord";
                 if (pathOptions.ExplicitPath != null && (fromIcon || args.Contains("--restore")))
-                { return ReportArgument(new ArgumentException("--discord-path bağlantıyı başlatırken kullanılmalıdır; --restore veya --open-discord ile birleştirmeyin."), background); }
+                { return ReportArgument(new ArgumentException("--discord-path must be used when starting the connection; do not combine it with --restore or --open-discord."), background); }
                 DnsOptions dns;
                 try { dns = DnsOptions.Parse(args); }
                 catch (ArgumentException ex) { return ReportArgument(ex, background); }
@@ -55,7 +55,7 @@ namespace DiscordAccess
 #if TEST_BUILD
                     return RegressionChecks.Run(Safety.Base);
 #else
-                    Console.Error.WriteLine("Bu dağıtımda geliştirici kontrolleri bulunmaz."); return 64;
+                    Console.Error.WriteLine("This distribution does not include developer checks."); return 64;
 #endif
                 }
                 if (args.Contains("--verify-package")) { using (Package.Load(dns.Automatic ? DnsOptions.FixedDefault : dns)) { } return 0; }
@@ -63,7 +63,7 @@ namespace DiscordAccess
                 bool restoring = args.Length == 1 && args[0] == "--restore";
                 if (!fromIcon && !restoring && args.Any(arg => arg != "--connect" && arg != "--start" && !DnsOptions.IsArgument(arg)))
                 {
-                    if (background) return ReportArgument(new ArgumentException("Tanınmayan seçenek. Kullanım için --help yazın."), true);
+                    if (background) return ReportArgument(new ArgumentException("Unrecognized option. Type --help for usage."), true);
                     return ConsoleHost.Run(args, dns);
                 }
                 if (StartupPackage.RelaunchIfNeeded(launchArguments, background, mode.Startup, restoring, fromIcon)) return 0;
@@ -71,7 +71,7 @@ namespace DiscordAccess
                 {
                     if (!instance.IsPrimary)
                     {
-                        if (restoring) throw new UserActionException("DiscordAccess hâlâ açık. Önce mevcut bağlantıyı kapatın.");
+                        if (restoring) throw new UserActionException("DiscordAccess is still open. Close the existing connection first.");
                         string response;
                         if (background)
                         {
@@ -84,23 +84,23 @@ namespace DiscordAccess
                                 if (delivered) break;
                                 Thread.Sleep(50);
                             }
-                            if (!delivered) throw new UserActionException("Mevcut DiscordAccess oturumu yanıt vermedi. Açık bağlantıyı kapatıp yeniden deneyin.");
+                            if (!delivered) throw new UserActionException("The existing DiscordAccess session did not respond. Close the open connection and try again.");
                         }
-                        else Console.WriteLine("DiscordAccess zaten çalışıyor; ikinci bağlantı başlatılmadı.");
+                        else Console.WriteLine("DiscordAccess is already running; a second connection was not started.");
                         return 0;
                     }
                     using (var startupRequests = ResidentStartupRequests.ForLaunch(restoring, fromIcon))
                     {
                         if (Controller.InstalledClientRunning() && InstalledDiscord.HasPendingRecovery)
-                            throw new UserActionException("Önce Discord'u sistem tepsisinden tamamen kapatın; ardından DiscordAccess.exe'yi açın. Bekleyen geri alma kaydı korunuyor.");
+                            throw new UserActionException("First fully close Discord from the system tray, then open DiscordAccess.exe. The pending restore record is kept.");
                         try { InstalledDiscord.Recover(SessionLog.Write); }
                         catch
                         {
-                            throw new UserActionException("Geçici Discord ayarları geri alınamadı. Discord kapalıyken DiscordAccess.exe --restore deneyin. Çakışan kullanıcı değişiklikleri ve kurtarma kaydı korundu.");
+                            throw new UserActionException("The temporary Discord settings could not be restored. Try DiscordAccess.exe --restore while Discord is closed. Conflicting user changes and the recovery record were kept.");
                         }
                         DiscordShortcuts.Recover(SessionLog.Write);
                         if (DiscordShortcuts.HasPendingRecovery)
-                            throw new UserActionException("Kısayol geri alma tamamlanamadı. Kurtarma kaydı korundu; mevcut kısayolların üzerine yazılmadı.");
+                            throw new UserActionException("The shortcut restore could not be completed. The recovery record was kept; existing shortcuts were not overwritten.");
                         DiscordInstallation installation = null;
                         if (!restoring) { installation = DiscordInstallation.Resolve(pathOptions.ExplicitPath); Safety.SelectDiscord(installation); }
                         if (fromIcon)
@@ -113,7 +113,7 @@ namespace DiscordAccess
                         if (restoring)
                         {
                             StartupCoordinator.Restore(SessionLog.Write);
-                            Console.WriteLine("Discord bağlantı ayarları, kısayolları ve otomatik başlatma ayarları geri alındı."); return 0;
+                            Console.WriteLine("The Discord connection settings, shortcuts and automatic startup settings were restored."); return 0;
                         }
                         if (background) return TrayHost.Run(dns, installation, mode.Startup, startupRequests);
                         var consoleStartup = StartupCoordinator.Create(Path.Combine(Safety.Base,"DiscordAccess.exe"), installation,
@@ -127,14 +127,14 @@ namespace DiscordAccess
                 if (background && !fromIcon)
                 {
                     string message = ConsoleHost.SafeError(ex);
-                    SessionLog.Write("DiscordAccess açılamadı: " + message);
+                    SessionLog.Write("DiscordAccess could not start: " + message);
                     System.Windows.Forms.MessageBox.Show(message, "DiscordAccess", System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Warning);
                     return 3;
                 }
                 ConsoleWindow.Ensure();
-                Console.Error.WriteLine("DiscordAccess açılamadı: " + ConsoleHost.SafeError(ex));
-                if (fromIcon) { Console.WriteLine("Kapatmak için Enter'a basın."); Console.ReadLine(); }
+                Console.Error.WriteLine("DiscordAccess could not start: " + ConsoleHost.SafeError(ex));
+                if (fromIcon) { Console.WriteLine("Press Enter to close."); Console.ReadLine(); }
                 return 3;
             }
         }
@@ -159,7 +159,7 @@ namespace DiscordAccess
         {
             using (var id = WindowsIdentity.GetCurrent())
                 if (new WindowsPrincipal(id).IsInRole(WindowsBuiltInRole.Administrator))
-                    throw new InvalidOperationException("Programı yönetici olarak açmayın. Standart kullanıcı yetkisi yeterlidir.");
+                    throw new InvalidOperationException("Do not run the program as administrator. Standard user rights are enough.");
         }
         internal static bool Under(string path, string root)
         {
@@ -193,12 +193,12 @@ namespace DiscordAccess
         }
         internal static FileStream ReadLease(string path)
         {
-            if (!NoReparse(path)) throw new InvalidDataException("Dosya yolu güvenli değil.");
+            if (!NoReparse(path)) throw new InvalidDataException("The file path is not safe.");
             var f = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             try
             {
                 if (!NoReparse(path) || !String.Equals(Path.GetFullPath(path), NativeFile.FinalPath(f.SafeFileHandle), StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException("Dosya hedefi değişti.");
+                    throw new InvalidDataException("The file target changed.");
                 return f;
             }
             catch { f.Dispose(); throw; }
@@ -209,21 +209,21 @@ namespace DiscordAccess
         }
         internal static void EnsureStateDirectory()
         {
-            if (!NoReparse(StateRoot)) throw new InvalidDataException("Ayar klasörü güvenli değil.");
+            if (!NoReparse(StateRoot)) throw new InvalidDataException("The settings folder is not safe.");
             var acl = new DirectorySecurity(); acl.SetAccessRuleProtection(true, false);
             foreach (var sid in new[] { WindowsIdentity.GetCurrent().User, new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null) })
                 acl.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
             string dir = Path.Combine(StateRoot, "v3");
-            if (!NoReparse(dir)) throw new InvalidDataException("Ayar klasörü güvenli değil.");
+            if (!NoReparse(dir)) throw new InvalidDataException("The settings folder is not safe.");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir, acl);
-            if (!NoReparse(dir)) throw new InvalidDataException("Ayar klasörü değişti.");
+            if (!NoReparse(dir)) throw new InvalidDataException("The settings folder changed.");
             var actual = Directory.GetAccessControl(dir);
             var owner = (SecurityIdentifier)actual.GetOwner(typeof(SecurityIdentifier));
             var allowed = new[] { WindowsIdentity.GetCurrent().User.Value, "S-1-5-18", "S-1-5-32-544" };
             if (!actual.AreAccessRulesProtected || !allowed.Contains(owner.Value) ||
                 actual.GetAccessRules(true, true, typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>()
                     .Any(rule => rule.AccessControlType == AccessControlType.Allow && !allowed.Contains(rule.IdentityReference.Value)))
-                throw new InvalidDataException("Yeni ayar klasörünün erişim izinleri beklenen kullanıcılarla sınırlı değil. Mevcut izinler değiştirilmedi.");
+                throw new InvalidDataException("The access permissions of the new settings folder are not limited to the expected users. The existing permissions were not changed.");
         }
     }
     internal static class NativeFile
@@ -267,7 +267,7 @@ namespace DiscordAccess
         internal static string FinalPath(Microsoft.Win32.SafeHandles.SafeFileHandle handle)
         {
             var b = new StringBuilder(32768); uint n = GetFinalPathNameByHandle(handle, b, (uint)b.Capacity, 0);
-            if (n == 0 || n >= b.Capacity) throw new IOException("Dosya hedefi doğrulanamadı.");
+            if (n == 0 || n >= b.Capacity) throw new IOException("The file target could not be verified.");
             string path = b.ToString();
             if (path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)) return @"\\" + path.Substring(8);
             return path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path.Substring(4) : path;
@@ -283,7 +283,7 @@ namespace DiscordAccess
             try
             {
                 if (discord) VerifyDiscord(Path);
-                else if (Safety.Hash(lease) != Package.EngineSha256) throw Package.Error("PKG-E03", "engine\\sing-box.exe bütünlük kontrolünden geçemedi. Tam paketi yeni bir klasöre yeniden çıkarın.");
+                else if (Safety.Hash(lease) != Package.EngineSha256) throw Package.Error("PKG-E03", "engine\\sing-box.exe failed the integrity check. Extract the full package again to a new folder.");
             }
             catch { Dispose(); throw; }
         }
@@ -302,9 +302,9 @@ namespace DiscordAccess
             try
             {
                 Marshal.StructureToPtr(file, ptr, false);
-                if (WinVerifyTrust(new IntPtr(-1), ref action, ref data) != 0) throw new InvalidDataException("Discord'un resmi imzası doğrulanamadı.");
+                if (WinVerifyTrust(new IntPtr(-1), ref action, ref data) != 0) throw new InvalidDataException("Discord's official signature could not be verified.");
                 using (var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(path)))
-                    if (cert.GetNameInfo(X509NameType.SimpleName, false) != "Discord Inc.") throw new InvalidDataException("Discord yayımlayıcısı beklenen resmi şirket değil.");
+                    if (cert.GetNameInfo(X509NameType.SimpleName, false) != "Discord Inc.") throw new InvalidDataException("The Discord publisher is not the expected official company.");
             }
             finally { data.State = 2; WinVerifyTrust(new IntPtr(-1), ref action, ref data); Marshal.DestroyStructure(ptr, typeof(TrustFile)); Marshal.FreeHGlobal(ptr); }
         }
@@ -342,16 +342,16 @@ namespace DiscordAccess
                 catch (PackageLoadException) { throw; }
                 catch (FileNotFoundException) { throw Missing("PKG-E01", "engine\\sing-box.exe"); }
                 catch (DirectoryNotFoundException) { throw Missing("PKG-E01", "engine\\sing-box.exe"); }
-                catch (InvalidDataException) { throw Error("PKG-E04", "engine\\sing-box.exe dosya yolu güvenli biçimde doğrulanamadı. Tam paketi normal bir yerel klasöre çıkarın."); }
-                catch { throw Error("PKG-E02", "engine\\sing-box.exe okunamadı veya başka bir işlem tarafından kilitlenmiş. Tam paketi yeni bir yerel klasöre çıkarıp yeniden deneyin."); }
+                catch (InvalidDataException) { throw Error("PKG-E04", "The engine\\sing-box.exe file path could not be verified safely. Extract the full package to a normal local folder."); }
+                catch { throw Error("PKG-E02", "engine\\sing-box.exe could not be read or is locked by another process. Extract the full package to a new local folder and try again."); }
                 return p;
             }
             catch (PackageLoadException) { p.Dispose(); throw; }
-            catch { p.Dispose(); throw Error("PKG-E02", "engine\\sing-box.exe okunamadı. Tam paketi yeni bir yerel klasöre çıkarıp yeniden deneyin."); }
+            catch { p.Dispose(); throw Error("PKG-E02", "engine\\sing-box.exe could not be read. Extract the full package to a new local folder and try again."); }
         }
         private static PackageLoadException Missing(string code, string file)
         {
-            return Error(code, file + " bulunamadı. Bu klasörde tam paket yok. Tam sürüm ZIP'ini tamamen yeni bir klasöre çıkarın; DiscordAccess.exe ile engine klasörü yan yana olmalı.");
+            return Error(code, file + " was not found. This folder does not contain the full package. Extract the full release ZIP to a completely new folder; DiscordAccess.exe and the engine folder must be side by side.");
         }
         internal string Config(string username, string password, int port)
         {

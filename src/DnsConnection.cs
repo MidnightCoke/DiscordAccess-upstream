@@ -21,7 +21,7 @@ namespace DiscordAccess
         internal static DnsConnection Open(DnsOptions option, string discordImage, Action<string> log, CancellationToken token)
         {
             if (option == null) throw new ArgumentNullException("option");
-            if (option.Automatic) throw new ArgumentException("DNS bağlantısı için belirli bir aday gerekli.", "option");
+            if (option.Automatic) throw new ArgumentException("A specific candidate is required for the DNS connection.", "option");
             token.ThrowIfCancellationRequested();
             var connection = new DnsConnection(option);
             try
@@ -39,7 +39,7 @@ namespace DiscordAccess
                 {
                     token.ThrowIfCancellationRequested();
                     if (connection.Engine.HasExited || deadline.ElapsedMilliseconds >= 12000)
-                        throw new InvalidOperationException("Bağlantı motoru hazır olamadı.");
+                        throw new InvalidOperationException("The connection engine could not become ready.");
                     if (token.WaitHandle.WaitOne(40)) token.ThrowIfCancellationRequested();
                 }
                 token.ThrowIfCancellationRequested();
@@ -72,11 +72,11 @@ namespace DiscordAccess
             catch (ConnectivityFailureException)
             {
                 token.ThrowIfCancellationRequested();
-                if (Engine.HasExited) throw new InvalidOperationException("Bağlantı motoru durdu.");
+                if (Engine.HasExited) throw new InvalidOperationException("The connection engine stopped.");
                 throw;
             }
             token.ThrowIfCancellationRequested();
-            if (Engine.HasExited) throw new InvalidOperationException("Bağlantı motoru durdu.");
+            if (Engine.HasExited) throw new InvalidOperationException("The connection engine stopped.");
         }
 
         public void Dispose()
@@ -106,7 +106,7 @@ namespace DiscordAccess
                     }
                 }
             }
-            if (!exited) throw new InvalidOperationException("DNS bağlantısı güvenli biçimde kapatılamadı; başka bir aday başlatılmadı.");
+            if (!exited) throw new InvalidOperationException("The DNS connection could not be closed safely; no other candidate was started.");
         }
     }
 }

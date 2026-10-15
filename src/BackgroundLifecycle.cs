@@ -32,7 +32,7 @@ namespace DiscordAccess
         {
             if (operations == null || operations.Connect == null || operations.Disconnect == null ||
                 operations.OpenDiscord == null || operations.Dispose == null || operations.Ready == null || operations.Running == null)
-                throw new ArgumentException("Arka plan oturumunun işlemleri eksik.", "operations");
+                throw new ArgumentException("The background session operations are missing.", "operations");
             this.operations = operations; this.changed = changed;
         }
 
@@ -106,23 +106,23 @@ namespace DiscordAccess
         {
             try
             {
-                Publish(false, "Bağlanıyor...");
+                Publish(false, "Connecting...");
                 Task operation;
                 lock (sync)
                 {
                     if (stopping) throw new OperationCanceledException();
                     operation = operations.Connect();
-                    if (operation == null) throw new InvalidOperationException("Bağlantı işlemi alınamadı.");
+                    if (operation == null) throw new InvalidOperationException("The connection operation could not be obtained.");
                 }
                 await operation.ConfigureAwait(false);
                 lock (sync)
                 {
                     if (stopping) throw new OperationCanceledException();
-                    if (!operations.Ready()) throw new InvalidOperationException("Bağlantı hazır duruma gelemedi.");
+                    if (!operations.Ready()) throw new InvalidOperationException("The connection could not become ready.");
                     ready = true;
                 }
                 prepared.TrySetResult(null);
-                Publish(true, "Bağlantı hazır.");
+                Publish(true, "Connection ready.");
                 await LaunchStartupAsync().ConfigureAwait(false);
                 connected.TrySetResult(null);
             }
@@ -131,7 +131,7 @@ namespace DiscordAccess
                 prepared.TrySetException(error);
                 bool active;
                 lock (sync) active = ready && !stopping;
-                Publish(active, active ? "Bağlantı hazır; Discord açılamadı." : "Bağlantı kurulamadı.");
+                Publish(active, active ? "Connection ready; could not open Discord." : "Could not connect.");
                 connected.TrySetException(error);
             }
         }
@@ -160,16 +160,16 @@ namespace DiscordAccess
                 lock (sync)
                 {
                     if (stopping) throw new OperationCanceledException();
-                    if (!ready || !operations.Ready()) throw new UserActionException("Bağlantı hazır değil.");
+                    if (!ready || !operations.Ready()) throw new UserActionException("The connection is not ready.");
                     // A manual click joining startup preparation satisfies the
                     // same launch intent. Even a very fast open must not leave
                     // a second startup launch after its coalescing slot clears.
                     if (startupRequested) startupConsumed = true;
-                    if (operations.Running()) result = "Discord zaten açık.";
+                    if (operations.Running()) result = "Discord is already open.";
                     else
                     {
                         operation = operations.OpenDiscord();
-                        if (operation == null) throw new InvalidOperationException("Discord açılış işlemi alınamadı.");
+                        if (operation == null) throw new InvalidOperationException("The Discord launch operation could not be obtained.");
                     }
                 }
                 if (operation != null) result = await operation.ConfigureAwait(false);
@@ -181,7 +181,7 @@ namespace DiscordAccess
                 // slot, so there is no interval admitting a parallel opener.
                 lock (sync)
                 {
-                    if (failure == null) request.TrySetResult(result ?? "Discord açılış isteği gönderildi.");
+                    if (failure == null) request.TrySetResult(result ?? "Discord launch request sent.");
                     else request.TrySetException(failure);
                     if (opening == request) opening = null;
                 }
@@ -239,7 +239,7 @@ namespace DiscordAccess
                     try { await disposing.ConfigureAwait(false); }
                     catch (Exception error) { if (cleanupFailure == null) cleanupFailure = error; }
                 }
-                Publish(false, cleanupFailure == null ? "Bağlantı kapatıldı." : "Kurtarma kaydı korundu; Discord ayarları tamamen geri alınamadı.");
+                Publish(false, cleanupFailure == null ? "Connection closed." : "Recovery record kept; the temporary Discord settings could not be fully restored.");
                 if (cleanupFailure != null) completion.TrySetException(cleanupFailure);
                 else completion.TrySetResult(true);
             }
@@ -360,7 +360,7 @@ namespace DiscordAccess
                 OpenDiscord = () => { opens++; return Task.FromResult("unexpected"); },
                 Ready = () => active, Running = () => true, Dispose = () => { } });
             existing.ConnectAsync(true).GetAwaiter().GetResult();
-            require(existing.OpenAsync().GetAwaiter().GetResult() == "Discord zaten açık." && opens == 0,
+            require(existing.OpenAsync().GetAwaiter().GetResult() == "Discord is already open." && opens == 0,
                 "existing official Discord was launched again");
             require(existing.ShutdownAsync().GetAwaiter().GetResult(), "existing fixture cleanup failed");
 

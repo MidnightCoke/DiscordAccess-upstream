@@ -44,22 +44,22 @@ namespace DiscordAccess
             stateRoot = Path.GetFullPath(stateRoot);
             RequirePlain(sourceImage); RequirePlain(stateRoot);
             if (!File.Exists(sourceImage) || !String.Equals(Path.GetFileName(sourceImage), "Discord.exe", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("Resmi Discord uygulama dosyası bulunamadı.");
+                throw new InvalidDataException("The official Discord app file was not found.");
             string source = Path.GetDirectoryName(sourceImage);
             string appName = Path.GetFileName(source);
             System.Version parsed;
             if (!appName.StartsWith("app-", StringComparison.Ordinal) || !System.Version.TryParse(appName.Substring(4), out parsed))
-                throw new InvalidDataException("Discord sürüm klasörü tanınmadı.");
+                throw new InvalidDataException("The Discord version folder was not recognized.");
             string version = appName.Substring(4);
             if (Safety.Under(source, stateRoot) || Safety.Under(stateRoot, source))
-                throw new InvalidDataException("Kaynak Discord ve ayrı test klasörü çakışıyor.");
+                throw new InvalidDataException("The source Discord and the separate test folder overlap.");
             if (File.Exists(Path.Combine(source, "version.dll")) || File.Exists(Path.Combine(source, "drover.ini")))
-                throw new InvalidDataException("Kaynak Discord klasöründe önceki üçüncü taraf ekleri var.");
+                throw new InvalidDataException("The source Discord folder contains earlier third-party add-ons.");
             var build = ReadObject(Path.Combine(source, "resources", "build_info.json"));
             object channel, buildVersion;
             if (!build.TryGetValue("releaseChannel", out channel) || !String.Equals(channel as string, "stable", StringComparison.Ordinal) ||
                 !build.TryGetValue("version", out buildVersion) || !String.Equals(buildVersion as string, version, StringComparison.Ordinal))
-                throw new InvalidDataException("Bu sürümde yalnızca standart Discord Stable kurulumu destekleniyor.");
+                throw new InvalidDataException("Only a standard Discord Stable installation is supported in this version.");
 
             var result = new IsolatedDiscord { Version = version, stateRoot = stateRoot, ProfileRoot = Path.Combine(stateRoot, "profile") };
             result.ProfilePath = Path.Combine(result.ProfileRoot, "discord");
@@ -71,7 +71,7 @@ namespace DiscordAccess
             {
                 string staging = Path.Combine(clientRoot, appName + ".preparing-" + Guid.NewGuid().ToString("N"));
                 EnsureDirectory(staging, stateRoot);
-                if (log != null) log("Discord uygulamasının ayrı test kopyası hazırlanıyor. İlk hazırlık birkaç dakika sürebilir.");
+                if (log != null) log("Preparing a separate test copy of the Discord app. The first preparation may take a few minutes.");
                 // Omitting this native updater selects Discord's bundled legacy
                 // updater. Only that updater honors SKIP_HOST_UPDATE; the native
                 // one may rewrite the normal installation's shortcuts/Run key.
@@ -89,12 +89,12 @@ namespace DiscordAccess
             else
             {
                 RequirePlain(destination);
-                if (!File.Exists(marker)) throw new InvalidDataException("Ayrı Discord kopyası tamamlanmamış. v3/client içindeki bu sürüm klasörünü yeniden hazırlayın.");
+                if (!File.Exists(marker)) throw new InvalidDataException("The separate Discord copy is incomplete. Prepare this version folder in v3/client again.");
                 var metadata = ReadObject(marker);
                 object mode, savedVersion;
                 if (!metadata.TryGetValue("mode", out mode) || !String.Equals(mode as string, "legacy-module-updater", StringComparison.Ordinal) ||
                     !metadata.TryGetValue("version", out savedVersion) || !String.Equals(savedVersion as string, version, StringComparison.Ordinal))
-                    throw new InvalidDataException("Ayrı Discord kopyasının bilgileri doğrulanamadı.");
+                    throw new InvalidDataException("The details of the separate Discord copy could not be verified.");
             }
             RequireCachedFile(Path.Combine(destination, "Discord.exe"), destination);
             RequireCachedFile(Path.Combine(destination, "resources", "app.asar"), destination);
@@ -110,7 +110,7 @@ namespace DiscordAccess
             EnsureDirectory(versionedProfile, stateRoot);
             SeedModules(source, Path.Combine(versionedProfile, "modules"), stateRoot);
             result.DownloadLogPath = DesktopIntegration.EnsureOfficialEntry(stateRoot, version);
-            if (log != null) log("Discord ek dosyalarının ayrı uygulama içinde indirilmesi hazırlandı.");
+            if (log != null) log("Attachment downloads inside the separate app were prepared.");
             WriteText(Path.Combine(versionedProfile, ".first-run"), "true", stateRoot);
             result.Image = Path.Combine(destination, "Discord.exe");
             return result;
@@ -159,7 +159,7 @@ namespace DiscordAccess
             // zip payloads. Their already installed application modules must be
             // seeded, otherwise legacy startup loops on missing bootstrap zips.
             if (!installed.ContainsKey("discord_desktop_core"))
-                throw new InvalidDataException("Discord uygulama modülleri bulunamadı. Resmi Discord kurulumunu tamamlayıp yeniden deneyin.");
+                throw new InvalidDataException("The Discord app modules were not found. Complete the official Discord installation and try again.");
             ValidateCorePayload(source, moduleRoot);
             WriteObject(installedPath, installed, stateRoot);
         }
@@ -194,9 +194,9 @@ namespace DiscordAccess
 
         private static InvalidDataException MissingCache(string path, string repairRoot)
         {
-            return new InvalidDataException("Ayrı Discord önbelleğinde gerekli dosya eksik: " + path +
-                ". Discord Erişim kapalıyken yalnızca şu önbellek klasörünü yeniden adlandırıp tekrar Bağlan'a basın: " + repairRoot +
-                ". Normal Discord kurulumu veya hesap profili üzerinde işlem yapmayın.");
+            return new InvalidDataException("A required file is missing from the separate Discord cache: " + path +
+                ". While DiscordAccess is closed, rename only this cache folder and connect again: " + repairRoot +
+                ". Do not change the normal Discord installation or the account profile.");
         }
 
         private static void WriteSettings(string profile, string stateRoot, string legacyEndpoint, string nativeEndpoint)
@@ -217,18 +217,18 @@ namespace DiscordAccess
             Uri uri;
             if (!Uri.TryCreate(value, UriKind.Absolute, out uri) || uri.Scheme != "http" || uri.Host != "127.0.0.1" ||
                 uri.Port < 1 || !String.IsNullOrEmpty(uri.UserInfo) || !String.IsNullOrEmpty(uri.Fragment) || !String.IsNullOrEmpty(uri.Query))
-                throw new ArgumentException("Güncelleme köprüsü yalnızca yerel 127.0.0.1 adresini kullanabilir.");
+                throw new ArgumentException("The update bridge can use only the local 127.0.0.1 address.");
         }
 
         private static Dictionary<string, object> ReadObject(string path)
         {
             using (var stream = Safety.ReadLease(path))
             {
-                if (stream.Length > 1024 * 1024) throw new InvalidDataException("Discord ayar dosyası beklenenden büyük.");
+                if (stream.Length > 1024 * 1024) throw new InvalidDataException("The Discord settings file is larger than expected.");
                 using (var reader = new StreamReader(stream, Encoding.UTF8, true))
                 {
                     var result = new JavaScriptSerializer().DeserializeObject(reader.ReadToEnd()) as Dictionary<string, object>;
-                    if (result == null) throw new InvalidDataException("Discord ayar dosyası JSON nesnesi olmalı.");
+                    if (result == null) throw new InvalidDataException("The Discord settings file must be a JSON object.");
                     return result;
                 }
             }
@@ -290,9 +290,9 @@ namespace DiscordAccess
         private static void EnsureDirectory(string path, string stateRoot)
         { RequireOwned(path, stateRoot); RequirePlain(path); Directory.CreateDirectory(path); RequirePlain(path); }
         private static void RequireOwned(string path, string stateRoot)
-        { if (!Safety.Under(path, stateRoot)) throw new InvalidDataException("Ayrı test klasörünün dışına yazma engellendi."); }
+        { if (!Safety.Under(path, stateRoot)) throw new InvalidDataException("Writing outside the separate test folder was blocked."); }
         private static void RequirePlain(string path)
-        { if (!Safety.NoReparse(path)) throw new InvalidDataException("Discord kopyasında bağlantı/reparse yolu kabul edilmiyor."); }
+        { if (!Safety.NoReparse(path)) throw new InvalidDataException("Link/reparse paths are not accepted in the Discord copy."); }
 
         // Pure local fixture: no real Discord executable, profile or network use.
         internal static void FixtureCheck(string fixtureRoot)
@@ -391,7 +391,7 @@ namespace DiscordAccess
                 bool cacheRejected = false;
                 try { Prepare(Path.Combine(source, "Discord.exe"), state, "http://127.0.0.1:4568/api", "http://127.0.0.1:4568/updates", null); }
                 catch (InvalidDataException error)
-                { cacheRejected = error.Message.Contains("yeniden adlandırıp") && error.Message.Contains(missing); }
+                { cacheRejected = error.Message.Contains("rename only this cache folder") && error.Message.Contains(missing); }
                 finally { File.WriteAllText(missing, original); }
                 if (!cacheRejected) throw new InvalidOperationException("Missing cached payload was accepted: " + Path.GetFileName(missing));
             }

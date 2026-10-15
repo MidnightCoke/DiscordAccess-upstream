@@ -40,7 +40,7 @@ namespace DiscordAccess
                 Directory.CreateDirectory(profile, acl);
                 File.WriteAllText(Path.Combine(source, "DiscordAccess.exe"), "INERT_APPLICATION");
                 File.WriteAllText(Path.Combine(source, "engine", "sing-box.exe"), "INERT_PINNED_ENGINE");
-                File.WriteAllText(Path.Combine(source, "LISANSLAR.txt"), "INERT_LICENSE");
+                File.WriteAllText(Path.Combine(source, "LICENSES.txt"), "INERT_LICENSE");
                 File.WriteAllText(Path.Combine(source, "unapproved.json"), "PRIVATE_CONFIGURATION_CANARY");
                 string hash;
                 using (var input = Safety.ReadLease(Path.Combine(source,"engine","sing-box.exe"))) hash = Safety.Hash(input);
@@ -56,7 +56,7 @@ namespace DiscordAccess
                 assert(visited[0] == profile && imageChecks == 1, "Profile was not proved before installation.");
                 assert(File.ReadAllText(target) == "INERT_APPLICATION", "Application snapshot changed bytes.");
                 assert(File.ReadAllText(Path.Combine(Path.GetDirectoryName(target),"engine","sing-box.exe")) == "INERT_PINNED_ENGINE", "Engine snapshot changed bytes.");
-                assert(File.ReadAllText(Path.Combine(Path.GetDirectoryName(target),"LISANSLAR.txt")) == "INERT_LICENSE", "License was omitted.");
+                assert(File.ReadAllText(Path.Combine(Path.GetDirectoryName(target),"LICENSES.txt")) == "INERT_LICENSE", "License was omitted.");
                 assert(!File.Exists(Path.Combine(Path.GetDirectoryName(target),"unapproved.json")), "Private/unapproved package file was copied.");
                 byte[] before = File.GetAccessControl(target).GetSecurityDescriptorBinaryForm();
                 assert(StartupPackage.PrepareForChecks(source, profile, hash, directory, image) == target, "Repeated launch produced a second installation.");

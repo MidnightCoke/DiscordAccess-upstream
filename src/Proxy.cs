@@ -144,7 +144,7 @@ namespace DiscordAccess
         private static extern bool SetHandleInformation(IntPtr handle, uint mask, uint flags);
         private static void NoInheritance(Socket socket)
         {
-            if (!SetHandleInformation(socket.Handle, 1, 0)) throw new IOException("Soket ömrü güvenli biçimde kurulamadı.");
+            if (!SetHandleInformation(socket.Handle, 1, 0)) throw new IOException("The socket lifetime could not be set up safely.");
         }
         internal void Start() { listener.Start(MaxConnections); AcceptLoop(); }
         private async void AcceptLoop()

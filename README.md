@@ -14,7 +14,7 @@ Download **DiscordAccess-v4.22.zip** from the [v4.22 release page](https://githu
 
 Extract the whole ZIP into a short, permanent local folder. `DiscordAccess.exe` and `engine/sing-box.exe` must stay in the same package. Open `DiscordAccess.exe`; the ready-made package needs no build step. `Baslat.cmd` has been removed.
 
-The package's [usage notes](docs/OKU-BENI.txt) are also in the repository.
+The package's [usage notes](docs/README.txt) are also in the repository.
 
 **Code > Download ZIP** on GitHub and the **Source code** files under Releases contain only source code; they do not include the program EXE or the engine. If you want to use them for development, first complete the steps in "Building from source (Windows)"; for macOS, see [macos/README.md](macos/README.md). [All releases](https://github.com/alpertknn/DiscordAccess/releases).
 
@@ -34,10 +34,10 @@ Setup and usage: [macos/README.md](macos/README.md). Trust boundaries: [macos/do
 
 ## Upgrading from a previous version (Windows)
 
-1. If **Windows ile başlat** ("Start with Windows") is on in the old DiscordAccess, turn it off first. This removes the startup entry that points to the old folder.
-2. Fully close Discord, then choose **Çıkış** ("Exit") in the old DiscordAccess.
+1. If **Start with Windows** is on in the old DiscordAccess, turn it off first. This removes the startup entry that points to the old folder.
+2. Fully close Discord, then choose **Exit** in the old DiscordAccess.
 3. Extract the whole new ZIP into a separate, short, permanent folder. Do not overwrite the running package or move its folder.
-4. Prepare the connection with the new `DiscordAccess.exe`. If you want automatic startup, turn **Windows ile başlat** back on from the new location. A disabled preference is never turned on automatically.
+4. Prepare the connection with the new `DiscordAccess.exe`. If you want automatic startup, turn **Start with Windows** back on from the new location. A disabled preference is never turned on automatically.
 
 ## Requirements (Windows)
 
@@ -67,26 +67,26 @@ The engine script downloads the hash-pinned sing-box 1.14.3 source and the Go 1.
 
 ## Usage (Windows)
 
-1. Fully close Discord from the system tray. If an earlier DiscordAccess is running, choose **Çıkış** ("Exit") from its tray menu; in the old CMD version, use `Q` + Enter.
-2. Open `DiscordAccess.exe` and wait for the **Bağlantı hazır** ("Connection ready") notification in the system tray.
-3. Open Discord from your own shortcut. If no compatible personal shortcut is found, choose **Discord'u aç** ("Open Discord") from the DiscordAccess tray menu. While DiscordAccess is running in the tray, you can close Discord and reopen it the same way.
-4. When you are done, fully close Discord first, then right-click the DiscordAccess tray icon and choose **Çıkış**.
+1. Fully close Discord from the system tray. If an earlier DiscordAccess is running, choose **Exit** from its tray menu; in the old CMD version, use `Q` + Enter.
+2. Open `DiscordAccess.exe` and wait for the **Connection ready** notification in the system tray.
+3. Open Discord from your own shortcut. If no compatible personal shortcut is found, choose **Open Discord** from the DiscordAccess tray menu. While DiscordAccess is running in the tray, you can close Discord and reopen it the same way.
+4. When you are done, fully close Discord first, then right-click the DiscordAccess tray icon and choose **Exit**.
 
-Opening the EXE again does not create a second connection or engine; it sends a status request to the existing tray session. The tray menu has **Discord'u aç** ("Open Discord"), **Yeniden bağlan** ("Reconnect"), **Bağlantıyı kontrol et** ("Check connection"), **Windows ile başlat** ("Start with Windows") and **Çıkış** ("Exit"). When you start the helper manually, Discord does not open on its own.
+Opening the EXE again does not create a second connection or engine; it sends a status request to the existing tray session. The tray menu has **Open Discord**, **Reconnect**, **Check connection**, **Start with Windows** and **Exit**. When you start the helper manually, Discord does not open on its own.
 
 ## Windows startup order
 
 After the first successful connection, DiscordAccess automatic startup is set up for the current user only. If there is a recognized personal `Run` entry for the selected official Discord installation, its original command and its enabled/disabled state are saved in the recovery record. When you sign in to Windows, DiscordAccess starts first; only if Discord's own auto-start preference is enabled does it open the official Discord once, after the connection is ready. If Discord's auto-start is off, only the connection is prepared.
 
-Turning off **Windows ile başlat** in the tray removes the DiscordAccess startup entry and restores the original Discord entry without overwriting user changes. Later manual launches keep this disabled preference. A normal **Çıkış** does not turn off the automatic startup preference.
+Turning off **Start with Windows** in the tray removes the DiscordAccess startup entry and restores the original Discord entry without overwriting user changes. Later manual launches keep this disabled preference. A normal **Exit** does not turn off the automatic startup preference.
 
 Two independent `Run` entries do not guarantee a startup order, so the connection helper coordinates the original Discord entry ([Windows documentation](https://learn.microsoft.com/windows/win32/setupapi/run-and-runonce-registry-keys)). If the recognized Discord entry is created again later, the tray session checks for it every five seconds. Unrecognized or modified commands, or multiple entries, are left in place and a warning is shown. If the selected Discord has an active HKLM or Startup folder entry, no order coordination is set up; those entries are not changed.
 
-Do not move the package while the connection is active. If you want to move to another folder while startup is enabled, first turn off **Windows ile başlat** in the tray, then turn it on again in the new permanent folder. If long startup commands hit Windows' 260-character limit, use a shorter folder for the package.
+Do not move the package while the connection is active. If you want to move to another folder while startup is enabled, first turn off **Start with Windows** in the tray, then turn it on again in the new permanent folder. If long startup commands hit Windows' 260-character limit, use a shorter folder for the package.
 
 No automatic startup entry is created if other standard users can write to the package file or any of its parent folders. When v4.22 is opened manually from such a location, it copies the package to `%USERPROFILE%\DiscordAccess\packages\<app-hash>` and restarts from the verified EXE. Only the app, the hash-pinned engine and the package's three usage/license/source texts are copied; no profile, settings, logs or other files are moved. The source package stays where it is, and the permissions of existing files and folders are not changed. Later manual launches use the personal copy with the same content.
 
-The user folder and all parent folders of the installation are also verified. Installation is refused for an unsafe user folder, a junction/symlink, a different existing file, or a missing or wrong engine; the security check is never skipped. Windows startup, rollback, console mode and the Discord launch shortcut do not create a new installation. A previously disabled **Windows ile başlat** preference is kept; turn it on again from the tray in the new location if you want.
+The user folder and all parent folders of the installation are also verified. Installation is refused for an unsafe user folder, a junction/symlink, a different existing file, or a missing or wrong engine; the security check is never skipped. Windows startup, rollback, console mode and the Discord launch shortcut do not create a new installation. A previously disabled **Start with Windows** preference is kept; turn it on again from the tray in the new location if you want.
 
 In steady state, one DiscordAccess and one sing-box engine are running. Discord's own Electron child processes are normal; they are not extra Discord copies and the program does not close them.
 
@@ -107,7 +107,7 @@ The earlier console flow is still available with `.\DiscordAccess.exe --console`
 | `D` + Enter | Download via a Discord attachment link. |
 | `A` + Enter | Opens the selected official Discord if no compatible shortcut is found. |
 
-If tray mode is running and you want to switch to a console download, first fully close Discord and choose **Çıkış** from the DiscordAccess tray menu. Run `.\DiscordAccess.exe --console` in the package folder; when the connection is ready, press `D` + Enter and paste the attachment link. Opening a second EXE does not turn the running tray session into a console.
+If tray mode is running and you want to switch to a console download, first fully close Discord and choose **Exit** from the DiscordAccess tray menu. Run `.\DiscordAccess.exe --console` in the package folder; when the connection is ready, press `D` + Enter and paste the attachment link. Opening a second EXE does not turn the running tray session into a console.
 
 Attachment downloads inside Discord remain supported. Temporary support is added to the recognized module entry point, and the two update endpoints in the normal `settings.json` file point to the session's local bridge. The Discord EXE, the updater and `app.asar`/`core.asar` are not modified. No account or profile is copied.
 
@@ -119,7 +119,7 @@ If DiscordAccess is closed while Discord is still open, a recovery record may re
 .\DiscordAccess.exe --restore
 ```
 
-If Discord's app version or desktop core module is updated, fully close Discord, choose **Çıkış** from the tray and open `DiscordAccess.exe` again. During the session, the files of the verified version are kept; support for the new version and module is prepared at the next start. `--restore` also undoes the DiscordAccess automatic startup along with the connection and shortcuts, and leaves the preference disabled.
+If Discord's app version or desktop core module is updated, fully close Discord, choose **Exit** from the tray and open `DiscordAccess.exe` again. During the session, the files of the verified version are kept; support for the new version and module is prepared at the next start. `--restore` also undoes the DiscordAccess automatic startup along with the connection and shortcuts, and leaves the preference disabled.
 
 If a file is changed by another program during an operation, the operation may stop. Unrecognized content and the `.discordaccess-fs-*.preserved` / `.rollback-preserved` recovery files are kept; do not delete them with automatic cleanup or upload them to a public bug report.
 
@@ -135,4 +135,4 @@ For normal bugs, use the [Issues](https://github.com/alpertknn/DiscordAccess/iss
 
 ## License
 
-DiscordAccess's own C#/JavaScript code and its own build tools are licensed under [MIT](LICENSE). The Go files under `engine-patches/` that are derived from upstream sing-box/sing sources remain under GPL-3.0-or-later; this folder is not claimed to be relicensed as MIT. Notices for the separate engine and native components are in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) and [ENGINE-THIRD-PARTY-NOTICES.txt](licenses/ENGINE-THIRD-PARTY-NOTICES.txt); the version/source/hash inventory is in [engine-source-manifest.json](licenses/engine-source-manifest.json). Each component's own license applies. `LISANSLAR.txt` in the ready-made package contains these texts together; the corresponding engine source package is a separate release file. The Discord app is not distributed in this repository; this project is not an official Discord product.
+DiscordAccess's own C#/JavaScript code and its own build tools are licensed under [MIT](LICENSE). The Go files under `engine-patches/` that are derived from upstream sing-box/sing sources remain under GPL-3.0-or-later; this folder is not claimed to be relicensed as MIT. Notices for the separate engine and native components are in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) and [ENGINE-THIRD-PARTY-NOTICES.txt](licenses/ENGINE-THIRD-PARTY-NOTICES.txt); the version/source/hash inventory is in [engine-source-manifest.json](licenses/engine-source-manifest.json). Each component's own license applies. `LICENSES.txt` in the ready-made package contains these texts together; the corresponding engine source package is a separate release file. The Discord app is not distributed in this repository; this project is not an official Discord product.
