@@ -1624,3 +1624,11 @@ Kullanıcıya değişen dosyalar, yapılan ve yapılmayan kontroller raporlanır
 git add macos/.gitignore macos/Package.swift macos/Sources macos/Tests macos/docs macos/scripts/build-engine.py
 git commit -m "feat(macos): add the DiscordAccessKit engine layer, gate request policy and peer admission"
 ```
+
+---
+
+## Sonradan değişenler (Aşama 1c)
+
+- Eş araması (`ProcessInspector.loopbackConnectionHolders` ve `PeerAdmission`): bu plandaki sürüm kullanıcının bütün süreçlerinin tanıtıcılarını inceliyordu. Bir tanıtıcıyı incelemek ona geçici bir referans alır; sahibi tanıtıcıyı tam o anda kapatırsa çekirdek soketi boşaltır ve o soketi paylaşan her süreçte okumalar kalıcı olarak `EBADF` ile biter. Doğmakta olan alt süreçler `exec` anına kadar ebeveynlerinin tanıtıcılarının kopyasını tuttuğu için bu tarama başka uygulamaların bağlantılarını bozabiliyordu; 1c'nin kapı testlerinde görüldü. 1c'de yalnız adaylar (DiscordAccess'in kendisi ve onaylı Discord dosyalarını çalıştıran süreçler) incelenir; `exec`'i bitmemiş ya da çıkmakta olan süreçlere hiç bakılmaz. "Bağlantıyı tutan her süreç kabul edilmeli" kuralı kalktı: ucu tutan aday kabul edilmelidir (Windows gibi).
+- Retler nedenleriyle döner (`PeerAdmission.Refusal`). Hiçbir adayın tutmadığı bağlantı yeniden denenmeden reddedilir. Eksik onaylı dosya `missingExecutable` hatası verir.
+- `ProcessInspector.swift`, `PeerAdmission.swift`, `ProcessInspectorTests.swift` ve `PeerAdmissionTests.swift` 1c'nin Görev 1'inde tamamen değişti. Bu plandaki bloklar 1b'nin tarihsel halidir; güncel hash'ler 1c planındadır.

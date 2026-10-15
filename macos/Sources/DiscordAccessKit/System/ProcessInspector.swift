@@ -41,20 +41,11 @@ public enum ProcessInspector {
         tcpSockets(of: pid)?.contains { $0.listening && $0.localLoopback && $0.localPort == port } ?? false
     }
 
-    /// The same-user processes holding the loopback TCP connection that they see as 127.0.0.1:`localPort` to
-    /// 127.0.0.1:`remotePort` (Windows `TcpOwner.Find`, which stops at the first). Nil when any process or descriptor list
-    /// could not be read completely. Processes of other users cannot be inspected and are not part of the answer. A process
-    /// being spawned holds copies of its parent's descriptors until it executes, so a caller needing an exact set retries.
-    public static func loopbackConnectionHolders(localPort: UInt16, remotePort: UInt16, uid: uid_t = getuid()) -> [pid_t]? {
-        guard let pids = completeUserProcessIDs(uid: uid) else { return nil }
-        var holders: [pid_t] = []
-        for pid in pids {
-            guard let sockets = tcpSockets(of: pid) else { return nil }
-            if sockets.contains(where: { $0.established && $0.localLoopback && $0.localPort == localPort && $0.remoteLoopback && $0.remotePort == remotePort }) {
-                holders.append(pid)
-            }
-        }
-        return holders
+    /// Whether `pid` holds the loopback TCP connection it sees as 127.0.0.1:`localPort` to 127.0.0.1:`remotePort`
+    /// (Windows `TcpOwner.Find` answers the same question for the owner it finds). Nil when its descriptors could not
+    /// be read completely. Only processes a caller already has reason to trust are asked about: see `tcpSockets(of:)`.
+    public static func holdsLoopbackConnection(pid: pid_t, localPort: UInt16, remotePort: UInt16) -> Bool? {
+        tcpSockets(of: pid)?.contains { $0.established && $0.localLoopback && $0.localPort == localPort && $0.remoteLoopback && $0.remotePort == remotePort }
     }
 
     /// Dynamic code-signing check of a running process against a requirement, e.g. `cdhash H"…"` or a Team ID rule.
@@ -86,8 +77,16 @@ public enum ProcessInspector {
         return nil
     }
 
-    /// The IPv4 TCP sockets of `pid` ([] once it has exited), or nil when its descriptors could not be read completely.
+    /// The IPv4 TCP sockets of `pid` ([] once it has exited or cannot be read at all), or nil when its descriptors could
+    /// not be read completely.
+    ///
+    /// Inspecting a descriptor holds a reference to it. If its process closes it meanwhile, the kernel drains the socket,
+    /// and from then on reads fail with EBADF in every process that shares the socket. A child being spawned holds copies
+    /// of all its parent's descriptors and closes them when it executes, so inspecting it can break its parent's
+    /// connections; scanning every process of the user did break other processes' sockets in tests. A process that has
+    /// not finished exec, or is exiting, is therefore never inspected and counts as holding no socket.
     static func tcpSockets(of pid: pid_t) -> [TCPSocket]? {
+        guard let before = inspectable(pid) else { return [] }
         guard let descriptors = socketDescriptors(of: pid) else { return nil }
         let loopback = inet_addr("127.0.0.1")
         var sockets: [TCPSocket] = []
@@ -111,7 +110,20 @@ public enum ProcessInspector {
                                      remoteLoopback: endpoint.insi_faddr.ina_46.i46a_addr4.s_addr == loopback,
                                      remotePort: networkPort(endpoint.insi_fport)))
         }
+        // A process that began to exit meanwhile, or a pid that now names another process, holds nothing for this answer.
+        guard let after = inspectable(pid), after.pbi_start_tvsec == before.pbi_start_tvsec, after.pbi_start_tvusec == before.pbi_start_tvusec else {
+            return []
+        }
         return sockets
+    }
+
+    /// The process when its descriptors may be inspected: it has finished exec, which closes the copies a spawned child
+    /// holds (XNU `exec_mach_imgact` calls `fdt_exec` before it sets `P_EXEC`), and it is not exiting.
+    private static func inspectable(_ pid: pid_t) -> proc_bsdinfo? {
+        guard let info = bsdInfo(of: pid), info.pbi_flags & UInt32(PROC_FLAG_EXEC) != 0, info.pbi_flags & UInt32(PROC_FLAG_INEXIT) == 0 else {
+            return nil
+        }
+        return info
     }
 
     private static func bsdInfo(of pid: pid_t) -> proc_bsdinfo? {

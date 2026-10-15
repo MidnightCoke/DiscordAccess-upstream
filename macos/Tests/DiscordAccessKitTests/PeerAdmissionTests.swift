@@ -25,12 +25,6 @@ import Testing
         process.waitUntilExit()
     }
 
-    /// Waits out a process that another test is spawning: until it executes, it holds copies of this process's
-    /// descriptors, so for a moment it also holds the connections this process made.
-    static func eventuallyPermits(_ admission: PeerAdmission, clientPort: UInt16, gatePort: UInt16) -> Bool {
-        waitFor { admission.permits(clientPort: clientPort, gatePort: gatePort) ? true : nil } == true
-    }
-
     static func record(uid: uid_t = getuid(), start: UInt64, path: String = "/usr/bin/nc") -> ProcessInspector.Record {
         ProcessInspector.Record(pid: 4242, parentPid: 1, uid: uid, startSeconds: start / 1_000_000, startMicroseconds: start % 1_000_000, path: path)
     }
@@ -38,16 +32,17 @@ import Testing
     @Test func checksUserStartTimeAndExecutable() throws {
         let admission = try PeerAdmission(approved: [Self.netcat], readyTime: Date(timeIntervalSince1970: 1_800_000_000.25))
         let ready: UInt64 = 1_800_000_000_250_000
-        #expect(admission.requirement(for: Self.record(start: ready)) == Self.netcat.requirement)
-        #expect(admission.requirement(for: Self.record(start: ready + 1)) == Self.netcat.requirement)
-        #expect(admission.requirement(for: Self.record(start: ready - 1)) == nil)
-        #expect(admission.requirement(for: Self.record(start: 0)) == nil)
-        #expect(admission.requirement(for: Self.record(uid: getuid() &+ 1, start: ready)) == nil)
-        #expect(admission.requirement(for: Self.record(start: ready, path: "/usr/bin/curl")) == nil)
-        #expect(admission.requirement(for: Self.record(start: ready, path: "/usr/bin/../bin/nc")) == Self.netcat.requirement)
+        let approved = Result<String, PeerAdmission.Refusal>.success(Self.netcat.requirement)
+        #expect(admission.requirement(for: Self.record(start: ready)) == approved)
+        #expect(admission.requirement(for: Self.record(start: ready + 1)) == approved)
+        #expect(admission.requirement(for: Self.record(start: ready - 1)) == .failure(.startedBeforeReady))
+        #expect(admission.requirement(for: Self.record(start: 0)) == .failure(.startedBeforeReady))
+        #expect(admission.requirement(for: Self.record(uid: getuid() &+ 1, start: ready)) == .failure(.otherUser))
+        #expect(admission.requirement(for: Self.record(start: ready, path: "/usr/bin/curl")) == .failure(.unapprovedExecutable("curl")))
+        #expect(admission.requirement(for: Self.record(start: ready, path: "/usr/bin/../bin/nc")) == approved)
         // On a case-insensitive volume the process path may differ from the approved one in letter case only.
         #expect(admission.requirement(for: Self.record(start: ready, path: "/usr/BIN/nc")) ==
-            (FileManager.default.fileExists(atPath: "/usr/BIN/nc") ? Self.netcat.requirement : nil))
+            (FileManager.default.fileExists(atPath: "/usr/BIN/nc") ? approved : .failure(.unapprovedExecutable("nc"))))
     }
 
     @Test func refusesUnsafeConfiguration() throws {
@@ -56,10 +51,13 @@ import Testing
             try PeerAdmission(approved: Array(repeating: Self.netcat, count: 17), readyTime: Date())
         }
         #expect(throws: Never.self) { try PeerAdmission(approved: Array(repeating: Self.netcat, count: 16), readyTime: Date()) }
-        for path in ["usr/bin/nc", "/usr/bin/../bin/nc", "/tmp", "/usr/bin/missing-fixture"] {
+        for path in ["usr/bin/nc", "/usr/bin/../bin/nc", "/tmp", "/usr/bin/nc/fixture"] {
             #expect(throws: PeerAdmission.ConfigurationError.unsafePath(path)) {
                 try PeerAdmission(approved: [ApprovedExecutable(path: path, requirement: "anchor apple")], readyTime: Date())
             }
+        }
+        #expect(throws: PeerAdmission.ConfigurationError.missingExecutable("/usr/bin/missing-fixture")) {
+            try PeerAdmission(approved: [ApprovedExecutable(path: "/usr/bin/missing-fixture", requirement: "anchor apple")], readyTime: Date())
         }
     }
 
@@ -72,10 +70,10 @@ import Testing
         #expect(admission.permits(clientPort: client.clientPort, gatePort: gate.port))
         #expect(admission.anyAdmittedRunning)
         Self.stop(client.process)
-        #expect(!admission.permits(pid: client.process.processIdentifier))
+        #expect(admission.refusal(pid: client.process.processIdentifier) == .unknownProcess)
         #expect(!admission.anyAdmittedRunning)
         // Nothing holds the client end any more; an empty set of holders is never admitted.
-        #expect(!admission.permits(clientPort: client.clientPort, gatePort: gate.port))
+        #expect(admission.refusal(clientPort: client.clientPort, gatePort: gate.port) == .noHolder)
     }
 
     /// A process whose parent exits moves to launchd. It is still the same admitted instance and still counts as running.
@@ -86,7 +84,9 @@ import Testing
         defer { Self.stop(launcher) }
         let accepted = try gate.acceptClient()
         defer { close(accepted.descriptor) }
-        let client = try #require(waitFor { ProcessInspector.loopbackConnectionHolders(localPort: accepted.clientPort, remotePort: gate.port)?.first })
+        let client = try #require(waitFor {
+            ProcessInspector.userProcessIDs().compactMap(ProcessInspector.record(for:)).first { $0.parentPid == launcher.processIdentifier && $0.path == "/usr/bin/nc" }?.pid
+        })
         defer { kill(client, SIGKILL) }
         #expect(ProcessInspector.record(for: client)?.parentPid == launcher.processIdentifier)
         #expect(admission.permits(clientPort: accepted.clientPort, gatePort: gate.port))
@@ -105,7 +105,7 @@ import Testing
             Self.stop(client.process)
         }
         let admission = try PeerAdmission(approved: [Self.netcat], readyTime: Date())
-        #expect(!admission.permits(clientPort: client.clientPort, gatePort: gate.port))
+        #expect(admission.refusal(clientPort: client.clientPort, gatePort: gate.port) == .startedBeforeReady)
     }
 
     @Test func refusesOtherExecutablesAndWrongRequirements() throws {
@@ -117,12 +117,33 @@ import Testing
             Self.stop(client.process)
         }
         let requirements = [Self.sleeper.requirement, "identifier \"com.hnc.Discord\" and anchor apple generic and certificate leaf[subject.OU] = \"53Q6R32WPB\""]
-        #expect(!(try PeerAdmission(approved: [Self.sleeper], readyTime: ready)).permits(clientPort: client.clientPort, gatePort: gate.port))
+        // A client that runs no approved executable is not even looked at.
+        #expect(try PeerAdmission(approved: [Self.sleeper], readyTime: ready).refusal(clientPort: client.clientPort, gatePort: gate.port) == .noHolder)
         for requirement in requirements {
             let impostor = ApprovedExecutable(path: "/usr/bin/nc", requirement: requirement)
-            #expect(!(try PeerAdmission(approved: [impostor], readyTime: ready)).permits(clientPort: client.clientPort, gatePort: gate.port))
+            #expect(try PeerAdmission(approved: [impostor], readyTime: ready).refusal(clientPort: client.clientPort, gatePort: gate.port) ==
+                .requirementNotMet)
         }
         #expect((try PeerAdmission(approved: [Self.sleeper, Self.netcat], readyTime: ready)).permits(clientPort: client.clientPort, gatePort: gate.port))
+    }
+
+    /// A connection that no candidate holds is refused without retries, so that each connection of another local user
+    /// cannot hold a gate slot through three 10 ms pauses. The fastest of five refusals is measured.
+    @Test func refusesAConnectionNoCandidateHoldsAtOnce() throws {
+        let gate = try TCPListener()
+        let client = try Self.connectNetcat(to: gate)
+        defer {
+            close(client.accepted)
+            Self.stop(client.process)
+        }
+        let admission = try PeerAdmission(approved: [Self.sleeper], readyTime: Date())
+        let durations = (0..<5).map { _ -> TimeInterval in
+            let started = Date()
+            #expect(admission.refusal(clientPort: client.clientPort, gatePort: gate.port) == .noHolder)
+            return Date().timeIntervalSince(started)
+        }
+        let fastest = try #require(durations.min())
+        #expect(fastest < 0.025)
     }
 
     @Test func admitsItselfOnlyWithDiagnosticPermission() throws {
@@ -131,25 +152,27 @@ import Testing
         let client = try LoopbackClient(port: gate.port)
         let accepted = try gate.acceptClient()
         defer { close(accepted.descriptor) }
-        #expect(!admission.permits(clientPort: client.localPort, gatePort: gate.port))
+        #expect(admission.refusal(clientPort: client.localPort, gatePort: gate.port) == .diagnosticNotAllowed)
         admission.diagnosticAllowed = true
-        #expect(Self.eventuallyPermits(admission, clientPort: client.localPort, gatePort: gate.port))
+        #expect(admission.permits(clientPort: client.localPort, gatePort: gate.port))
         admission.diagnosticAllowed = false
         #expect(!admission.permits(clientPort: client.localPort, gatePort: gate.port))
     }
 
-    /// Windows admits the first process it finds; here every process holding the connection must be admitted.
-    @Test func requiresEveryHolderOfTheConnection() throws {
+    /// A child running an executable that is not approved and shares the client's socket does not matter (1b refused
+    /// every connection such a child also held): this process holds the socket too and is decided by `diagnosticAllowed`.
+    /// That such a child is not even inspected shows in `refusesOtherExecutablesAndWrongRequirements`.
+    @Test func ignoresAnUnapprovedChildThatSharesTheClientSocket() throws {
         let gate = try TCPListener()
         let admission = try PeerAdmission(approved: [Self.netcat], readyTime: Date())
-        admission.diagnosticAllowed = true
         let client = try LoopbackClient(port: gate.port)
         let accepted = try gate.acceptClient()
         defer { close(accepted.descriptor) }
         let child = try spawnSharing(client.descriptor, executable: "/bin/sleep", arguments: ["30"])
-        #expect(!admission.permits(clientPort: client.localPort, gatePort: gate.port))
-        reap(child)
-        #expect(Self.eventuallyPermits(admission, clientPort: client.localPort, gatePort: gate.port))
+        defer { reap(child) }
+        #expect(admission.refusal(clientPort: client.localPort, gatePort: gate.port) == .diagnosticNotAllowed)
+        admission.diagnosticAllowed = true
+        #expect(admission.permits(clientPort: client.localPort, gatePort: gate.port))
     }
 
     @Test func remembersAtMostItsCapacityAndNothingAfterClose() throws {
@@ -166,11 +189,22 @@ import Testing
             Self.stop(second.process)
         }
         #expect(admission.permits(clientPort: first.clientPort, gatePort: gate.port))
-        #expect(!admission.permits(clientPort: second.clientPort, gatePort: gate.port))
+        #expect(admission.refusal(clientPort: second.clientPort, gatePort: gate.port) == .capacity)
         admission.close()
-        #expect(!admission.permits(clientPort: first.clientPort, gatePort: gate.port))
+        #expect(admission.refusal(clientPort: first.clientPort, gatePort: gate.port) == .closed)
         #expect(!admission.anyAdmittedRunning)
         #expect(!admission.permits(pid: 0))
         #expect(!admission.permits(pid: -1))
+    }
+
+    @Test func namesRefusalsSafelyForDiagnostics() {
+        let names = [PeerAdmission.Refusal.closed, .unreadable, .noHolder, .holdersChanged, .diagnosticNotAllowed, .unknownProcess, .otherUser,
+                     .startedBeforeReady, .requirementNotMet, .capacity].map(\.diagnostic)
+        #expect(names == ["Closed", "Unreadable", "NoHolder", "HoldersChanged", "DiagnosticNotAllowed", "UnknownProcess", "OtherUser",
+                          "StartedBeforeReady", "RequirementNotMet", "Capacity"])
+        #expect(PeerAdmission.Refusal.unapprovedExecutable("Discord Helper (Foo)").diagnostic == "UnapprovedExecutable executable=Discord_Helper_(Foo)")
+        #expect(PeerAdmission.Refusal.unapprovedExecutable("a\r\nb=c\u{1F600}\u{E9}").diagnostic == "UnapprovedExecutable executable=a__b_c__")
+        #expect(PeerAdmission.Refusal.unapprovedExecutable(String(repeating: "x", count: 100)).diagnostic ==
+            "UnapprovedExecutable executable=" + String(repeating: "x", count: 64))
     }
 }

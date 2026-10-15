@@ -1,4 +1,5 @@
 import Darwin
+import Foundation
 import Testing
 @testable import DiscordAccessKit
 
@@ -37,24 +38,85 @@ import Testing
         #expect(!ProcessInspector.ownsLoopbackListener(pid: getpid(), port: wildcard.port))
     }
 
-    /// Waits for the settled holder set: a child being spawned by another test briefly holds copies of this process's descriptors.
-    static func holders(_ localPort: UInt16, _ remotePort: UInt16, settleTo expected: Set<pid_t>) -> Bool {
-        waitFor { ProcessInspector.loopbackConnectionHolders(localPort: localPort, remotePort: remotePort).map(Set.init) == expected ? true : nil } == true
-    }
-
-    @Test func findsEveryHolderOfALoopbackConnection() throws {
+    @Test func tellsWhetherAProcessHoldsALoopbackConnection() throws {
         let listener = try TCPListener()
         let client = try LoopbackClient(port: listener.port)
         let accepted = try listener.acceptClient()
         defer { close(accepted.descriptor) }
         #expect(accepted.clientPort == client.localPort)
-        #expect(Self.holders(client.localPort, listener.port, settleTo: [getpid()]))
-        #expect(Self.holders(listener.port, client.localPort, settleTo: [getpid()]))
-        #expect(Self.holders(listener.port, listener.port, settleTo: []))
-        // A child that inherits the client's descriptor holds the same connection.
+        #expect(ProcessInspector.holdsLoopbackConnection(pid: getpid(), localPort: client.localPort, remotePort: listener.port) == true)
+        #expect(ProcessInspector.holdsLoopbackConnection(pid: getpid(), localPort: listener.port, remotePort: client.localPort) == true)
+        #expect(ProcessInspector.holdsLoopbackConnection(pid: getpid(), localPort: listener.port, remotePort: listener.port) == false)
+        // A child that inherits the client's descriptor holds the same connection; launchd's descriptors cannot be read.
         let child = try spawnSharing(client.descriptor, executable: "/bin/sleep", arguments: ["30"])
         defer { reap(child) }
-        #expect(Self.holders(client.localPort, listener.port, settleTo: [getpid(), child]))
+        #expect(waitFor { ProcessInspector.holdsLoopbackConnection(pid: child, localPort: client.localPort, remotePort: listener.port) == true ? true : nil } == true)
+        #expect(ProcessInspector.holdsLoopbackConnection(pid: 1, localPort: client.localPort, remotePort: listener.port) != true)
+    }
+
+    /// A child being spawned holds copies of its parent's descriptors until exec closes them. Inspecting such a copy at
+    /// that moment made the kernel drain the socket, and blocked reads on it failed with EBADF for good. Here the children
+    /// of this process (and no other process) are inspected over and over while children are spawned and reads wait.
+    @Test func inspectingProcessesLeavesSocketsOfSpawningProcessesIntact() throws {
+        let listener = try TCPListener()
+        var clients: [LoopbackClient] = []
+        var accepted: [Int32] = []
+        defer { accepted.forEach { close($0) } }
+        for _ in 0..<40 {
+            let client = try LoopbackClient(port: listener.port)
+            var timeout = timeval(tv_sec: 3, tv_usec: 0)
+            setsockopt(client.descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+            clients.append(client)
+            accepted.append(try listener.acceptClient().descriptor)
+        }
+        let lock = NSLock()
+        var running = true
+        var failures: [Int32] = []
+        let readers = DispatchGroup()
+        for descriptor in clients.map(\.descriptor) {
+            readers.enter()
+            Thread {
+                var byte: UInt8 = 0
+                // Only the receive timeout may end the read: data or an end of stream is recorded as 0, an error as its errno.
+                let count = read(descriptor, &byte, 1)
+                let error = count < 0 ? errno : 0
+                lock.lock()
+                if error != EAGAIN { failures.append(error) }
+                lock.unlock()
+                readers.leave()
+            }.start()
+        }
+        func keepRunning() -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return running
+        }
+        let workers = DispatchGroup()
+        for _ in 0..<3 {
+            workers.enter()
+            Thread {
+                while keepRunning() {
+                    for pid in ProcessInspector.userProcessIDs() where ProcessInspector.record(for: pid)?.parentPid == getpid() {
+                        _ = ProcessInspector.tcpSockets(of: pid)
+                    }
+                }
+                workers.leave()
+            }.start()
+            workers.enter()
+            Thread {
+                while keepRunning() {
+                    if let child = try? startChild("/bin/sleep", ["0"]) { child.waitUntilExit() } else { usleep(10_000) }
+                }
+                workers.leave()
+            }.start()
+        }
+        usleep(2_500_000)
+        lock.lock()
+        running = false
+        lock.unlock()
+        workers.wait()
+        readers.wait()
+        #expect(failures.isEmpty, "reads ended early: \(failures)")
     }
 
     @Test func checksCodeRequirementsOfARunningProcess() throws {
