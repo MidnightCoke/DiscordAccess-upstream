@@ -11,7 +11,7 @@ These notes cover the **macos-v0.2** pre-release. It runs only on Apple Silicon 
 ## Installing the release package
 
 1. On the [Releases](https://github.com/alpertknn/DiscordAccess/releases) page, download `DiscordAccess-macos-v0.2.zip` from the **macos-v0.2** release and open it. `DiscordAccess-macos-v0.2-engine-source.zip` is the engine's source package; you do not need it to run the app.
-2. Drag `DiscordAccess.app` into the Applications folder in Finder.
+2. Drag `DiscordAccess.app` into the Applications folder in Finder. If an earlier version is installed, quit it first with the last item of its menu bar menu, then replace it.
 3. The app is not signed or notarized by Apple, so on first launch macOS says that Apple could not verify that "DiscordAccess" is free of malware:
    - Click **Done**.
    - Open System Settings > Privacy & Security. In the **Security** section at the bottom, click **Open Anyway** for DiscordAccess and enter your password.
@@ -53,7 +53,7 @@ A hash file is not a code signature.
    - Click "Open System Settings" and turn on DiscordAccess under Full Disk Access.
    - Then restart the app.
    - Discord's settings are never changed without this permission.
-   - With an ad-hoc signed build, the permission has to be granted again after every new build.
+   - Each new version or build needs this permission again, because the app is ad-hoc signed. If DiscordAccess is already listed and turned on but the alert still appears, select it, remove it with "−", add `/Applications/DiscordAccess.app` with "+", then quit DiscordAccess and open it again.
 4. Wait for the "Connection ready" notification. Open Discord from its own icon (Dock, Launchpad, Spotlight) or with "Open Discord" in the menu. Your existing installation and account are used; no copy is made.
 5. When you are done, quit Discord first, then choose "Quit" in the menu. If you quit while Discord is still open, Discord is not closed: the recovery record of the temporary settings is kept, and the settings are undone at the next launch or with `--restore`.
 
