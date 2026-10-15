@@ -115,7 +115,7 @@ macos/
   Tests/wrapper.test.cjs       üretilen sarmalayıcının Node testi (sahte Electron)
   Resources/                 Info.plist, simge, giriş öğesi tanımı
   scripts/build-engine.py    sabit Go, kaynak ve yamalarla macOS motoru; hash doğrulaması
-  scripts/build-app.sh       .app paketini kurar; motoru ve kancayı gömer; yerel (ad-hoc) imza
+  scripts/build-app.sh       .app paketini build/apps/<zaman>/ altına kurar; motoru ve kancayı gömer; kişisel imza ya da ad-hoc
   docs/                      bu tasarım, kullanım ve güven sınırları
 ```
 
@@ -226,14 +226,17 @@ module.exports = require('./core.asar');
 
 ### 7.4 Oturum açılışında başlatma
 
-- Uygulama yalnız güvenli bir konumdaysa kaydedilir:
-  - kullanıcının veya root'un sahibi olduğu bir konum;
-  - grup veya diğer kullanıcılar yazamıyor, ACL ile yazma izni yok;
-  - yolda sembolik bağ yok;
-  - App Translocation altında değil.
+- Uygulama yalnız güvenli bir konumdaysa kaydedilir (2c, `StartupRegistration.verifyLocation`):
+  - kökten pakete kadar her klasör ve paketin içindeki her dosya kullanıcının veya root'un;
+  - diğer kullanıcılar yazamıyor; grup yalnız admin ya da wheel ise yazabilir (`/Applications` böyledir, üyeleri zaten root olabilir); değişiklik izni veren ACL girdisi yok;
+  - yolda ve pakette sembolik bağ yok;
+  - App Translocation altında değil;
+  - yerel bir birimde ve birim sahipliği yok saymıyor. macOS harici disklerde sahipliği varsayılan olarak yok sayar; orada her dosya soranın sahipliğinde görünür.
+- Giriş açılışında (`--startup`) konum yeniden denetlenir. Güvenilmezse kayıt kaldırılır, Discord açılmaz ve kullanıcı uyarılır (Windows başka bir yolun başlangıç kaydını reddeder).
 - Kayıt `SMAppService.agent` ile yapılır. Paket içindeki LaunchAgent tanımı (`Contents/Library/LaunchAgents/`) uygulamayı `--startup` argümanıyla başlatır; böylece giriş açılışı elle açılıştan ayırt edilir.
 - "Oturum açılışında başlat" kapatılırsa kayıt kaldırılır. Normal Çıkış bu tercihi değiştirmez.
-- "Girişte Discord'u da aç" varsayılan olarak kapalıdır. Açıksa, girişte bağlantı hazır olduktan sonra Discord bir kez açılır.
+- İlk çalışan bağlantıdan sonra, kullanıcı henüz seçmediyse oturum açılışında başlatma Windows'taki gibi kendiliğinden açılır (`EnsureEnabled`). Kullanıcının kapatması kalıcıdır. Seçim, kayıt değiştirilmeden önce durum klasöründeki `preferences.json` dosyasına yazılır. Bu dosya var ama güvenle okunamıyorsa uygulama kendini kaydetmez.
+- "Girişte Discord'u da aç" varsayılan olarak kapalıdır. Açıksa, girişte ilk çalışan bağlantıdan sonra Discord bir kez açılır; ilk deneme başarısız olsa da istek "Yeniden bağlan"a kadar korunur. Açık bir Discord yeniden açılmaz.
 - Discord bağlantı hazır olmadan açılmışsa uyarı verilir; Discord zorla kapatılmaz.
 
 ## 8. Güvenlik sınırları
@@ -249,7 +252,7 @@ module.exports = require('./core.asar');
   - Yalnız loopback'te, rastgele kimlik bilgisiyle dinler.
   - Kapı, istek göndermeden önce dinleyicinin motor sürecine ait olduğunu doğrular.
   - Motor askıda başlatılır. cdhash'i sabit değeri karşılamazsa hiçbir kodu çalışmadan öldürülür. Her başlatmada dosya yeniden ölçülür.
-  - Go bağlayıcısının ad-hoc imzası tanımlayıcıyı `a.out` olarak yazar. Motor uygulama paketine gömülürken anlamlı bir tanımlayıcıyla yeniden imzalanır; sabit değerler imza sonrası alınır.
+  - Go bağlayıcısının ad-hoc imzası tanımlayıcıyı `a.out` olarak yazar. Motor pakete bu imzayla, değiştirilmeden gömülür (`Contents/Helpers/sing-box`, 2d). Yeniden imzalamak sabit SHA-256'yı ve cdhash'i değiştirirdi; kişisel bir sertifikayla imzalamak da SHA-256'yı her Mac'te farklı kılardı. Bütünlüğünü sabit değerler ve uygulamanın imzası birlikte korur.
 - **İstek politikası** (1b, Windows `RewriteHeader` karşılığı): Windows'taki bütün test vektörleri ret kategorileriyle birlikte geçer. Mutlak `http://` hedefleri Windows'taki `Uri` ayrıştırmasından katıdır:
   - Ana bilgisayar adı zaten DNS biçiminde olmalı ve yalnız harf, rakam, `-` ve `.` içermelidir. Bu yüzden ana bilgisayar bölümünde `%`, `[` (IPv6) ve `@` (kullanıcı bilgisi) reddedilir; yolda ve sorguda serbesttir.
   - Yazılan port tam olarak `80` olmalıdır.
@@ -333,7 +336,7 @@ module.exports = require('./core.asar');
 - **Durum klasörü:** klasör 0700, dosyalar 0600. Kurtarma günlüğü ve kayıtlar kişisel veridir. Klasörün sahibi bu kullanıcı olmalı, grup ve diğerlerine izin vermemeli ve erişim denetim listesi (ACL) taşımamalıdır; değilse profil değişikliği yapılmaz (1f).
   - Günlük, macOS'un Discord'un klasörü kadar korumadığı bir yerdedir. Kurtarma bu yüzden günlüğe sınırlı güvenir: yalnız standart Discord klasörüne dokunur ve güncelleme ayarlarına yalnız Discord'un kendi alanlarındaki https adreslerini geri yazar. Başka bir önceki değer, oturum başında değiştirilmeden reddedilir (PRF-E01).
   - Günlük ve değiştirilen dosyalar `F_FULLFSYNC` ile diske yazılır, klasör de eşitlenir; önce yazılan günlük, güç kesintisinden sonra da önce kalır.
-- **Kontrol soketi:** dosya 0600. Karşı tarafın kullanıcısı (`LOCAL_PEERCRED`) ve kod imzası (audit token) doğrulanır.
+- **Kontrol soketi:** Aşama 2'de yapılmadı. Launch Services bir uygulama paketini tek örnekle açar ve yeniden açılışı çalışan örneğe iletir; uygulama o zaman durumunu bildirir. İkinci bir süreç (Terminal ya da launchd) yalnız "zaten çalışıyor" der ve çıkar. Soket gerekirse eklenir: dosya 0600 olur, karşı tarafın kullanıcısı (`LOCAL_PEERCRED`) ve kod imzası (audit token) doğrulanır.
 - **Diğer uygulamaların verisi (Tam Disk Erişimi):**
   - Bu izin geniştir. Uygulama onu yalnız Discord'un veri klasöründeki sahiplenilen dosyalar için kullanır.
   - İzin yoksa profil değişikliği yapılmaz. Uygulama izni kendisi değiştirmeye çalışmaz. İzin, klasörün içeriği okunarak denetlenir (`DiscordProfile.access`); macOS'un engellediği bir dosya işlemi PRF-E04 verir (1f).
@@ -426,7 +429,15 @@ module.exports = require('./core.asar');
 - ResidentInstance, MenuBarController, SessionController, StartupRegistration ve bildirimler yazılır.
 - `KitError`, `LocalizedError`'a uyar; uygulamanın uyarı ve bildirimleri Türkçe hata mesajını gösterir.
 - Terminal için 1g'de eklenen seçenekler (`--restore`, `--verify-package`, `--help`, `--discord-path`, `--dns`) paketlenmiş uygulamada da çalışır.
-- `build-app.sh` ile `.app` paketi üretilir. Paket ve gömülü motor, kalıcı TCC izni için sabit bir imza kimliğiyle imzalanır.
+- `build-app.sh` ile `.app` paketi üretilir. Paket, kalıcı TCC izni için sabit bir imza kimliğiyle imzalanır; gömülü motor kendi sabit imzasını korur.
+- **2a–2c durumu:** Yazıldı:
+  - `ResidentLifecycle` (Windows `BackgroundLifecycle`): bağlanırken gelen açma istekleri birleşir, kapanış sınırlıdır.
+  - AppKit menü çubuğu uygulaması: Discord'u aç, Yeniden bağlan, Bağlantıyı kontrol et, Oturum açılışında başlat, Girişte Discord'u da aç, Çıkış. Bildirimler yalnız pakette ve izin verilince gösterilir; çıkışta uyarı penceresi beklenmez.
+  - `StartupRegistration`: `SMAppService.agent` ve konum güveni.
+  - `ResidentPreferences`.
+  - Paket kimliği `io.github.alpertknn.DiscordAccess`.
+- **Yeniden bağlanma:** Windows'tan bilerek ayrılır. Önceki oturum yalnız profil değişikliklerini koruyarak bittiyse (SES-E01) yeni oturum başlar ve önce onları geri alır; Windows ise uygulama yeniden başlatılana kadar reddeder. Önceki oturum zamanında kapanmadıysa, başka bir hatayla bittiyse ya da motorunu toplayamadıysa (DNS-E03) yeni motor başlatılmaz.
+- **2d durumu:** `build-app.sh` paketi kurar: `Contents/Helpers/sing-box`, `Contents/Resources/attachment-download.cjs` ve `Contents/Library/LaunchAgents/io.github.alpertknn.DiscordAccess.agent.plist`. Paket `DISCORDACCESS_SIGN_IDENTITY` ile imzalanır, verilmezse ad-hoc. İmza `--strict --deep` ile doğrulanır ve paket kendi motorunu ve kancasını `--verify-package` ile denetler. Önceki derlemeler silinmez.
 - `macos/docs/` altına kullanım ve güven sınırları belgeleri yazılır.
 - Çıkış: canlı doğrulama listesi bu Mac'te tamamlanır ve sonuçlar ayrı raporlanır.
 

@@ -122,6 +122,16 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
         KitError(code: "SYS-E02", message: "DiscordAccess yönetici (root) olarak çalıştırılmaz. sudo kullanmadan, kendi kullanıcı hesabınızla açın.")
     }
 
+    /// Windows `StartupPathTrust`: an app that others could change must not start by itself at login.
+    static func startupLocationUnsafe() -> KitError {
+        KitError(code: "SYS-E03", message: "DiscordAccess güvenli bir konumda değil; oturum açılışında başlatma kurulmadı. Uygulamayı Uygulamalar " +
+            "klasörüne taşıyıp oradan açın.")
+    }
+
+    static func startupRegistrationFailed() -> KitError {
+        KitError(code: "SYS-E04", message: "Oturum açılışında başlatma değiştirilemedi. Sistem Ayarları > Genel > Giriş Öğeleri'ni kontrol edin.")
+    }
+
     /// Windows `InstalledDiscord.Conflict`: nothing that changed since is overwritten.
     static func profileConflict() -> KitError {
         KitError(code: "PRF-E01", message: "Discord'un geçici ayarları güvenli biçimde doğrulanamadı. Değişmiş dosya veya tercihin üzerine yazılmadı.")
@@ -136,6 +146,12 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
             "yeniden deneyin.")
     }
 
+    /// PRF-E04 as the app shows it: run outside an app bundle (from a terminal), macOS asks Full Disk Access of the
+    /// terminal app.
+    public static func profileAccessDenied(inTerminal: Bool) -> KitError {
+        inTerminal ? profileAccessDeniedInTerminal() : profileAccessDenied()
+    }
+
     /// Run from a terminal, macOS asks Full Disk Access of the terminal app, not of DiscordAccess.
     static func profileAccessDeniedInTerminal() -> KitError {
         KitError(code: "PRF-E04", message: "Discord'un veri klasörüne erişim izni yok. Terminal'den açıldığında bu izin terminal uygulamasına " +
@@ -148,4 +164,9 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
         KitError(code: "PRF-E04", message: "Discord'un veri klasörüne erişim izni yok. Sistem Ayarları > Gizlilik ve Güvenlik > Tam Disk " +
             "Erişimi'nde DiscordAccess'i açın. İzin verilmeden Discord ayarları değiştirilmez.")
     }
+}
+
+/// Alerts and notifications show the Turkish message with its code.
+extension KitError: LocalizedError {
+    public var errorDescription: String? { description }
 }

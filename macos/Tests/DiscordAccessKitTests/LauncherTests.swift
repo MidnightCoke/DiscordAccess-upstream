@@ -32,7 +32,8 @@ import Testing
     @Test func stopsAnOpenThatTakesTooLong() throws {
         let sleeper = try Self.app(named: "launch-sleeper", script: "#!/bin/sh\nsleep 3\n")
         let started = Date()
-        #expect(!Launcher.open(["-W", "-g", "-a", sleeper], timeout: 0.5))
+        // A new instance each time: `-W` would otherwise wait only for one an earlier run left sleeping.
+        #expect(!Launcher.open(["-n", "-W", "-g", "-a", sleeper], timeout: 0.5))
         #expect(Date().timeIntervalSince(started) < 2)
     }
 

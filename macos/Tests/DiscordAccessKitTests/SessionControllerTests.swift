@@ -71,7 +71,8 @@ import Testing
                     self?.onRunning?()
                     return self?.discord.read() ?? false
                 },
-                launch: { [discord] _, arguments in discord.launches.append(arguments) })
+                launch: { [discord] _, arguments in discord.launches.append(arguments) },
+                anyRunning: { [discord] in discord.read() })
             return SessionController(settings: settings, system: system, log: lines.append, changed: { [states] _, message in states.append(message) })
         }
 
@@ -106,7 +107,8 @@ import Testing
         let modern = try #require(settings["NEW_UPDATE_ENDPOINT"] as? String)
         #expect(legacy.hasPrefix("http://127.0.0.1:") && legacy.hasSuffix("/legacy") && modern == String(legacy.dropLast("legacy".count)) + "updates/")
         #expect(!legacy.contains(":" + port + "/") && settings["BACKGROUND_COLOR"] as? String == "#202225")
-        #expect(session.states.all == ["Bağlanıyor", "Bağlantı hazır; Discord kendi simgesinden açılabilir."])
+        #expect(session.states.all == ["Bağlanıyor", "Bağlantı hazır; Discord kendi simgesinden açılabilir."] && controller.isActive)
+        #expect(!controller.discordRunning())
         #expect(session.lines.all.contains("DNS: " + DnsOptions(provider: .google).description))
 
         #expect(try controller.openDiscord() == "Resmi Discord'a açılış isteği gönderildi.")
@@ -118,7 +120,7 @@ import Testing
 
         session.discord.set(false)
         try controller.disconnect()
-        #expect(session.untouched && Self.gone(pid) && controller.enginePID == nil)
+        #expect(session.untouched && Self.gone(pid) && controller.enginePID == nil && !controller.isActive && !controller.hasUnreapedEngine)
         #expect(session.states.all.last == "Bağlantı kesildi")
         #expect(throws: KitError.sessionNotReady()) { try controller.openDiscord() }
         #expect(try controller.diagnose() == "Bağlantı açık değil.")

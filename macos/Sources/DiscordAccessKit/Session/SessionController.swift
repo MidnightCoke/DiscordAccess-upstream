@@ -43,6 +43,8 @@ public final class SessionController {
         var launch: (DiscordInstallation, [String]) throws -> Void = { installation, arguments in
             guard Launcher.open(["-a", installation.bundle, "--args"] + arguments) else { throw KitError.discordLaunchFailed() }
         }
+        /// Whether any Discord runs, before an installation is known.
+        var anyRunning: () throws -> Bool = { try !DiscordInstallation.runningProcesses(bundle: nil).isEmpty }
     }
 
     public static let readyMessage = "Bağlantı hazır. Discord'u kendi simgesinden (Dock, Launchpad, Spotlight) ya da A + Enter ile açabilirsiniz."
@@ -62,7 +64,22 @@ public final class SessionController {
     private var bridge: UpdateBridge?
     private var changes: DiscordProfileChanges?
     private var engineWatch: DispatchSourceProcess?
-    private var active = false
+    private let flags = NSLock()
+    private var activeFlag = false
+    private var unreapedFlag = false
+    /// Set only under `operations`; read from anywhere through its own lock, so readers never wait for an operation.
+    private var active: Bool {
+        get {
+            flags.lock()
+            defer { flags.unlock() }
+            return activeFlag
+        }
+        set {
+            flags.lock()
+            activeFlag = newValue
+            flags.unlock()
+        }
+    }
 
     /// `log` gets the session's detailed lines, the gate's and the bridge's diagnostics among them; `changed` whether the
     /// session is active, with a short state message. Both are called from the session's threads, `changed` while an
@@ -109,6 +126,25 @@ public final class SessionController {
             changed(false, "Bağlantı kurulamadı")
             throw error
         }
+    }
+
+    /// Whether the session is active; it never waits for an operation under way.
+    public var isActive: Bool {
+        active
+    }
+
+    /// Whether an engine of this session could not be reaped (DNS-E03), even if disconnecting reported SES-E01 first: no
+    /// other session may start an engine then (Windows `DnsConnection.Dispose`).
+    public var hasUnreapedEngine: Bool {
+        flags.lock()
+        defer { flags.unlock() }
+        return unreapedFlag
+    }
+
+    /// Whether Discord runs; a process list that cannot be read counts as running, so it never permits an open
+    /// (Windows `InstalledClientRunning` for the startup launch).
+    public func discordRunning() -> Bool {
+        (try? system.anyRunning()) ?? true
     }
 
     /// Ends a connection, check or download under way, from another thread (an interrupt in the terminal); the session
@@ -291,6 +327,9 @@ public final class SessionController {
                 try connection.close()
             } catch {
                 failure = error
+                flags.lock()
+                unreapedFlag = true
+                flags.unlock()
             }
         }
         connection = nil

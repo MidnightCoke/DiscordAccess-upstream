@@ -2,16 +2,17 @@ import Darwin
 import Foundation
 
 /// The `DiscordAccess` command (Windows `Program.Main` with `ConsoleHost.Run`): options, no root, one instance per user,
-/// then `--restore`, `--verify-package` or the terminal session. Exit codes: 0; 1 when connecting or cleaning up failed;
-/// 3 when the command could not start; 64 for a wrong command line; 130 after an interrupt, or when shutting down took
-/// too long.
+/// then the menu bar app, `--restore`, `--verify-package` or the terminal session. Exit codes: 0; 1 when connecting or
+/// cleaning up failed; 3 when the command could not start; 64 for a wrong command line; 130 after an interrupt, or when
+/// shutting down took too long.
 public enum ConsoleProgram {
     /// Held until the process ends, never released before: a shutdown that took too long may leave a thread still
     /// changing Discord's profile until the program exits.
     private static var heldLock: SessionLock?
 
-    /// `engine` and `hook` are the package's engine and attachment download hook.
-    public static func run(arguments: [String], engine: String, hook: String) -> Int32 {
+    /// `engine` and `hook` are the package's engine and attachment download hook. `resident` runs the menu bar app on the
+    /// main thread once this process holds the instance lock.
+    public static func run(arguments: [String], engine: String, hook: String, resident: (CommandOptions) -> Int32) -> Int32 {
         let options: CommandOptions
         do {
             options = try CommandOptions.parse(arguments)
@@ -43,12 +44,13 @@ public enum ConsoleProgram {
                 writeLine(try terminalAccess { try SessionController.restore() } ? "Discord'un geçici bağlantı ayarları geri alındı." :
                     "Geri alınacak geçici Discord ayarı bulunmadı.")
                 return 0
-            case .console, .help:
+            case .resident, .console, .help:
                 guard let lock = try SessionLock.acquire() else {
                     writeLine("DiscordAccess zaten çalışıyor; ikinci bağlantı başlatılmadı.")
                     return 0
                 }
                 heldLock = lock
+                if case .resident = options.mode { return resident(options) }
                 return console(options, engine: engine, hook: hook)
             }
         } catch {
