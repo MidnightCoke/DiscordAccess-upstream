@@ -21,7 +21,9 @@ public final class EngineProcess {
 
     deinit { stop() }
 
-    public static func start(image: EngineImage, dns: DnsProvider, readyTimeout: TimeInterval = 12) throws -> EngineProcess {
+    /// Starts an engine for `dns` and waits up to `readyTimeout` for its listener. Canceling `cancel` ends the wait: the
+    /// engine is stopped and `CancellationError` is thrown.
+    public static func start(image: EngineImage, dns: DnsProvider, readyTimeout: TimeInterval = 12, cancel: Cancellation? = nil) throws -> EngineProcess {
         // The file may have changed since `image` was verified; measuring it again keeps the PKG-E* codes accurate.
         let current = try EngineImage.verify(path: image.path, expected: image.identity)
         let port = try reserveLoopbackPort()
@@ -30,7 +32,7 @@ public final class EngineProcess {
         let config = try EngineConfig.json(dns: dns, username: username, password: password, port: port)
         let engine = EngineProcess(pid: try spawn(image: current, input: config), port: port, username: username, password: password)
         do {
-            try engine.waitUntilListening(timeout: readyTimeout)
+            try engine.waitUntilListening(timeout: readyTimeout, cancel: cancel)
             return engine
         } catch {
             engine.stop()
@@ -76,9 +78,10 @@ public final class EngineProcess {
         return orphans.map(\.pid)
     }
 
-    private func waitUntilListening(timeout: TimeInterval) throws {
+    private func waitUntilListening(timeout: TimeInterval, cancel: Cancellation?) throws {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
+            try cancel?.check()
             guard isRunning else { throw KitError.engineStartFailed() }
             if ProcessInspector.ownsLoopbackListener(pid: pid, port: port) { return }
             usleep(40_000)

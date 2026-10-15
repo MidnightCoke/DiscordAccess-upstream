@@ -32,7 +32,8 @@ public final class ProxyGate {
     private let drainTimeout: TimeInterval
     private let capacity: Int
     private let trace: ((String) -> Void)?
-    private let faulted: (() -> Void)?
+    /// Internal so that tests can stand in for an accept failure, which they cannot cause.
+    let faulted: (() -> Void)?
     private let budget = TraceBudget()
     private let listener: Int32
     private let stopRead: Int32

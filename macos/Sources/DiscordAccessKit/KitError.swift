@@ -32,6 +32,24 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
         KitError(code: "ENG-E01", message: "Bağlantı motoru hazır olamadı.")
     }
 
+    static func engineStopped() -> KitError {
+        KitError(code: "ENG-E02", message: "Bağlantı motoru durdu.")
+    }
+
+    static func invalidDnsOption() -> KitError {
+        KitError(code: "DNS-E01", message: "DNS seçeneği geçersiz veya tekrarlanmış. --dns=auto, --dns=cloudflare, --dns=cloudflare-ip ya da " +
+            "--dns=google seçin; gerekirse bir kez --dns-record-fragment ekleyin.")
+    }
+
+    /// Every candidate failed its check; only this fixed message is shown (Windows `DnsSelectionException`).
+    static func dnsSelectionFailed() -> KitError {
+        KitError(code: "DNS-E02", message: "Discord'a erişebilen bir DNS bağlantısı bulunamadı. İnternet bağlantısını kontrol edip yeniden bağlanın.")
+    }
+
+    static func dnsCandidateNotClosed() -> KitError {
+        KitError(code: "DNS-E03", message: "DNS bağlantısı güvenli biçimde kapatılamadı; başka bir aday başlatılmadı.")
+    }
+
     static func randomUnavailable() -> KitError {
         KitError(code: "SYS-E01", message: "Güvenli rastgele değer üretilemedi.")
     }

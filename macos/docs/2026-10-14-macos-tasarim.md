@@ -157,7 +157,7 @@ Bütün testler `Tests/` altındadır; ayrı bir `tests/` klasörü yoktur. macO
    - Bekleyen kurtarma günlüğü varsa ve Discord kapalıysa önce geri alma yapılır.
    - `Discord.app` bulunur ve imzası doğrulanır.
    - Discord veri klasörüne erişim (Tam Disk Erişimi) denetlenir. İzin yoksa profil değişikliği yapılmaz; kullanıcıya gerekçe gösterilir ve ilgili Sistem Ayarları sayfası açılır.
-2. DNS seçimi: Adaylar sırayla denenir. Her aday için motor ve kapı açılır, anonim Gateway HELLO tanısı yapılır. Başarılı aday oturuma alınır; diğerleri kapatılır.
+2. DNS seçimi: Adaylar sırayla denenir. Her aday için motor ve kapı açılır; kapı üzerinden Discord Gateway API'sine (`https://discord.com/api/v10/gateway`) HTTPS isteği yapılır ve yanıtın Gateway adresi olduğu doğrulanır (Windows `CheckDnsCandidate`). Başarılı aday oturuma alınır; başarısız aday, sıradaki açılmadan önce tamamen kapatılır. Kullanıcı bir sağlayıcı adlandırdıysa (`--dns=…`) denetim yapılmaz. Anonim Gateway WebSocket HELLO tanısı "Bağlantıyı kontrol et" ile yapılır.
 3. Güncelleme köprüsü rastgele port ve gizli yol belirteciyle başlar.
 4. Profil değişiklikleri (günlüklü):
    - `settings.json` → `UPDATE_ENDPOINT = <köprü>/legacy`, `NEW_UPDATE_ENDPOINT = <köprü>/updates/`.
@@ -278,6 +278,20 @@ module.exports = require('./core.asar');
   - Kapı yalnız tam olarak 127.0.0.1'den gelen bağlantıyı eşleştirir. Başka bir loopback adresi (ör. root'un lo0'a eklediği 127.0.0.2) `RemoteAddress` nedeniyle reddedilir.
   - Politika, motora gidecek baytların aynısını görür: başlık ham baytlarda ilk CRLFCRLF'de ayrılır; motora `rewrite` çıktısı ve ardından kalan baytlar olduğu gibi gider.
   - Başka bir yerel kullanıcı kapıya bağlantı yağdırabilir. Bu bağlantılar aday bulunamadığı için birkaç milisaniyede reddedilir ve bir yuvayı ancak o kadar tutar. Tanı satırlarının dakikalık kotasını yine de tüketebilirler; Windows'ta da durum aynıdır.
+- **Bağlantı tanısı** (1d, Windows `ConnectivityChecks` ve `GatewayChecks` karşılığı):
+  - İstekler yalnız oturum kapısından geçer: URLSession'a sabit bir loopback proxy verilir; sistem proxy'si, proxy betiği ya da doğrudan bağlantı yoktur. Proxy reddederse istek hemen başarısız olur (CFNetwork 306 düz HTTP için, 310 HTTPS ve WebSocket için); doğrudan bağlantıya düşmez.
+  - Yönlendirme izlenmez; çerez, önbellek ve kimlik bilgisi tutulmaz. Gövde yalnız Gateway'in 200 yanıtında ve en fazla 16 KiB okunur; başka her durum yanıt başlığıyla sayılır (Windows gibi). Uzun, yarıda kesilen ya da yavaş gelen bir sayfayla gelen 429 böylece yine 429'dur.
+  - Kimlik bilgisi hiçbir zaman sunulmaz: kimlik doğrulama isteğinde CFNetwork bir kez daha kimlik bilgisi olmadan sorar, sonra 401 olduğu gibi döner. Başlık değerleri sabittir; URLSession'ın bu Mac'ten aldığı dil listesi ve tarayıcı adı gönderilmez (Windows da göndermez).
+  - Her isteğin 10 sn son tarihi vardır. Süre dolunca istek iptal edilir ve kapanması en fazla 5 sn daha beklenir. HTTPS denetimi iki istek yapar (Gateway API, güncelleme sunucusu); DNS adayının denetimi yalnız Gateway API isteğidir.
+  - Gateway WebSocket denetimi yalnız herkese açık HELLO'yu okur ve normal kapanır; IDENTIFY, belirteç ya da hesap verisi gönderilmez.
+  - Kapı bu süreci tanı izniyle kabul eder; Windows'taki gibi bu izin oturum boyunca açık kalır. URLSession'ın proxy bağlantısı bu süreçte BSD soketi olarak görünür, eş kabulü onu tanır (1d'de ölçüldü).
+  - Hata iletileri yalnız sabit bir kategori, HTTP durumu ve yanıt türü içerir; URL, başlık, gövde ya da hata metni tutulmaz.
+  - `discord.com` ve `discord.gg` HSTS önyükleme listesindedir: URLSession düz `http` ve `ws` isteklerini de `https` ve `wss`'e çevirir. Testler bu yüzden `.invalid` adlarla düz HTTP kullanır; bu adlar hiçbir yere çözülmez.
+  - Seçilen aday oturumun motoru ve kapısı olur. Oturum (1g), kapının kendini kapattığını `DnsConnection.onGateFault` ile öğrenir (Windows `Gate.Faulted`). Motorun çıkışını da ayrıca izlemelidir (Windows `Engine.Exited`): 1d'de duran motor yalnız denetim sırasında fark edilir ve ENG-E02 olarak bildirilir.
+  - 1g için açık noktalar:
+    - İşleyici ayarlanmadan önce kapı arızalanırsa bunu bildiren bir şey yoktur (Windows'ta da aynı boşluk var). Oturum işleyiciyi ayarladıktan sonra kapının açık olduğunu denetleyebilmelidir; bunun için kapının durumu dışarıdan okunabilir olmalıdır.
+    - Kapatma işleyiciyi temizler; işleyici oturumu zayıf tutmalıdır. Kapanışla yarışan bir arıza yine de bir kez bildirilebilir.
+    - `DnsConnection.close()` ikinci çağrıda hiçbir şey yapmaz, ilk çağrı DNS-E03 vermiş olsa da. "Yeniden bağlan" bunu başarı saymamalı; toplanamayan motor varken yeni aday başlatmamalıdır.
 - **Kapı için bilinen sınırlar:**
   - Düz HTTP keep-alive bağlantısında yalnız ilk istek politikadan geçer; sonraki istekler olduğu gibi aktarılır. Windows'ta da durum aynıdır ve motorun kendi yönlendirmesi hedefleri yine sınırlar.
   - Başlığı gönderip hemen yarım kapatan istemci reddedilir: sahiplik yalnız kurulu (ESTABLISHED) bağlantılara bakar. Windows'ta da durum aynıdır; Chromium böyle yapmaz.
@@ -298,7 +312,7 @@ module.exports = require('./core.asar');
 ## 9. Hata yönetimi
 
 - **Mesajlar:** Hata kodları ve Türkçe mesajlar Windows'taki aileyi izler (`PKG-E01` vb.). Arka planda uyarı penceresi, Terminal'de stderr kullanılır.
-- **DNS:** Başarısız adayın ardından sıradaki denenir. Hepsi başarısızsa kısa tanı gösterilir, "Yeniden bağlan" önerilir.
+- **DNS:** Başarısız adayın ardından sıradaki denenir. Hepsi başarısızsa yalnız sabit bir ileti gösterilir (DNS-E02) ve "Yeniden bağlan" önerilir. HTTP 429 (Discord'un hız sınırı başka bir sağlayıcıyla aşılmaya çalışılmaz), iptal edilen denetim, açılamayan aday (paket bütünlüğü, motor başlatma) ve güvenle kapatılamayan aday (DNS-E03) seçimi başka sağlayıcı denemeden durdurur. Denetim sırasında duran motor ENG-E02 olarak bildirilir. Geçersiz ya da tekrarlanan `--dns` seçeneği DNS-E01'dir.
 - **Motor kopması:** Menü durumu "bağlantı koptu" olur. "Yeniden bağlan" temiz yeniden kurulum yapar.
 - **Yetim motor:** Çökme sonrası kalan motor, bir sonraki açılışta bu paketin motor yolu, kullanıcı kimliği ve üst süreç (1) ile bulunup kapatılır.
 - **Profil çakışması:** Kullanıcının değiştirdiği değerin üzerine yazılmaz. İşlem durur, kurtarma dosyası korunur ve kullanıcı bilgilendirilir.
@@ -353,6 +367,7 @@ module.exports = require('./core.asar');
 - **1a durumu:** Tamamlandı (motor katmanı ve derleme betiği sabitleri). Plan: macos/docs/plans/2026-10-14-asama-1a-motor-katmani.md.
 - **1b durumu:** Tamamlandı (kapı istek politikası ve eş kimliği). Plan: macos/docs/plans/2026-10-14-asama-1b-kapi-politikasi-ve-es-kimligi.md.
 - **1c durumu:** Tamamlandı (kapının ağ katmanı; eş araması yalnız adaylarda). Plan: macos/docs/plans/2026-10-14-asama-1c-kapi-ag-katmani.md.
+- **1d durumu:** Tamamlandı (bağlantı tanısı ve otomatik DNS seçimi; canlı doğrulama bu Mac'te geçti). Plan: macos/docs/plans/2026-10-15-asama-1d-baglanti-tanisi-ve-dns-secimi.md.
 - `scripts/build-engine.py` darwin hash sabitiyle tamamlanır: `ENGINE_SHA256 = 013ba5d5055988953ebec1a1ac0eceb8aead52415e3ef186a5c7481083472cb0`; tekrarlanabilirlik Aşama 0'da doğrulandı.
 - Profil değişiklikleri yeni güncelleyici düzenine (`app-<sürüm>/modules/discord_desktop_core-<N>`) göre yazılır. Windows'taki gibi tüm çekirdek nesilleri sarılır.
 - Ek dosyası kancası sarmalayıcıya gömülü olarak kurulur. Discord içinden ek dosyası indirme Mac'te doğrulanır.
@@ -391,9 +406,9 @@ module.exports = require('./core.asar');
 | Güncelleyici oturum sırasında yeni bir çekirdek nesli kurarsa sarmalayıcı devre dışı kalır. | Aşama 1 | Windows'taki gibi tüm nesiller sarılır; oturum başında yeniden denetlenir. |
 | Discord'un kendi giriş öğesiyle açılış sırası koordine edilemez. | Tasarım gereği | Belgelenir; erken açılışta uyarı verilir. |
 | Job nesnesi olmadığı için çökme sonrası motor kalabilir. | Aşama 1 | Bir sonraki açılışta yetim motor temizlenir. Temizlik motorun yoluna bakar; uygulama taşınmışsa eski yoldaki yetim motor kalır. Zararsızdır, çünkü kimlik bilgisini bilen yoktur. Aşama 2'de cdhash'e veya durum klasöründeki PID ve başlangıç zamanı kaydına göre eşleştirme değerlendirilir. |
-| macOS yeni bir çalıştırılabilir dosyayı ilk çalıştırmada tarar. Motorun ilk açılışı bu yüzden gecikir. `syspolicyd` zaman zaman takılır ve sistem onu yeniden başlatana kadar yeni dosyaların açılışı bekler. | Aşama 1a: yeni kopyada 0,4 sn; sistem yükü altında 7–10 sn görüldü. Aşama 1b: `syspolicyd` takılıp yeniden başlarken bir derleme 160 sn bekledi. | Hazır olma sınırı Windows'taki gibi 12 sn. 1d'de ilk açılış için daha uzun sınır veya bir yeniden deneme değerlendirilir. |
-| Önceki DNS adayının motoru toplanamazsa yeni aday başlatılmamalıdır (Windows `DnsConnection.Dispose`). | 1d | `EngineProcess.stop()` false döndürürse 1d yeni aday başlatmaz. |
-| Motor yalnız `PATH` ortam değişkeniyle başlatılıyor; dış DoH/TLS bağlantısı birim testlerinde denenmiyor. | 1d ve canlı doğrulama | Bağlantı tanısı gerçek motorla ve aynı ortamla dışarıya bağlanır. |
+| macOS yeni bir çalıştırılabilir dosyayı ilk çalıştırmada tarar. Motorun ilk açılışı bu yüzden gecikir. `syspolicyd` zaman zaman takılır ve sistem onu yeniden başlatana kadar yeni dosyaların açılışı bekler. | Aşama 1a: yeni kopyada 0,4 sn; sistem yükü altında 7–10 sn görüldü. Aşama 1b: `syspolicyd` takılıp yeniden başlarken bir derleme 160 sn bekledi. | DNS adayının motoru dinleyicisini 30 sn içinde açmalıdır (1d); motor çıkarsa sınır beklenmez. `EngineProcess.start`'ın varsayılanı Windows'taki gibi 12 sn kalır. |
+| Önceki DNS adayının motoru toplanamazsa yeni aday başlatılmamalıdır (Windows `DnsConnection.Dispose`). | 1d: uygulandı | `DnsConnection.close()`, motor toplanamazsa DNS-E03 verir; seçim başka aday başlatmaz. |
+| Motor yalnız `PATH` ortam değişkeniyle başlatılıyor; dış DoH/TLS bağlantısı birim testlerinde denenmiyor. | 1d canlı doğrulama (2026-10-15, bu Mac'in engelli ağı): otomatik seçim ilk adayı (Cloudflare, IP sertifikası) seçti; Gateway API, güncelleme sunucusu ve WebSocket HELLO kapı üzerinden doğrulandı; üç sağlayıcı da Gateway API'ye erişti. | Canlı denetim normal test çalıştırmasına girmez; `-Xswiftc -DDISCORDACCESS_LIVE` ile derlenir. |
 | SMAppService ve bildirimler yerel imzalı uygulamada kısıtlı olabilir. | Aşama 2 | Kullanıcı LaunchAgent plist'i; bildirim yerine menü durum metni. |
 | Discord güncellemesi profil yapısını değiştirebilir. | Sürekli | Tanınmayan yapıda değişiklik yapılmaz; kullanıcı bilgilendirilir. |
 | macOS 13–26'da test yapılmadı. | — | Yalnız macOS 27'de doğrulandığı belirtilir. |
