@@ -402,7 +402,7 @@ module.exports = require('./core.asar');
 - **1d durumu:** Tamamlandı (bağlantı tanısı ve otomatik DNS seçimi; canlı doğrulama bu Mac'te geçti). Plan: macos/docs/plans/2026-10-15-asama-1d-baglanti-tanisi-ve-dns-secimi.md.
 - **1e durumu:** Tamamlandı (güncelleme köprüsü; canlı doğrulama bu Mac'te geçti). 1e'den itibaren aşamalar hash'li plan olmadan, doğrudan depoda testleriyle yazılır; güvenlik açısından önemli kodu bağımsız bir kritik inceleme denetler.
 - **1f durumu:** Kit tamamlandı: Discord.app doğrulaması, Tam Disk Erişimi denetimi, güvenli dosya işlemleri, oturum sarmalayıcısı (gömülü kanca, Node testi) ve günlüklü profil değişiklikleri. Testler yalnız geçici örnek profillerle çalışır. Gerçek profile uygulama, Sistem Ayarları yönlendirmesi ve Discord içinden ek dosyası indirmenin doğrulanması 1g'de, kullanıcının onayıyla yapılır.
-- **1g durumu:** Terminal modu yazıldı: oturum denetleyicisi, `DiscordAccess` komutu (`--console`, `--restore`, `--verify-package`, `--discord-path`, `--dns`, `--help`), tek oturum kilidi, Launch Services ile Discord açılışı, Terminal'den ek dosyası indirme ve Sistem Ayarları yönlendirmesi. Otomatik testler ağsız ve örnek profillerle geçer.
+- **1g durumu:** Tamamlandı; Aşama 1'in çıkış ölçütleri karşılandı. Terminal modu yazıldı: oturum denetleyicisi, `DiscordAccess` komutu (`--console`, `--restore`, `--verify-package`, `--discord-path`, `--dns`, `--help`), tek oturum kilidi, Launch Services ile Discord açılışı, Terminal'den ek dosyası indirme ve Sistem Ayarları yönlendirmesi. Otomatik testler ağsız ve örnek profillerle geçer.
   - Canlı doğrulama (2026-10-15, bu Mac, Discord 0.0.415; kullanıcı Tam Disk Erişimi verilmiş Terminal'de çalıştırdı). Geçenler:
     - Otomatik DNS seçimi Cloudflare (IP sertifikası) adayında durdu.
     - Dock'tan açılan Discord sarmalayıcıyla bağlandı ve tamamen kullanılabildi. Kapı yalnız Discord alanlarına izin verdi; sahiplik reddi olmadı.
@@ -410,8 +410,9 @@ module.exports = require('./core.asar');
     - Discord içinden 28,6 MB'lık bir ek dosyası kayıt penceresiyle indirildi.
     - T: HTTPS denetimi ve Gateway HELLO geçti.
     - Q: profil değişiklikleri geri alındı. Günlük silindi, SES-E01 olmadı.
+    - A: Discord `open` ile argümanlarıyla açıldı ve kapıdan bağlandı; Q'da değişiklikler yine geri alındı.
   - Kapı politikası Windows'taki gibi Spotify'ı (`api.spotify.com`, `dealer.spotify.com`) ve `dc-telemetry.net`'i reddetti; Discord'un Spotify bağlantısı oturumda çalışmaz.
-  - Canlıda yapılmayanlar: A ile açılış (argümanların `open` ile geçişi testte doğrulandı), ses, çökme sonrası kurtarma ve gerçek günlükle `--restore`.
+  - Canlıda yapılmayanlar: ses, çökme sonrası kurtarma ve gerçek günlükle `--restore`.
 - `scripts/build-engine.py` darwin hash sabitiyle tamamlanır: `ENGINE_SHA256 = 013ba5d5055988953ebec1a1ac0eceb8aead52415e3ef186a5c7481083472cb0`; tekrarlanabilirlik Aşama 0'da doğrulandı.
 - Profil değişiklikleri yeni güncelleyici düzenine (`app-<sürüm>/modules/discord_desktop_core-<N>`) göre yazılır. Windows'taki gibi tüm çekirdek nesilleri sarılır.
 - Ek dosyası kancası sarmalayıcıya gömülü olarak kurulur. Discord içinden ek dosyası indirme Mac'te doğrulanır.
