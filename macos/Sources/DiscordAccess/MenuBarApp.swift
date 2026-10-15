@@ -59,6 +59,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if offerInstallationLocation() { return }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let menu = NSMenu()
         menu.autoenablesItems = false
@@ -80,6 +81,28 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         show(.connecting)
         if case .resident(startup: true) = options.mode { checkStartupLocation() }
         connect()
+    }
+
+    /// Opening a ZIP's app does not install it. Offer Finder before creating a session, so moving the bundle does not
+    /// leave a running connection tied to the download or a translocated copy. The user performs the move in Finder.
+    private func offerInstallationLocation() -> Bool {
+        guard bundled else { return false }
+        if case .resident(startup: true) = options.mode { return false }
+        let path = Bundle.main.bundleURL.path
+        let locations = ["/Applications/", FileManager.default.homeDirectoryForCurrentUser.path + "/Applications/"]
+        guard !locations.contains(where: { path.hasPrefix($0) }) else { return false }
+        let prompt = NSAlert()
+        prompt.messageText = "Install DiscordAccess in Applications"
+        prompt.informativeText = "Opening the downloaded app does not install it in your Apps list. Drag DiscordAccess.app from the " +
+            "extracted download into Applications, then open that installed copy. Open Applications quits this copy first. " +
+            "DiscordAccess runs in the menu bar, so it has no Dock window. Open Anyway approves this download; it does not install it."
+        prompt.addButton(withTitle: "Open Applications")
+        prompt.addButton(withTitle: "Continue Here")
+        if #available(macOS 14, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
+        guard prompt.runModal() == .alertFirstButtonReturn else { return false }
+        NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications", isDirectory: true))
+        NSApp.terminate(nil)
+        return true
     }
 
     /// Opening the app again while it runs (Windows: a second launch asks for the status).
@@ -367,12 +390,14 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !notifier.post(message) { alert(title, message) }
     }
 
-    /// A failure; missing Full Disk Access explains itself and offers System Settings.
+    /// A failure; missing Full Disk Access explains how to add the installed app and opens its settings pane.
     private func report(_ error: Error) {
         if let error = error as? KitError, error.code == "PRF-E04" {
             let message = KitError.profileAccessDenied(inTerminal: !bundled).description
             output.file(message)
-            if alert("Full Disk Access required", message, action: "Open System Settings") { DiscordProfile.openFullDiskAccessSettings() }
+            if alert("Full Disk Access required", message, action: "Open Full Disk Access") {
+                DiscordProfile.openFullDiskAccessSettings()
+            }
             return
         }
         warn(describe(error))

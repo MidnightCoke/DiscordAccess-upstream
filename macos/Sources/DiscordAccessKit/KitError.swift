@@ -142,8 +142,9 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
     }
 
     static func profileMissingModule() -> KitError {
-        KitError(code: "PRF-E03", message: "Discord's expected startup module was not found. Open and quit Discord normally once, then " +
-            "try again.")
+        KitError(code: "PRF-E03", message: "Discord's startup module is missing, incomplete, or uses an unsupported layout. Open the official " +
+            "Discord, wait for its updates to finish, then quit it with Cmd+Q and choose Reconnect in DiscordAccess. If this continues, " +
+            "report PRF-E03 and your Discord version. Changing Full Disk Access or Open Anyway cannot install a missing module.")
     }
 
     /// PRF-E04 as the app shows it: run outside an app bundle (from a terminal), macOS asks Full Disk Access of the

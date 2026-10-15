@@ -1,6 +1,8 @@
 #!/bin/bash
-# Builds DiscordAccess.app under macos/build/apps.noindex/<time>/ (design 6, stage 2d); Spotlight and the app list skip
-# a folder named .noindex, so build copies are not offered beside the installed app.
+# Builds DiscordAccess.app under macos/build/apps.noindex/<time>/ (design 6, stage 2d) by default; Spotlight and the
+# app list skip a folder named .noindex, so build copies are not offered beside the installed app. Set
+# DISCORDACCESS_BUILD_OUTPUT_ROOT to use a different output directory, such as a local temporary folder when a file
+# provider adds metadata to bundles inside the checkout.
 #
 # The pinned engine (macos/build/engine/sing-box, from build-engine.py) goes in unchanged: re-signing it would change the
 # SHA-256 and cdhash the app pins, and a personal certificate would make them differ on every Mac. The app's signature
@@ -29,7 +31,9 @@ swift build --package-path "$macos" -c release --product DiscordAccess
 binary="$(swift build --package-path "$macos" -c release --show-bin-path)/DiscordAccess"
 [ -x "$binary" ] || fail "Built app not found: $binary."
 
-output="$macos/build/apps.noindex/$(date -u +%Y%m%d-%H%M%S)"
+output_root="${DISCORDACCESS_BUILD_OUTPUT_ROOT:-$macos/build/apps.noindex}"
+mkdir -p "$output_root"
+output="$output_root/$(date -u +%Y%m%d-%H%M%S)"
 app="$output/DiscordAccess.app"
 [ ! -e "$output" ] || fail "Output folder already exists: $output. Try again in a second."
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources" "$app/Contents/Library/LaunchAgents"
