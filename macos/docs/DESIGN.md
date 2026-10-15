@@ -161,7 +161,8 @@ The app target (`Sources/DiscordAccess`) holds the AppKit menu bar app (`MenuBar
 4. Profile changes, journaled:
    - `settings.json`: `UPDATE_ENDPOINT = <bridge>/legacy` and `NEW_UPDATE_ENDPOINT = <bridge>/updates/`.
    - `discord_desktop_core/index.js`: the session wrapper (7.2).
-   - Every core generation of the installed version (`build_info.json`) is wrapped: `app-<version>/modules/discord_desktop_core-<N>`, at most 16. Each entry file must be Discord's own entry or an old wrapper whose journal was lost; other content gives PRF-E02, and a missing module PRF-E03.
+   - Every core entry of the installed version (`build_info.json`) is wrapped: `app-<version>/modules/discord_desktop_core-<N>/discord_desktop_core/index.js` for the new updater, or `<version>/modules/discord_desktop_core/index.js` for the legacy Mac updater. Both trees can coexist; all recognized entries are validated before any is written, with at most 16 entries across both layouts. No other host version is searched. Each entry file must be Discord's own entry or an old wrapper whose journal was lost; other content gives PRF-E02, and a missing module PRF-E03. TCC permission errors (`EPERM`) retain PRF-E04 instead of being treated as missing files.
+   - New journals use schema 2 and record a fixed layout identifier and a module number (0 only for the flat legacy core). Recovery constructs paths from these templates and the validated host version; it never accepts an arbitrary relative path. Schema-1 records from macos-v0.1/v0.2 remain recoverable as new-updater entries. Recovery uses the recorded layout, without rediscovering whichever layout happens to exist at shutdown.
    - Every change is written to the journal in the state folder first (`installed-session/journal.json`). Undoing, and recovery at the next launch, put back only what still belongs to DiscordAccess. A value the user or an update changed stays as it is and is reported with PRF-E01, and the journal is kept (Windows `InstalledDiscord`).
 5. The ready notification appears. On a login launch with "Also open Discord at login" on, Discord opens once.
 
@@ -378,6 +379,17 @@ module.exports = require('./core.asar');
 - **Discord opened early:** if Discord opened before the connection was ready, a warning is shown; Discord is not forced to quit.
 
 ## 10. Testing and verification
+
+**Pending local layout fix (2026-10-15, unreleased):** the working changes after macos-v0.2 add legacy-layout
+discovery and an Applications installation hint. Eight new Swift fixture tests cover legacy prepare/recovery, coexistence
+with the new updater, complete validation before writes, the shared entry limit, preserved user edits, rejecting another
+host version, linked/incomplete cores, and recovery of schema-1 records. Journal tampering cases were also extended.
+These tests have **not run**: the current development host is Windows without Swift/Xcode or a connected Mac. A syntax
+parser accepted the four changed Swift files and `git diff --check` passed; neither is a Swift build or a runtime test.
+An attempted run of the 35 Python build-engine tests on Windows ended with 2 failures and 10 errors due to POSIX
+permissions/symlinks, `O_NOFOLLOW`, path semantics and the macOS CA-file location. It is not a passing suite. Run the
+macOS checks in CONTRIBUTING.md on an Apple Silicon Mac before creating a test app; verify both Finder installation
+and the reported PRF-E03 scenario there. The published-release evidence below does not verify these working changes.
 
 - **Swift tests** (`swift test --package-path macos`; 280 tests at macos-v0.2):
   - the engine configuration;

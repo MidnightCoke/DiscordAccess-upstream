@@ -17,12 +17,15 @@ import Testing
         let directory: TemporaryDirectory
         let profile: String
         let state: String
+        let legacyLayout: Bool
 
-        init(modules: [Int] = [1, 2], settings: String? = "{\"BACKGROUND_COLOR\":\"#202225\",\"UPDATE_ENDPOINT\":\"https://updates.discord.com/\"}") throws {
+        init(modules: [Int] = [1, 2], settings: String? = "{\"BACKGROUND_COLOR\":\"#202225\",\"UPDATE_ENDPOINT\":\"https://updates.discord.com/\"}",
+             legacyLayout: Bool = false) throws {
             directory = try TemporaryDirectory()
             profile = directory.path + "/discord"
             state = directory.path + "/DiscordAccess"
-            try FileManager.default.createDirectory(atPath: profile + "/app-" + DiscordProfileChangesTests.version + "/modules", withIntermediateDirectories: true)
+            self.legacyLayout = legacyLayout
+            try FileManager.default.createDirectory(atPath: profile + "/" + (legacyLayout ? "" : "app-") + DiscordProfileChangesTests.version + "/modules", withIntermediateDirectories: true)
             for module in modules { try add(module) }
             if let settings { try SafeFileTests.write(profile + "/settings.json", settings) }
         }
@@ -35,7 +38,10 @@ import Testing
         }
 
         func entry(_ module: Int) -> String {
-            profile + "/app-" + DiscordProfileChangesTests.version + "/modules/discord_desktop_core-" + String(module) + "/discord_desktop_core/index.js"
+            if legacyLayout {
+                return profile + "/" + DiscordProfileChangesTests.version + "/modules/discord_desktop_core/index.js"
+            }
+            return profile + "/app-" + DiscordProfileChangesTests.version + "/modules/discord_desktop_core-" + String(module) + "/discord_desktop_core/index.js"
         }
 
         var journal: String { state + "/installed-session/journal.json" }
@@ -56,6 +62,108 @@ import Testing
 
     static func prepare(_ fixture: Fixture, wrapper: SessionWrapper? = nil) throws -> DiscordProfileChanges {
         try DiscordProfileChanges.prepare(profile: fixture.profile, version: version, state: fixture.state, wrapper: wrapper ?? Self.wrapper())
+    }
+
+    /// Older Stable hosts use <version>/modules/discord_desktop_core directly, without app- or a generation suffix.
+    @Test func wrapsAndRecoversTheLegacyMacLayout() throws {
+        let fixture = try Fixture(modules: [0], legacyLayout: true)
+        let wrapper = try Self.wrapper()
+        let changes = try Self.prepare(fixture, wrapper: wrapper)
+        #expect(try SafeFile.read(fixture.entry(0), limit: 1 << 20) == wrapper.bytes)
+        try changes.configure(legacy: Self.legacy, modern: Self.modern)
+        #expect(try fixture.settings()["NEW_UPDATE_ENDPOINT"] as? String == Self.modern)
+        #expect(try DiscordProfileChanges.recover(state: fixture.state, profile: fixture.profile))
+        #expect(SafeFileTests.text(fixture.entry(0)) == Self.official)
+        #expect(try fixture.settings()["UPDATE_ENDPOINT"] as? String == "https://updates.discord.com/")
+        #expect(try fixture.settings()["NEW_UPDATE_ENDPOINT"] == nil)
+        #expect(SafeFileTests.text(fixture.journal) == nil && fixture.leftovers.isEmpty)
+    }
+
+    /// Both trees can remain during an updater transition; restoring must use the recorded layout, even if a tree goes.
+    @Test func handlesBothLayoutsAndARemovedGeneration() throws {
+        let fixture = try Fixture()
+        let legacy = fixture.profile + "/" + Self.version + "/modules/discord_desktop_core"
+        try FileManager.default.createDirectory(atPath: legacy, withIntermediateDirectories: true)
+        try SafeFileTests.write(legacy + "/index.js", Self.official)
+        try SafeFileTests.write(legacy + "/core.asar", "archive")
+        let wrapper = try Self.wrapper()
+        _ = try Self.prepare(fixture, wrapper: wrapper)
+        #expect(try SafeFile.read(legacy + "/index.js", limit: 1 << 20) == wrapper.bytes)
+        #expect(try SafeFile.read(fixture.entry(1), limit: 1 << 20) == wrapper.bytes)
+        try FileManager.default.removeItem(atPath: fixture.profile + "/app-" + Self.version)
+        #expect(try DiscordProfileChanges.recover(state: fixture.state, profile: fixture.profile))
+        #expect(SafeFileTests.text(legacy + "/index.js") == Self.official && fixture.leftovers.isEmpty)
+    }
+
+    @Test func validatesBothLayoutsBeforeWritingEither() throws {
+        let fixture = try Fixture()
+        let legacy = fixture.profile + "/" + Self.version + "/modules/discord_desktop_core"
+        try FileManager.default.createDirectory(atPath: legacy, withIntermediateDirectories: true)
+        try SafeFileTests.write(legacy + "/index.js", "SYNTHETIC_MOD();")
+        try SafeFileTests.write(legacy + "/core.asar", "archive")
+        #expect(throws: KitError.profileUnsupported()) { try Self.prepare(fixture) }
+        #expect(SafeFileTests.text(fixture.entry(1)) == Self.official && SafeFileTests.text(fixture.journal) == nil)
+    }
+
+    @Test func boundsTheTotalAcrossBothLayouts() throws {
+        let fixture = try Fixture(modules: Array(1...16))
+        let legacy = fixture.profile + "/" + Self.version + "/modules/discord_desktop_core"
+        try FileManager.default.createDirectory(atPath: legacy, withIntermediateDirectories: true)
+        try SafeFileTests.write(legacy + "/index.js", Self.official)
+        try SafeFileTests.write(legacy + "/core.asar", "archive")
+        #expect(throws: KitError.profileUnsupported()) { try Self.prepare(fixture) }
+        #expect(SafeFileTests.text(fixture.entry(1)) == Self.official && SafeFileTests.text(legacy + "/index.js") == Self.official)
+        #expect(SafeFileTests.text(fixture.journal) == nil)
+    }
+
+    @Test func preservesUserEditsInTheLegacyLayout() throws {
+        let fixture = try Fixture(modules: [0], legacyLayout: true)
+        let changes = try Self.prepare(fixture)
+        try changes.configure(legacy: Self.legacy, modern: Self.modern)
+        try SafeFileTests.write(fixture.entry(0), "SYNTHETIC_USER_CHANGE();")
+        #expect(throws: KitError.profileConflict()) { try changes.restore() }
+        #expect(SafeFileTests.text(fixture.entry(0)) == "SYNTHETIC_USER_CHANGE();")
+        #expect(try fixture.settings()["NEW_UPDATE_ENDPOINT"] == nil)
+        #expect(SafeFileTests.text(fixture.journal) != nil)
+    }
+
+    @Test func neverFallsBackToADifferentHostVersion() throws {
+        let fixture = try Fixture(modules: [0], legacyLayout: true)
+        #expect(throws: KitError.profileMissingModule()) {
+            try DiscordProfileChanges.prepare(profile: fixture.profile, version: "0.0.417", state: fixture.state, wrapper: Self.wrapper())
+        }
+        #expect(SafeFileTests.text(fixture.entry(0)) == Self.official && SafeFileTests.text(fixture.journal) == nil)
+    }
+
+    @Test func rejectsLinkedAndIncompleteLegacyCores() throws {
+        let incomplete = try Fixture(modules: [], legacyLayout: true)
+        try incomplete.add(0, archive: false)
+        #expect(throws: KitError.profileMissingModule()) { try Self.prepare(incomplete) }
+        #expect(SafeFileTests.text(incomplete.journal) == nil)
+        let linked = try Fixture(modules: [], legacyLayout: true)
+        try FileManager.default.createDirectory(atPath: linked.directory.path + "/elsewhere", withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(atPath: (linked.entry(0) as NSString).deletingLastPathComponent,
+                                                   withDestinationPath: linked.directory.path + "/elsewhere")
+        #expect(throws: KitError.profileConflict()) { try Self.prepare(linked) }
+        #expect(SafeFileTests.text(linked.journal) == nil)
+    }
+
+    /// Upgrading DiscordAccess must still recover the schema-1 records written by macos-v0.1 and macos-v0.2.
+    @Test func recoversThePreviousReleasesJournal() throws {
+        let fixture = try Fixture()
+        try Self.prepare(fixture).configure(legacy: Self.legacy, modern: Self.modern)
+        var journal = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: fixture.journal))) as? [String: Any])
+        journal["schema"] = 1
+        journal["entries"] = (journal["entries"] as! [[String: Any]]).map { record -> [String: Any] in
+            var old = record
+            old.removeValue(forKey: "layout")
+            return old
+        }
+        try SafeFileTests.write(fixture.journal, String(decoding: try JSONSerialization.data(withJSONObject: journal), as: UTF8.self), mode: 0o600)
+        #expect(try DiscordProfileChanges.recover(state: fixture.state, profile: fixture.profile))
+        #expect(SafeFileTests.text(fixture.entry(1)) == Self.official && SafeFileTests.text(fixture.entry(2)) == Self.official)
+        #expect(try fixture.settings()["NEW_UPDATE_ENDPOINT"] == nil)
+        #expect(SafeFileTests.text(fixture.journal) == nil)
     }
 
     @Test func wrapsEveryCoreGenerationAndPointsTheUpdateSettingsAtTheBridge() throws {
@@ -205,7 +313,32 @@ import Testing
     /// the old version: nothing is undone there, and a wrapper left elsewhere is taken back by the next session.)
     @Test func refusesAJournalThatWasTamperedWith() throws {
         for tamper in [{ (journal: inout [String: Any]) in journal["extra"] = 1 },
-                       { journal in journal["schema"] = 2 },
+                       { journal in journal["schema"] = 3 },
+                       { journal in journal["schema"] = 1 },
+                       { journal in
+                           var entries = journal["entries"] as! [[String: Any]]
+                           entries[0]["layout"] = "../elsewhere"
+                           journal["entries"] = entries
+                       },
+                       { journal in
+                           var entries = journal["entries"] as! [[String: Any]]
+                           entries[0]["module"] = 0
+                           journal["entries"] = entries
+                       },
+                       { journal in
+                           var entries = journal["entries"] as! [[String: Any]]
+                           entries[0]["module"] = Int(Int32.max) + 1
+                           journal["entries"] = entries
+                       },
+                       { journal in
+                           var entries = journal["entries"] as! [[String: Any]]
+                           entries[0]["layout"] = "legacy"
+                           journal["entries"] = entries
+                       },
+                       { journal in
+                           let entries = journal["entries"] as! [[String: Any]]
+                           journal["entries"] = [entries[0], entries[0]]
+                       },
                        { journal in journal["version"] = "0.0.416.1" },
                        { journal in journal["profile"] = "relative/discord" },
                        { journal in journal["wrapper"] = "SYNTHETIC" },

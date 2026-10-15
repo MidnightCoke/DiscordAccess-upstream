@@ -17,6 +17,22 @@ public final class DiscordProfileChanges {
     static let entryLimit = 131_072
     static let maxEntries = 16
 
+    /// Discord's new updater uses numbered generations; the legacy Mac updater uses a flat core folder.
+    /// These are templates, never paths taken from a recovery record.
+    private enum Layout: String {
+        case modern, legacy
+
+        func modules(version: String) -> String {
+            (self == .modern ? "app-" : "") + version + "/modules"
+        }
+
+        func entry(version: String, module: Int) -> String {
+            modules(version: version) + (self == .modern
+                ? "/discord_desktop_core-" + String(module) + "/discord_desktop_core/index.js"
+                : "/discord_desktop_core/index.js")
+        }
+    }
+
     public let profile: String
     public let version: String
     private let state: String
@@ -43,7 +59,8 @@ public final class DiscordProfileChanges {
     }
 
     /// Journals, then writes `wrapper` over every core generation of `version` in the profile at `profile`: each
-    /// `app-<version>/modules/discord_desktop_core-<N>/discord_desktop_core/index.js` must hold Discord's own entry, or a
+    /// `app-<version>/modules/discord_desktop_core-<N>/discord_desktop_core/index.js`, or the legacy
+    /// `<version>/modules/discord_desktop_core/index.js`, must hold Discord's own entry, or a
     /// wrapper an earlier session left (its original is Discord's entry). A journal left by an earlier session must be
     /// recovered first. If a write fails, what was written is undone.
     public static func prepare(profile: String, version: String, state: String, wrapper: SessionWrapper) throws -> DiscordProfileChanges {
@@ -57,14 +74,15 @@ public final class DiscordProfileChanges {
         let entries = try changes.entries()
         let official = Array((SessionWrapper.officialEntry + "\n").utf8)
         changes.journal = [
-            "schema": 1, "profile": profile, "version": version, "wrapper": changes.wrapperDigest, "configured": false,
-            "entries": entries.map { ["module": $0.module, "original": Data(SessionWrapper.isOfficial($0.bytes) ? $0.bytes : official).base64EncodedString()] },
+            "schema": 2, "profile": profile, "version": version, "wrapper": changes.wrapperDigest, "configured": false,
+            "entries": entries.map { ["layout": $0.layout.rawValue, "module": $0.module,
+                                      "original": Data(SessionWrapper.isOfficial($0.bytes) ? $0.bytes : official).base64EncodedString()] },
         ]
         try changes.saveJournal(expected: nil)
         do {
             for entry in entries {
                 // A wrapper of another session is kept beside the entry, in case it was not quite one.
-                try SafeFile.replace(changes.entryPath(entry.module), expected: entry.bytes, with: wrapper.bytes, limit: entryLimit, mode: 0o644,
+                try SafeFile.replace(changes.entryPath(entry.module, layout: entry.layout), expected: entry.bytes, with: wrapper.bytes, limit: entryLimit, mode: 0o644,
                                      keepDisplaced: !SessionWrapper.isOfficial(entry.bytes))
             }
         } catch {
@@ -133,7 +151,8 @@ public final class DiscordProfileChanges {
             }
         }
         for record in journal["entries"] as! [[String: Any]] {
-            let path = entryPath(Self.integer(record["module"])!)
+            let layout = Self.integer(journal["schema"]) == 1 ? Layout.modern : Layout(rawValue: record["layout"] as! String)!
+            let path = entryPath(Self.integer(record["module"])!, layout: layout)
             let original = [UInt8](Data(base64Encoded: record["original"] as! String)!)
             do {
                 guard let current = try SafeFile.read(path, limit: Self.entryLimit) else { continue }
@@ -193,36 +212,56 @@ public final class DiscordProfileChanges {
 
     private var journalPath: String { state + "/installed-session/journal.json" }
 
-    func entryPath(_ module: Int) -> String {
-        profile + "/app-" + version + "/modules/discord_desktop_core-" + String(module) + "/discord_desktop_core/index.js"
+    private func entryPath(_ module: Int, layout: Layout) -> String {
+        profile + "/" + layout.entry(version: version, module: module)
     }
 
     /// Every core generation of the version, with its entry's bytes: an entry beside its `core.asar`, holding Discord's
     /// own entry or a wrapper. A folder named like a generation but otherwise is not recognized (PRF-E02).
-    private func entries() throws -> [(module: Int, bytes: [UInt8])] {
-        let modules = profile + "/app-" + version + "/modules"
-        try SafeFile.requireNoLinks(modules)
-        var status = stat()
-        guard lstat(modules, &status) == 0, status.st_mode & S_IFMT == S_IFDIR else { throw KitError.profileMissingModule() }
-        let names: [String]
-        do {
-            names = try FileManager.default.contentsOfDirectory(atPath: modules)
-        } catch {
-            throw KitError.profileAccessDenied()
-        }
-        var result: [(module: Int, bytes: [UInt8])] = []
-        for name in names.sorted() where name.hasPrefix("discord_desktop_core-") {
-            guard let module = Self.moduleNumber(name), result.count < Self.maxEntries else { throw KitError.profileUnsupported() }
-            let entry = entryPath(module)
-            let folder = (entry as NSString).deletingLastPathComponent
-            try SafeFile.requireNoLinks(folder + "/core.asar")
-            guard lstat(modules + "/" + name, &status) == 0, status.st_mode & S_IFMT == S_IFDIR, lstat(folder, &status) == 0,
-                  status.st_mode & S_IFMT == S_IFDIR, let bytes = try SafeFile.read(entry, limit: Self.entryLimit),
-                  lstat(folder + "/core.asar", &status) == 0, status.st_mode & S_IFMT == S_IFREG else {
-                throw KitError.profileMissingModule()
+    private func entries() throws -> [(layout: Layout, module: Int, bytes: [UInt8])] {
+        var result: [(layout: Layout, module: Int, bytes: [UInt8])] = []
+        // Check only the installed host version. An older version is never a fallback for a missing current core.
+        // During an updater transition both layouts may exist; both must be validated before either is changed.
+        for layout in [Layout.modern, .legacy] {
+            let modules = profile + "/" + layout.modules(version: version)
+            try SafeFile.requireNoLinks(modules)
+            var status = stat()
+            guard lstat(modules, &status) == 0 else {
+                if errno == ENOENT { continue }
+                throw SafeFile.failure(errno)
             }
-            guard SessionWrapper.isOfficial(bytes) || SessionWrapper.isWrapper(bytes) else { throw KitError.profileUnsupported() }
-            result.append((module, bytes))
+            guard status.st_mode & S_IFMT == S_IFDIR else { throw KitError.profileUnsupported() }
+            let names: [String]
+            do {
+                names = try FileManager.default.contentsOfDirectory(atPath: modules)
+            } catch {
+                throw KitError.profileAccessDenied()
+            }
+            let cores = names.sorted().filter {
+                layout == .modern ? $0.hasPrefix("discord_desktop_core-") : $0 == "discord_desktop_core"
+            }
+            for name in cores {
+                let number = layout == .legacy ? 0 : Self.moduleNumber(name)
+                guard let module = number, result.count < Self.maxEntries else { throw KitError.profileUnsupported() }
+                let entry = entryPath(module, layout: layout)
+                let folder = (entry as NSString).deletingLastPathComponent
+                try SafeFile.requireNoLinks(folder + "/core.asar")
+                for directory in [modules + "/" + name, folder] {
+                    guard lstat(directory, &status) == 0 else {
+                        if errno == ENOENT { throw KitError.profileMissingModule() }
+                        throw SafeFile.failure(errno)
+                    }
+                    guard status.st_mode & S_IFMT == S_IFDIR else { throw KitError.profileUnsupported() }
+                }
+                guard let bytes = try SafeFile.read(entry, limit: Self.entryLimit) else { throw KitError.profileMissingModule() }
+                guard lstat(folder + "/core.asar", &status) == 0 else {
+                    if errno == ENOENT { throw KitError.profileMissingModule() }
+                    throw SafeFile.failure(errno)
+                }
+                guard status.st_mode & S_IFMT == S_IFREG else { throw KitError.profileUnsupported() }
+                guard SessionWrapper.isOfficial(bytes) || SessionWrapper.isWrapper(bytes) else { throw KitError.profileUnsupported() }
+                result.append((layout, module, bytes))
+            }
         }
         guard !result.isEmpty else { throw KitError.profileMissingModule() }
         return result
@@ -238,15 +277,20 @@ public final class DiscordProfileChanges {
     /// the bridge endpoints and previous values once configured.
     private static func validate(_ bytes: [UInt8], profile: String?, version: String?, wrapper: String?) throws -> [String: Any] {
         let journal = try object(bytes)
-        guard integer(journal["schema"]) == 1, let savedProfile = journal["profile"] as? String, profile == nil || savedProfile == profile,
+        guard let schema = integer(journal["schema"]), schema == 1 || schema == 2,
+              let savedProfile = journal["profile"] as? String, profile == nil || savedProfile == profile,
               (try? SafeFile.requireNoLinks(savedProfile)) != nil, let savedVersion = journal["version"] as? String, validVersion(savedVersion),
               version == nil || savedVersion == version, let digest = journal["wrapper"] as? String, digest.count == 64,
               digest.allSatisfy({ "0123456789abcdef".contains($0) }), wrapper == nil || digest == wrapper,
               let entries = journal["entries"] as? [[String: Any]], (1...maxEntries).contains(entries.count),
               let configured = boolean(journal["configured"]) else { throw KitError.profileConflict() }
-        var modules = Set<Int>()
+        var modules = Set<String>()
         for record in entries {
-            guard record.count == 2, let module = integer(record["module"]), module >= 1, modules.insert(module).inserted,
+            let layout: Layout? = schema == 1 ? .modern : (record["layout"] as? String).flatMap { Layout(rawValue: $0) }
+            guard let layout, Set(record.keys) == (schema == 1 ? ["module", "original"] : ["layout", "module", "original"]),
+                  let module = integer(record["module"]),
+                  (layout == .legacy ? module == 0 : (1...Int(Int32.max)).contains(module)),
+                  modules.insert(layout.rawValue + ":" + String(module)).inserted,
                   let original = record["original"] as? String, let data = Data(base64Encoded: original), data.count <= entryLimit,
                   SessionWrapper.isOfficial([UInt8](data)) else { throw KitError.profileConflict() }
         }
