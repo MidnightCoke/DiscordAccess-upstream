@@ -446,7 +446,10 @@ module.exports = require('./core.asar');
   - "Bağlantıyı kontrol et": HTTPS denetimi ve Gateway HELLO geçti.
   - Yeniden açılış çalışan örneğe gitti ve durumu bildirdi.
   - Çıkış'ta profil değişiklikleri geri alındı, günlük silindi; geride süreç kalmadı.
-  - Yapılmayanlar: gerçek oturum açılışı (`--startup`) ve "Girişte Discord'u da aç", sertifikalı imza.
+  - Çökme sonrası kurtarma: uygulama `kill -9` ile kapatıldı. Sonraki açılışta önceki oturumun profil değişiklikleri geri alındı, yetim motor durduruldu ve bağlantı yeniden kuruldu.
+  - Dock'tan açılan Discord'da sesli sohbet çalıştı (kullanıcı bildirdi; ses UDP'si doğrudan gider).
+  - Kayıt anında launchd giriş öğesini bir kez çalıştırdı (`RunAtLoad`). Uygulama açık olduğu için bu ikinci süreç "zaten çalışıyor" diyip çıktı (çıkış kodu 0); zararsız.
+  - Yapılmayanlar: gerçek oturum açılışı (`--startup`) ve "Girişte Discord'u da aç"; ilk girişte doğrulanacak. Sertifikalı imza da denenmedi.
 - `macos/docs/` altına kullanım ve güven sınırları belgeleri yazılır. **2e durumu:** [OKU-BENI.md](OKU-BENI.md) ve [SECURITY-NOTES.md](SECURITY-NOTES.md) yazıldı (Windows `docs/OKU-BENI.txt` ve `docs/SECURITY-NOTES.md` karşılığı); kök README'deki Mac bölümü Aşama 3'te.
 - Çıkış: canlı doğrulama listesi bu Mac'te tamamlanır ve sonuçlar ayrı raporlanır.
 
