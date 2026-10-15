@@ -113,7 +113,7 @@ public enum ConsoleProgram {
         }
     }
 
-    /// 64 gate connections use 128 descriptors, and macOS starts a program with a soft limit of 256 (design 9).
+    /// 64 gate connections use 128 descriptors, and macOS starts a program with a soft limit of 256 (design 8).
     static func raiseDescriptorLimit() {
         var limit = rlimit()
         guard getrlimit(RLIMIT_NOFILE, &limit) == 0 else { return }

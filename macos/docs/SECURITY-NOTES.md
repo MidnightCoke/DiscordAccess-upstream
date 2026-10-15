@@ -1,56 +1,56 @@
-# Güvenlik sınırları (macOS)
+# Security boundaries (macOS)
 
-Bu belge macOS sürümünün güvendiği ve güvenmediği şeyleri özetler. Ayrıntılar ve gerekçeler [tasarım belgesinin](2026-10-14-macos-tasarim.md) 8. bölümündedir. Otomatik testlerin geçmesi yazılımın açık içermediğini ya da her Discord ve ağ koşulunda çalışacağını kanıtlamaz. Gerçek hesapla kullanım, ses ve oturum açılışında başlatma ayrı doğrulamalardır; yapılanlar tasarım belgesinde tarihleriyle kayıtlıdır.
+This document summarizes what the macOS version relies on and what it does not. Details and reasons are in section 8 of the [design document](DESIGN.md). Passing automated tests does not prove that the software has no vulnerabilities or that it works under every Discord and network condition. Real-account use, voice and start at login are verified separately; the checks performed are listed with their dates in section 10 of the design document.
 
-## Korunan teknik sınırlar
+## Protected technical boundaries
 
-- **Yerel kapı:** yalnız 127.0.0.1'de dinler.
-  - Kabul ettiği süreçler: seçili Discord.app'in beş dosyasından (`Discord` ve dört `Discord Helper`) birini çalıştıran, oturum hazır olduktan sonra başlamış ve Discord'un imzasını (Team ID `53Q6R32WPB`) taşıyan süreçler.
-  - Uygulamanın kendi tanı istekleri de kabul edilir.
-  - Kapı her bağlantının sahibini denetler. Yalnız Windows'taki izin listesinde bulunan Discord alanlarına izin verir. En fazla 64 bağlantı açılır.
-  - Kayıtlarda adres, başlık ya da gövde yer almaz; yalnız sabit kategoriler bulunur.
-- **Motor:** sabit SHA-256 ve cdhash ile doğrulanır.
-  - Askıda başlatılır; imzası sabit değeri karşılamazsa hiçbir kodu çalışmadan durdurulur.
-  - Yalnız loopback'te, her çalıştırmada rastgele bir kimlik bilgisiyle dinler.
-  - Pakete değiştirilmeden gömülür.
-  - Çökme sonrası kalan bir motor, bir sonraki açılışta kapatılır.
-- **Güncelleme köprüsü:** Discord'un kendi güncelleyicisi için loopback'te, rastgele bir yol belirteciyle dinler.
-  - Kapı gibi yalnız kabul edilen süreçlere yanıt verir.
-  - Yalnız Discord'un alanlarına https ile ve kapı üzerinden gider.
-  - Discord dışına yönlendirmeleri reddeder.
-- **Profil değişiklikleri:** önce kurtarma kaydına yazılır. Atomik karşılaştır-ve-takas ile yapılır (`renamex_np`) ve `F_FULLFSYNC` ile diske yazılır.
-  - Kullanıcının sonradan değiştirdiği değerin üzerine yazılmaz; tanınmayan içerik `.discordaccess-fs-*.preserved` olarak korunur.
-  - Discord açıkken geri alma yapılmaz; Discord'un adı değiştirilmiş kopyaları da açık sayılır.
-  - Kurtarma yalnız standart Discord klasörüne dokunur. Güncelleme ayarlarına yalnız Discord'un kendi https adreslerini geri yazar.
-- **Durum klasörü:** 0700 ve ACL'siz; dosyalar 0600. Klasörün sahibi kullanıcı değilse ya da başkaları erişebiliyorsa profil değişikliği yapılmaz.
-- **Tek oturum:** durum klasöründeki bir `flock` kilidiyle sağlanır. Kilit süreç bitene kadar tutulur; böylece ikinci bir örnek ilk oturumun değişikliklerine dokunamaz.
-- **Discord'u açma:** `/usr/bin/open` ile yapılır.
-  - `open` yalnız /dev/null'a bağlı standart tanıtıcılarla başlar (`POSIX_SPAWN_CLOEXEC_DEFAULT`).
-  - Discord'u Launch Services başlatır; Discord bu sürecin ortamını almaz.
-- **Oturum açılışında başlatma:** yalnız güvenli bir konumdaki uygulama paketi kaydolur. Güvenli konumun koşulları:
-  - kökten pakete her klasör ve paketteki her dosya kullanıcının ya da root'un;
-  - başkaları yazamıyor (grup yalnız admin ise yazabilir) ve değişiklik izni veren ACL girdisi yok;
-  - yolda bağ yok ve uygulama App Translocation altında değil;
-  - yerel bir birimde ve birim sahipliği yok saymıyor.
+- **Local gate:** listens only on 127.0.0.1.
+  - It admits processes that run one of the five executables of the selected Discord.app (`Discord` and the four `Discord Helper` apps), started after the session became ready, and that carry Discord's signature (Team ID `53Q6R32WPB`).
+  - The app's own diagnostic requests are admitted as well.
+  - The gate verifies the owner of every connection. It allows only the Discord domains on the Windows allow list and at most 64 connections.
+  - Its log holds fixed categories only, never an address, header or body.
+- **Engine:** verified by a pinned SHA-256 and cdhash.
+  - It starts suspended and is killed before any of its code runs if its signature does not match the pinned value.
+  - It listens only on loopback, with a random credential for every run.
+  - It is embedded in the bundle unchanged.
+  - An engine left behind by a crash is stopped at the next launch.
+- **Update bridge:** listens on loopback with a random path token, for Discord's own updater.
+  - Like the gate, it answers only admitted processes.
+  - It goes only to Discord's domains, over HTTPS and through the gate.
+  - It refuses redirects that leave Discord.
+- **Profile changes:** written to a recovery record first, applied with an atomic compare-and-swap (`renamex_np`) and flushed to disk with `F_FULLFSYNC`.
+  - A value the user changed later is never overwritten; unrecognized content is preserved as `.discordaccess-fs-*.preserved`.
+  - Nothing is undone while Discord runs; renamed copies of Discord count as running too.
+  - Recovery touches only the standard Discord folder and writes back only Discord's own HTTPS addresses to the update settings.
+- **State folder:** 0700 without ACLs; files 0600. If the user does not own the folder or others can access it, no profile change is made.
+- **Single session:** enforced with a `flock` lock in the state folder. The lock is held until the process exits, so a second instance cannot touch the first one's changes.
+- **Opening Discord:** done with `/usr/bin/open`.
+  - `open` starts with only its standard descriptors, all on /dev/null (`POSIX_SPAWN_CLOEXEC_DEFAULT`).
+  - Launch Services starts Discord; Discord does not inherit this process's environment.
+- **Start at login:** only an app bundle in a trusted location registers. A trusted location means:
+  - every folder from the root down and every file in the bundle belongs to the user or root;
+  - no one else can write to it (the group may write only if it is admin), and no access control entry grants changes;
+  - the path holds no links and the app is not under App Translocation;
+  - the volume is local and does not ignore ownership.
 
-  Giriş açılışında konum yeniden denetlenir. Güvenilmezse kayıt kaldırılır.
-- **Ek dosyası indirme (Terminal'de D):** yalnız Discord'un ek dosyası adresleri kabul edilir (https, 443).
-  - En fazla üç yönlendirme izlenir ve her biri yeniden doğrulanır.
-  - Dosya yeni bir klasöre, bağ izlenmeden ve var olan bir dosyanın üzerine yazılmadan kaydedilir.
-  - Dosya internetten indirildi olarak işaretlenir (karantina özniteliği).
-  - İmzalı adres kayda, ekrana ya da dosya adına girmez.
-- **Ekran ve kayıt satırları:** kontrol karakterleri ve metin yönü işaretleri boşluğa çevrilir. Böylece bir dosya adı Terminal'i yönlendiremez ya da uzantısını gizleyemez.
-- **Tam Disk Erişimi:** yalnız Discord'un veri klasöründeki sahiplenilen dosyalar için kullanılır. Uygulama izni kendisi açmaz; gerekçesini söyler ve Sistem Ayarları'nı açar.
+  The location is checked again on every login launch; if it is no longer trusted, the registration is removed.
+- **Attachment download (D in Terminal):** only Discord attachment links are accepted (HTTPS, port 443).
+  - At most three redirects are followed, each validated again.
+  - The file is saved into a new folder, without following links and without overwriting an existing file.
+  - The file is marked as downloaded from the internet (quarantine attribute).
+  - The signed link never reaches the log, the screen or the file name.
+- **Screen and log lines:** control characters and text-direction marks are replaced with spaces, so a file name cannot steer the terminal or disguise its extension.
+- **Full Disk Access:** used only for the owned files in Discord's data folder. The app never grants itself the permission; it explains why it is needed and opens System Settings.
 
-## Kapsam
+## Scope
 
-DiscordAccess normal kullanıcı yetkisiyle çalışır. Genel proxy, DNS ya da yönlendirme ayarı değiştirmez; sistem servisi, sürücü ya da ağ uzantısı kurmaz. İndirilen dosyaları çalıştırmaz.
+DiscordAccess runs with standard user privileges. It changes no system-wide proxy, DNS or routing setting and installs no system service, driver or network extension. It never runs downloaded files.
 
-Aşağıdakiler için ayrı bir güvenlik sınırı iddia edilmez:
+No separate security boundary is claimed against:
 
-- Aynı kullanıcı yetkisini ele geçirmiş zararlı yazılım ya da root saldırganı. Örneğin Discord'un Electron ayarlarında `NODE_OPTIONS` açıktır: aynı kullanıcıyla çalışan bir süreç, Discord imzalı bir süreçte kod çalıştırabilir. Windows'ta da durum aynıdır.
-- İmzanın içerikle ilgili garantisi. Kod imzası hangi dosyanın çalıştığını kanıtlar; içinde hangi kodun çalıştığını kanıtlamaz.
-- Gatekeeper onayı. Uygulama imzasızdır ya da yerel bir sertifikayla imzalanır. Dağıtım için Developer ID ve notarization ayrı bir karardır.
-- Kayıt sonrası izin değişiklikleri. Oturum açılışı kaydından sonra kullanıcının bağımsız olarak değiştirdiği izinleri, geçmiş bir denetim güvenceye alamaz. Giriş açılışındaki yeniden denetim yalnız konum taşınmasını ve izinlerin gevşemesini yakalar.
+- Malware that already runs with the same user's privileges, or a root attacker. For example, Discord's Electron configuration leaves `NODE_OPTIONS` enabled: a process running as the same user can run code inside a Discord-signed process. The same holds on Windows.
+- Any guarantee a signature gives about content. A code signature proves which file runs, not what code runs inside it.
+- Gatekeeper approval. The app is unsigned or signed with a local certificate. Developer ID signing and notarization for distribution are a separate decision.
+- Permission changes after registration. A past check cannot vouch for permissions that the user changes independently after start at login is registered. The check on each login launch catches only a moved app or loosened permissions.
 
-Normal hata bildirimlerinde hesap token'ı, profil dosyaları, kurtarma kaydı, imzalı ek dosyası adresi, `.preserved` dosyaları ya da kişisel yollar paylaşmayın. Güvenlik açığı bildirim yolu kök dizindeki [SECURITY.md](../../SECURITY.md) dosyasındadır.
+In regular bug reports, do not share account tokens, profile files, the recovery record, signed attachment links, `.preserved` files or personal paths. The vulnerability reporting process is in [SECURITY.md](../../SECURITY.md) in the repository root.

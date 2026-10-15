@@ -13,6 +13,6 @@ let package = Package(
         .executableTarget(name: "DiscordAccess", dependencies: ["DiscordAccessKit"]),
         .testTarget(name: "DiscordAccessKitTests", dependencies: ["DiscordAccessKit"], resources: [.copy("Fixtures")]),
     ],
-    // Swift 5 language mode until the networking layers (Aşama 1c-1e) settle their concurrency model.
+    // Swift 5 language mode until the networking layers (stages 1c-1e) settle their concurrency model.
     swiftLanguageModes: [.v5]
 )

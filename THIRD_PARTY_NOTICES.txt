@@ -1,48 +1,54 @@
-DiscordAccess — üçüncü taraf lisansları
+DiscordAccess — third-party licenses
 
 engine/sing-box.exe: sing-box 1.14.3-discordaccess.2, Windows amd64.
-Motor ayrı süreçtir; GPL-3.0-or-later lisansı aşağıda korunmuştur.
-Bu motor DiscordAccess için yeniden derlenmiştir; upstream hazır EXE'si değildir.
-Değişiklik: sabit go.mod/go.sum, Go 1.26.9, sınırlı build tag'leri ve
-kimlik doğrulamasından önce HTTP başlık/bekleme/bağlantı sınırları.
-Ana kaynak üzerindeki tam dosya değişiklikleri ve testler
-engine-patches/http-limits/manifest.json ile hash düzeyinde sabitlenmiştir.
-protocol/http/handshake_discordaccess.go, sing'in HTTP handler'ından türetilmiş
-GPL-3.0-or-later koddur; telif ve değişiklik bildirimi
-engine-patches/http-limits/source/protocol/http/DISCORDACCESS-NOTICE içindedir.
-Ana kaynak commit: 7054cac5124465ffdb145870d7c01885566711b1
-Kaynak arşivi: https://github.com/SagerNet/sing-box/archive/7054cac5124465ffdb145870d7c01885566711b1.zip
-Upstream yayın: https://github.com/SagerNet/sing-box/releases/tag/v1.14.3
-Motor SHA-256: 8bb84e511d9c4dd86e7685c9654d25248b7ff23ea0226fc52a64f9a4066587a0
+The engine is a separate process; its GPL-3.0-or-later license is reproduced below.
+This engine was rebuilt for DiscordAccess; it is not the upstream prebuilt EXE.
+Changes: pinned go.mod/go.sum, Go 1.26.9, limited build tags, and HTTP header,
+wait-time and connection limits before authentication.
+The exact file changes to the main source and the tests are pinned at the hash
+level by engine-patches/http-limits/manifest.json.
+protocol/http/handshake_discordaccess.go is GPL-3.0-or-later code derived from
+sing's HTTP handler; its copyright and modification notice is in
+engine-patches/http-limits/source/protocol/http/DISCORDACCESS-NOTICE.
+Main source commit: 7054cac5124465ffdb145870d7c01885566711b1
+Source archive: https://github.com/SagerNet/sing-box/archive/7054cac5124465ffdb145870d7c01885566711b1.zip
+Upstream release: https://github.com/SagerNet/sing-box/releases/tag/v1.14.3
+Engine SHA-256: 8bb84e511d9c4dd86e7685c9654d25248b7ff23ea0226fc52a64f9a4066587a0
 
-Yeniden üretim için bu depodaki scripts/Build-SecurityEngine.ps1 ve
-engine-build/go.mod, engine-build/go.sum ve engine-patches/http-limits/
-altındaki dosyalar kullanılır. Sabit kaynak/Go arşivi, değişiklik öncesi/sonrası
-dosya hash'leri ve sonuç EXE hash'i betikte doğrulanır. Dağıtılan motorun karşılık
-gelen kaynak arşivi ve derleme kanıtları motor paketiyle birlikte sağlanmalıdır.
+To reproduce it, use scripts/Build-SecurityEngine.ps1 in this repository
+together with engine-build/go.mod, engine-build/go.sum and the files under
+engine-patches/http-limits/. The script verifies the pinned source/Go archives,
+the file hashes before and after the changes, and the resulting EXE hash. The
+corresponding source archive and build evidence for the distributed engine
+must be provided together with the engine package.
 
-Bu motorun 63 sabit Go modülü ve Go 1.26.9 runtime kaynaklarının ek bildirimleri:
+Additional notices for this engine's 63 pinned Go modules and the Go 1.26.9
+runtime sources:
 licenses/ENGINE-THIRD-PARTY-NOTICES.txt
-Sürüm, kaynak arşivi URL, SHA-256, doğrulanmış Go h1 ve bildirim hash manifesti:
+Manifest of versions, source archive URLs, SHA-256, verified Go h1 and notice
+hashes:
 licenses/engine-source-manifest.json
-Manifestteki kaynak arşivleri tam sürümleri ve modül kaynaklarını belirtir.
-Ek bildirimler aşağıdaki ana GPL metninin veya upstream bildirimlerinin yerini almaz.
+The source archives in the manifest identify the exact versions and module
+sources. The additional notices do not replace the main GPL text below or the
+upstream notices.
 
-Motora gömülü Wintun 0.14.1 DLL'si ve WireGuard Go yükleyici/bellek modülü
-ayrı lisans koşullarına sahiptir. Orijinal DLL koşulları:
+The Wintun 0.14.1 DLL and the WireGuard Go loader/memory module embedded in the
+engine have separate license terms. Original DLL terms:
 licenses/WINTUN-PREBUILT-BINARIES-LICENSE.txt
-Yükleyici kodunun korunmuş WireGuard telifi ve tam MIT izin metni:
+The preserved WireGuard copyright of the loader code and the full MIT
+permission text:
 licenses/WIREGUARD-MIT.txt
-Resmi Wintun arşivi, kaynak paketinde korunan dört DLL'nin SHA-256 değerleri
-ve motora gömülü amd64 DLL'nin bayt eşleşmesi, yukarıdaki manifestin
-native_components alanında doğrulanır. Bu iki metin ek bildirimlere de dahildir.
+The official Wintun archive, the SHA-256 values of the four DLLs kept in the
+source package, and the byte match of the amd64 DLL embedded in the engine are
+verified in the native_components field of the manifest above. These two texts
+are also included in the additional notices.
 
-Discord uygulaması bu pakette dağıtılmaz. Kullanıcının mevcut resmi kurulumu
-kullanılır; Discord'un kendi koşulları geçerlidir. Windows/.NET Framework
-sistem bileşenleridir ve pakette dağıtılmaz. Bu bildirim DiscordAccess'in
-kendi koduna yeni bir lisans atamaz.
+The Discord application is not distributed in this package. The user's
+existing official installation is used; Discord's own terms apply.
+Windows/.NET Framework are system components and are not distributed in the
+package. This notice does not assign a new license to DiscordAccess's own code.
 
-Upstream lisans bildirimi:
+Upstream license notice:
 
 Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
 

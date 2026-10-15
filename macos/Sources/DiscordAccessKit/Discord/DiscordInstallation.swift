@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 import Security
 
-/// The official Discord (Stable) app of the session (Windows `DiscordInstallation`; design 8, "Discord kurulumu"): a
+/// The official Discord (Stable) app of the session (Windows `DiscordInstallation`; design 8, "Discord installation"): a
 /// `Discord.app` on a local volume whose path holds no link, with Discord's bundle identifier and executable, the stable
 /// release channel, and a valid signature by Discord's Developer ID (`DiscordApplication.requirement`), its nested code
 /// and every architecture included.

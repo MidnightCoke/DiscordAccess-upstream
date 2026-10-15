@@ -1,20 +1,20 @@
-## Sorun ve yeni davranış
+## Problem and new behavior
 
-Somut sorunu, tetikleyen örneği ve değişiklik sonrası davranışı yazın.
+Describe the concrete problem, an example that triggers it and the behavior after the change.
 
-## Doğrulama
+## Verification
 
-- Kontrol edilen tam commit:
-- Çalıştırılan komutlar ve sonuçları:
-- Engellenen/atlanmış test grupları ve nedeni:
-- Gerçek hesap/tepsi/yeniden başlatma denemesi yapıldıysa ayrı sonucu:
+- Exact commit checked:
+- Commands run and their results:
+- Blocked/skipped test groups and why:
+- If a real account, tray/menu bar or restart test was done, its separate result:
 
-GitHub Actions kullanılmaz. Çalıştırılmayan veya Windows tarafından engellenen test başarı sayılmaz. Ham log, token, profil, journal, imzalı URL veya kişisel yol eklemeyin.
+GitHub Actions is not used. A test that was not run or was blocked by the operating system does not count as a pass. Do not include raw logs, tokens, profiles, `journal.json` recovery files, signed URLs or personal paths.
 
-## Etki
+## Impact
 
-- Resmî Discord hedefi, mevcut profil ve genel Windows ağ ayarları üzerindeki etki:
-- Geri alma, başlangıç tercihi veya kullanıcı verisi üzerindeki etki:
-- Motor/bağımlılık değiştiyse güncellenen pinler, lisans envanteri ve karşılık gelen kaynaklar:
+- Impact on the official Discord target, the existing profile and system-wide network settings:
+- Impact on rollback, the startup preference or user data:
+- If the engine/dependencies changed, the updated pins, license inventory and corresponding sources:
 
-İlgili normal issue'yu bağlayın. Hassas güvenlik bulguları için public PR yerine [SECURITY.md](https://github.com/alpertknn/DiscordAccess/blob/main/SECURITY.md) politikasını izleyin.
+Link the related issue, if any. For sensitive security findings, follow the [SECURITY.md](https://github.com/alpertknn/DiscordAccess/blob/main/SECURITY.md) policy instead of a public PR.

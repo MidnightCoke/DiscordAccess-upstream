@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-/// Opens an app or an address through Launch Services with `/usr/bin/open` (design 9). `open` gets only its standard
+/// Opens an app or an address through Launch Services with `/usr/bin/open` (design 8). `open` gets only its standard
 /// descriptors, all on /dev/null (`POSIX_SPAWN_CLOEXEC_DEFAULT`), so no socket of the session reaches it, even one another
 /// thread is just creating; Launch Services then starts the app outside this process, without this process's environment.
 enum Launcher {

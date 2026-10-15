@@ -18,7 +18,7 @@ import Testing
         #expect(throws: BridgeFailure.invalidData) { try rewriter.localURL("https://evil.test/a") }
     }
 
-    /// The shape of Discord's update manifest (Aşama 0): every download address is rewritten, nothing else changes.
+    /// The shape of Discord's update manifest (stage 0): every download address is rewritten, nothing else changes.
     @Test func rewritesEveryDiscordAddressOfAManifest() throws {
         let manifest = """
         {"full":{"host_version":[0,0,416],"package_sha256":"ff46","url":"https://stable.dl2.discordapp.net/distro/app/stable/osx/universal/0.0.416/full.distro"},\

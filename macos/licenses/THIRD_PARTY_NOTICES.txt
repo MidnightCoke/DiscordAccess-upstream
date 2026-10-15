@@ -1,42 +1,43 @@
-DiscordAccess (macOS) — üçüncü taraf lisansları
+DiscordAccess (macOS) — third-party licenses
 
 DiscordAccess.app/Contents/Helpers/sing-box: sing-box 1.14.3-discordaccess.2, macOS arm64.
-Motor ayrı süreçtir; GPL-3.0-or-later lisansı aşağıda korunmuştur.
-Bu motor DiscordAccess için yeniden derlenmiştir; upstream hazır programı değildir.
-Değişiklik: sabit go.mod/go.sum, Go 1.26.9, sınırlı build tag'leri ve
-kimlik doğrulamasından önce HTTP başlık/bekleme/bağlantı sınırları.
-Ana kaynak üzerindeki tam dosya değişiklikleri ve testler
-engine-patches/http-limits/manifest.json ile hash düzeyinde sabitlenmiştir.
-protocol/http/handshake_discordaccess.go, sing'in HTTP handler'ından türetilmiş
-GPL-3.0-or-later koddur; telif ve değişiklik bildirimi
-engine-patches/http-limits/source/protocol/http/DISCORDACCESS-NOTICE içindedir.
-Ana kaynak commit: 7054cac5124465ffdb145870d7c01885566711b1
-Kaynak arşivi: https://github.com/SagerNet/sing-box/archive/7054cac5124465ffdb145870d7c01885566711b1.zip
-Upstream yayın: https://github.com/SagerNet/sing-box/releases/tag/v1.14.3
-Motor SHA-256: 013ba5d5055988953ebec1a1ac0eceb8aead52415e3ef186a5c7481083472cb0
-Motor cdhash: 344f8bd088ce068a1745cf16e7bb0c9a4bbbe99e
+The engine is a separate process; its GPL-3.0-or-later license is reproduced below.
+This engine was rebuilt for DiscordAccess; it is not an upstream prebuilt program.
+Changes: pinned go.mod/go.sum, Go 1.26.9, limited build tags, and HTTP header,
+wait-time and connection limits before authentication.
+The exact file changes to the main source and their tests are pinned by hash in
+engine-patches/http-limits/manifest.json.
+protocol/http/handshake_discordaccess.go is GPL-3.0-or-later code derived from sing's
+HTTP handler; its copyright and modification notice is in
+engine-patches/http-limits/source/protocol/http/DISCORDACCESS-NOTICE.
+Main source commit: 7054cac5124465ffdb145870d7c01885566711b1
+Source archive: https://github.com/SagerNet/sing-box/archive/7054cac5124465ffdb145870d7c01885566711b1.zip
+Upstream release: https://github.com/SagerNet/sing-box/releases/tag/v1.14.3
+Engine SHA-256: 013ba5d5055988953ebec1a1ac0eceb8aead52415e3ef186a5c7481083472cb0
+Engine cdhash: 344f8bd088ce068a1745cf16e7bb0c9a4bbbe99e
 
-Yeniden üretim için bu depodaki macos/scripts/build-engine.py ile
-engine-build/go.mod, engine-build/go.sum ve engine-patches/http-limits/
-altındaki dosyalar kullanılır. Sabit kaynak/Go arşivi, değişiklik öncesi/sonrası
-dosya hash'leri ve sonuç programın SHA-256 ve cdhash değerleri betikte doğrulanır.
-Dağıtılan motorun karşılık gelen kaynak arşivi ve derleme kanıtları motor paketiyle
-birlikte sağlanmalıdır.
+To reproduce the engine, use macos/scripts/build-engine.py from this repository
+with engine-build/go.mod, engine-build/go.sum and the files under
+engine-patches/http-limits/. The script verifies the pinned source and Go
+archives, the file hashes before and after each change, and the resulting
+program's SHA-256 and cdhash. The corresponding source archive and build evidence
+of the distributed engine must accompany the engine package.
 
-Bu motorun 61 sabit Go modülü ve Go 1.26.9 runtime kaynaklarının ek bildirimleri:
-macos/licenses/ENGINE-THIRD-PARTY-NOTICES.txt
-Sürüm, kaynak arşivi URL, SHA-256, doğrulanmış Go h1 ve bildirim hash manifesti:
+Additional notices for the engine's 61 pinned Go modules and the Go 1.26.9
+runtime sources: macos/licenses/ENGINE-THIRD-PARTY-NOTICES.txt
+Versions, source archive URLs, SHA-256, verified Go h1 and notice hashes:
 macos/licenses/engine-source-manifest.json
-Manifestteki kaynak arşivleri tam sürümleri ve modül kaynaklarını belirtir.
-Ek bildirimler aşağıdaki ana GPL metninin veya upstream bildirimlerinin yerini almaz.
+The source archives in the manifest identify the exact versions and module sources.
+The additional notices do not replace the main GPL text or the upstream notices below.
 
-Mac motoru Windows'a özgü Wintun DLL'sini ve WireGuard yükleyicisini içermez.
+The macOS engine does not contain the Windows-only Wintun DLL or WireGuard loader.
 
-Discord uygulaması bu pakette dağıtılmaz. Kullanıcının mevcut resmi kurulumu
-kullanılır; Discord'un kendi koşulları geçerlidir. macOS sistem bileşenleri
-pakette dağıtılmaz. Bu bildirim DiscordAccess'in kendi koduna yeni bir lisans atamaz.
+The Discord app is not distributed in this package. The user's existing official
+installation is used, and Discord's own terms apply. macOS system components are
+not distributed in this package. This notice assigns no new license to
+DiscordAccess's own code.
 
-Upstream lisans bildirimi:
+Upstream license notice:
 
 Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
 

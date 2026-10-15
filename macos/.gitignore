@@ -1,4 +1,4 @@
-# Mac derleme ve deneme çıktıları Git dışında kalır (yayın betiği temiz çalışma ağacı ister).
+# Mac build and experiment outputs stay out of Git (the release script needs a clean working tree).
 /.build/
 /build/
 /work/

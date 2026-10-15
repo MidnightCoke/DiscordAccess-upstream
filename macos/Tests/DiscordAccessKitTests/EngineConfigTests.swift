@@ -32,7 +32,7 @@ import Testing
         try #require(try JSONSerialization.jsonObject(with: data) as? NSDictionary)
     }
 
-    /// The fixture comes from the independent Aşama 0 generator, whose output the pinned engine accepted.
+    /// The fixture comes from the independent stage 0 generator, whose output the pinned engine accepted.
     @Test(arguments: DnsProvider.Name.allCases, [false, true])
     func matchesIndependentFixture(name: DnsProvider.Name, fragment: Bool) throws {
         let url = try #require(Bundle.module.url(forResource: "engine-configs", withExtension: "json", subdirectory: "Fixtures"))

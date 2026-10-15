@@ -1,145 +1,138 @@
 # DiscordAccess
 
-Windows'ta kurulu resmi Discord Stable için sistem tepsisinde çalışan bağlantı yardımcısı. **v4.22**, masaüstü/indirme klasörünün izinleri nedeniyle kurulamayan Windows başlangıcını güvenli kişisel paket kopyasıyla düzeltir; mevcut dosya izinlerini ve kullanıcının başlangıcı kapatma tercihini korur.
+A connection helper for the official Discord Stable desktop app you already have installed. It lets Discord reach its servers through a local, Discord-only proxy and a hash-pinned DoH engine. On Windows it runs as a system tray app; on macOS it runs as a native menu bar app (pre-release). The app's interface is in Turkish.
 
-`DiscordAccess.exe` bağlantıyı hazırlar; Discord'u kendi masaüstü veya Başlat menüsü simgenizden açarsınız. Kısayolun gerçek Discord hedefi korunur, yalnız oturumun yerel proxy argümanları eklenir. Ayrı Discord veya profil kopyası oluşturulmaz; mevcut hesabınız kullanılır. Açık CMD penceresi gerekmez.
+**v4.22** (Windows) fixes Windows startup setup that failed because of desktop or Downloads folder permissions: it now uses a safe personal copy of the package. It keeps existing file permissions and respects a user's choice to turn startup off.
 
-## Hazır Windows paketini indir
+`DiscordAccess.exe` prepares the connection; you open Discord from your own desktop or Start menu shortcut. The shortcut's real Discord target is kept; only the session's local proxy arguments are added. No separate Discord or profile copy is created; your existing account is used. No open CMD window is needed.
 
-[v4.22 Release sayfasından](https://github.com/alpertknn/DiscordAccess/releases/tag/v4.22) **DiscordAccess-v4.22.zip** dosyasını indirin. Desteklenen hazır paket en son yayımlanan sürümdür.
+## Download the Windows package
 
-`DiscordAccess-v4.22-engine-source.zip` motorun karşılık gelen kaynakları ve yeniden derleme malzemeleridir; programı çalıştırmak için indirmeniz gerekmez. Hazır paketi yeniden dağıtıyorsanız bu kaynak paketini ve lisans bildirimlerini de sunun. Eski sürüm etiketleri kaynak geçmişi için korunur; önceki eksik bildirimli ikili paketleri yeniden dağıtmayın.
+Download **DiscordAccess-v4.22.zip** from the [v4.22 release page](https://github.com/alpertknn/DiscordAccess/releases/tag/v4.22). The supported package is the latest published release.
 
-ZIP'i tamamen kısa, kalıcı bir yerel klasöre çıkarın. `DiscordAccess.exe` ve `engine/sing-box.exe` aynı paket içinde bulunmalıdır. `DiscordAccess.exe` dosyasını açın; hazır paket için derleme gerekmez. `Baslat.cmd` kaldırıldı.
+`DiscordAccess-v4.22-engine-source.zip` contains the engine's corresponding source and rebuild materials; you do not need it to run the program. If you redistribute the ready-made package, also provide this source package and the license notices. Old release tags are kept for source history; do not redistribute earlier binary packages that had incomplete notices.
 
-Paketin [kullanım notları](docs/OKU-BENI.txt) da depoda bulunur.
+Extract the whole ZIP into a short, permanent local folder. `DiscordAccess.exe` and `engine/sing-box.exe` must stay in the same package. Open `DiscordAccess.exe`; the ready-made package needs no build step. `Baslat.cmd` has been removed.
 
-GitHub'daki **Code > Download ZIP** ile Releases bölümündeki **Source code** dosyaları yalnız kaynak kodudur; program EXE'si ve motor içermez. Geliştirme için bu dosyaları kullanacaksanız önce “Kaynaktan hazırlama” adımlarını tamamlayın. Depo private olduğu sürece hazır indirmeye erişmek için depoya erişimi olan GitHub hesabınızla giriş yapın. [Tüm sürümler](https://github.com/alpertknn/DiscordAccess/releases).
+The package's [usage notes](docs/OKU-BENI.txt) are also in the repository.
 
-İndirilen ZIP'in SHA-256 değerini `Get-FileHash .\DiscordAccess-v4.22.zip -Algorithm SHA256` ile hesaplayıp aynı Release'teki `SHA256SUMS.txt` ile karşılaştırabilirsiniz. Hash dosyası kod imzası sağlamaz.
+**Code > Download ZIP** on GitHub and the **Source code** files under Releases contain only source code; they do not include the program EXE or the engine. If you want to use them for development, first complete the steps in "Building from source (Windows)"; for macOS, see [macos/README.md](macos/README.md). [All releases](https://github.com/alpertknn/DiscordAccess/releases).
 
-## macOS ön sürümü (Apple Silicon)
+You can compute the SHA-256 of the downloaded ZIP with `Get-FileHash .\DiscordAccess-v4.22.zip -Algorithm SHA256` and compare it with `SHA256SUMS.txt` in the same release. The hash file does not provide a code signature.
 
-[macos-v0.1 Release sayfasından](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.1) **DiscordAccess-macos-v0.1.zip** dosyasını indirin.
+## macOS pre-release (Apple Silicon)
 
-- Yalnız Apple Silicon Mac'lerde çalışır ve yalnız macOS 27'de denendi.
-- Uygulamayı Uygulamalar klasörüne taşıyın.
-- Uygulama Apple tarafından imzalanmamıştır. İlk açılıştan sonra System Settings > Privacy & Security'deki **Open Anyway** ile bir kez onaylayın.
-- Discord'un veri klasörü için Tam Disk Erişimi gerekir; uygulama ilk açılışta yönlendirir.
-- Menü çubuğunda çalışır. Discord'u kendi simgesinden açarsınız; mevcut hesabınız kullanılır.
+Download **DiscordAccess-macos-v0.1.zip** from the [macos-v0.1 release page](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.1).
 
-Kurulum ve kullanım: [macos/docs/OKU-BENI.md](macos/docs/OKU-BENI.md). Güven sınırları: [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md). `DiscordAccess-macos-v0.1-engine-source.zip` Mac motorunun karşılık gelen kaynaklarıdır; hazır paketi yeniden dağıtıyorsanız onu da sunun.
+- Runs only on Apple Silicon Macs and has been tested only on macOS 27.
+- Move the app to the Applications folder.
+- The app is not signed by Apple. After the first launch attempt, approve it once with **Open Anyway** in System Settings > Privacy & Security.
+- It needs Full Disk Access for Discord's data folder; the app guides you on first launch.
+- It runs in the menu bar. You open Discord from its own icon; your existing account is used.
 
-## Önceki sürümden geçiş
+Setup and usage: [macos/README.md](macos/README.md). Trust boundaries: [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md). Design: [macos/docs/DESIGN.md](macos/docs/DESIGN.md). `DiscordAccess-macos-v0.1-engine-source.zip` contains the corresponding source for the Mac engine; if you redistribute the ready-made package, provide it as well.
 
-1. Eski DiscordAccess'te **Windows ile başlat** açıksa önce kapatın. Bu adım, eski klasöre işaret eden başlangıç kaydını kaldırır.
-2. Discord'u tamamen kapatın; eski DiscordAccess'ten **Çıkış** seçin.
-3. Yeni ZIP'i ayrı, kısa ve kalıcı bir klasöre tamamen çıkarın. Çalışan paketin üzerine yazmayın veya klasörünü taşımayın.
-4. Yeni `DiscordAccess.exe` ile bağlantıyı hazırlayın. Otomatik başlangıç istiyorsanız yeni konumda **Windows ile başlat** seçeneğini yeniden açın. Kapalı tercih kendiliğinden açılmaz.
+## Upgrading from a previous version (Windows)
 
-## Gereksinimler
+1. If **Windows ile başlat** ("Start with Windows") is on in the old DiscordAccess, turn it off first. This removes the startup entry that points to the old folder.
+2. Fully close Discord, then choose **Çıkış** ("Exit") in the old DiscordAccess.
+3. Extract the whole new ZIP into a separate, short, permanent folder. Do not overwrite the running package or move its folder.
+4. Prepare the connection with the new `DiscordAccess.exe`. If you want automatic startup, turn **Windows ile başlat** back on from the new location. A disabled preference is never turned on automatically.
 
-- Windows 10/11 x64 ve .NET Framework 4.8.
-- Yazma izniniz olan resmi Discord Stable kurulumu.
-- Yalnız kaynaktan derlemek için Windows'un .NET Framework x64 C# derleyicisi.
-- Node.js: yalnız JavaScript testleri için.
+## Requirements (Windows)
 
-Yönetici olarak çalıştırmayın. Bu proje Windows'un genel proxy, DNS veya yönlendirme ayarlarını değiştirmez; ağ sürücüsü veya sistem servisi kurmaz.
+- Windows 10/11 x64 and .NET Framework 4.8.
+- An official Discord Stable installation that you can write to.
+- To build from source only: the Windows .NET Framework x64 C# compiler.
+- Node.js: only for the JavaScript tests.
 
-## English quick start
+The macOS requirements are in [macos/README.md](macos/README.md).
 
-Requires Windows 10/11 x64, .NET Framework 4.8 and an existing writable official Discord Stable installation. Run as a standard user.
+Do not run as administrator. This project does not change Windows' global proxy, DNS or routing settings, and it does not install a network driver or system service.
 
-1. Download `DiscordAccess-v4.22.zip` from the [latest release](https://github.com/alpertknn/DiscordAccess/releases/tag/v4.22) and extract the entire package into a short, permanent local folder.
-2. Fully close Discord, start `DiscordAccess.exe`, and wait for the ready tray notification.
-3. Open Discord from your usual shortcut, or select **Discord'u aç** in the tray menu. The existing installation and profile are used.
-4. Before exiting the helper, fully close Discord. When upgrading or moving the package, disable **Windows ile başlat** in the old helper first; enable it in the new location only if you want automatic startup.
+## Windows application control
 
-The project is unsigned and does not bypass Windows security controls. For contributions, see [CONTRIBUTING.md](CONTRIBUTING.md); for security reports, see [SECURITY.md](SECURITY.md).
+The ready-made package runs directly as an EXE. The EXE and the engine are subject to Windows' security evaluation; tray mode or an open source license does not give the apps a code signature. The project does not change Windows security settings, does not run commands that unblock files or lift security blocks, and does not bypass Windows security controls.
 
-## Windows uygulama denetimi
+## Building from source (Windows)
 
-Hazır paket doğrudan EXE ile çalışır. EXE ve motor Windows'un güvenlik değerlendirmesine tabidir; tepsi modu veya açık kaynak lisansı uygulamalara kod imzası sağlamaz. Proje Windows güvenlik ayarlarını değiştirmez ve engel kaldıran komut çalıştırmaz.
-
-## Kaynaktan hazırlama
-
-Depo klasöründe PowerShell açın:
+Open PowerShell in the repository folder:
 
 ```powershell
 powershell -NoProfile -File scripts/Fetch-Engine.ps1
 .\Build.cmd
 ```
 
-Motor betiği hash ile sabitlenmiş sing-box 1.14.3 kaynak kodunu ve Go 1.26.9 derleyicisini indirir; `engine-build/go.mod`, `go.sum` ve `engine-patches/http-limits/manifest.json` ile sabitlenmiş kaynak değişikliklerinden `1.14.3-discordaccess.2` motorunu derler. HTTP değişiklikleri bağlantı başlıklarını, kimlik doğrulama süresini ve bekleyen doğrulanmamış bağlantıları sınırlar; doğrulanmış aktarımın dosya boyutuna veya tünel süresine sınır koymaz. Çıktı EXE'si ayrıca sabit SHA-256 ile doğrulanır. İlk hazırlık birkaç dakika sürebilir; sistem geneline Go kurulmaz. Doğrulanmış aynı motor zaten `engine/sing-box.exe` konumundaysa yeniden derlenmez. Farklı motorun üzerine yazılmaz; eski çalışma klasörünü kullanmak yerine yeni kaynak klasöründe hazırlayın. Hazır paket kullanıcılarının derleme yapması gerekmez.
+The engine script downloads the hash-pinned sing-box 1.14.3 source and the Go 1.26.9 toolchain. It builds the `1.14.3-discordaccess.2` engine from source changes pinned by `engine-build/go.mod`, `go.sum` and `engine-patches/http-limits/manifest.json`. The HTTP changes limit connection headers, authentication time and pending unauthenticated connections; they do not limit file size or tunnel duration for authenticated traffic. The output EXE is also verified against a pinned SHA-256. The first build can take a few minutes; Go is not installed system-wide. If the same verified engine is already at `engine/sing-box.exe`, it is not rebuilt. A different engine is never overwritten; build in a fresh source folder instead of reusing an old working folder. Users of the ready-made package do not need to build anything.
 
-## Kullanım
+## Usage (Windows)
 
-1. Discord'u sistem tepsisinden tamamen kapatın. Önceki DiscordAccess açıksa tepsiden **Çıkış** seçin; eski CMD sürümünde `Q` + Enter kullanın.
-2. `DiscordAccess.exe` dosyasını açıp sistem tepsisinde bağlantı hazır bildirimini bekleyin.
-3. Discord'u kendi simgenizden açın. Uyumlu kişisel kısayol bulunamazsa DiscordAccess tepsisinden **Discord'u aç** seçin. DiscordAccess tepside çalışırken Discord'u kapatıp aynı yöntemle tekrar açabilirsiniz.
-4. Çıkarken önce Discord'u tamamen kapatın, ardından DiscordAccess tepsi simgesine sağ tıklayıp **Çıkış** seçin.
+1. Fully close Discord from the system tray. If an earlier DiscordAccess is running, choose **Çıkış** ("Exit") from its tray menu; in the old CMD version, use `Q` + Enter.
+2. Open `DiscordAccess.exe` and wait for the **Bağlantı hazır** ("Connection ready") notification in the system tray.
+3. Open Discord from your own shortcut. If no compatible personal shortcut is found, choose **Discord'u aç** ("Open Discord") from the DiscordAccess tray menu. While DiscordAccess is running in the tray, you can close Discord and reopen it the same way.
+4. When you are done, fully close Discord first, then right-click the DiscordAccess tray icon and choose **Çıkış**.
 
-EXE'yi tekrar açmak ikinci bağlantı/motor oluşturmaz; mevcut tepsi oturumuna durum isteği iletir. Tepside **Discord'u aç**, **Yeniden bağlan**, **Bağlantıyı kontrol et**, **Windows ile başlat** ve **Çıkış** bulunur. Elle açılışta Discord kendiliğinden başlamaz.
+Opening the EXE again does not create a second connection or engine; it sends a status request to the existing tray session. The tray menu has **Discord'u aç** ("Open Discord"), **Yeniden bağlan** ("Reconnect"), **Bağlantıyı kontrol et** ("Check connection"), **Windows ile başlat** ("Start with Windows") and **Çıkış** ("Exit"). When you start the helper manually, Discord does not open on its own.
 
-## Windows açılış sırası
+## Windows startup order
 
-İlk başarılı bağlantıdan sonra yalnız mevcut kullanıcı için DiscordAccess otomatik başlangıcı hazırlanır. Discord'un seçili resmi kurulumuna ait tanınan kişisel `Run` kaydı varsa, özgün komut ve etkin/devre dışı tercihi kurtarma kaydında korunur. Windows'a girişte önce DiscordAccess hazırlanır; yalnız Discord'un otomatik açılma tercihi etkinse bağlantı hazır olduktan sonra resmi Discord bir kez açılır. Discord'un otomatik açılması kapalıysa yalnız bağlantı hazırlanır.
+After the first successful connection, DiscordAccess automatic startup is set up for the current user only. If there is a recognized personal `Run` entry for the selected official Discord installation, its original command and its enabled/disabled state are saved in the recovery record. When you sign in to Windows, DiscordAccess starts first; only if Discord's own auto-start preference is enabled does it open the official Discord once, after the connection is ready. If Discord's auto-start is off, only the connection is prepared.
 
-Tepside **Windows ile başlat** seçeneğini kapatmak DiscordAccess'in başlangıç kaydını kaldırır ve özgün Discord kaydını kullanıcı değişikliklerinin üzerine yazmadan geri alır. Sonraki elle açılışlar bu kapalı tercihi korur. Normal **Çıkış** seçimi otomatik başlangıç tercihini kapatmaz.
+Turning off **Windows ile başlat** in the tray removes the DiscordAccess startup entry and restores the original Discord entry without overwriting user changes. Later manual launches keep this disabled preference. A normal **Çıkış** does not turn off the automatic startup preference.
 
-Bağımsız iki `Run` kaydı açılış sırasını garanti etmediği için özgün Discord kaydı bağlantı yardımcısı tarafından koordine edilir ([Windows belgesi](https://learn.microsoft.com/windows/win32/setupapi/run-and-runonce-registry-keys)). Tanınan Discord kaydı sonradan tekrar oluşturulursa tepsi oturumu bunu beş saniyede bir kontrol eder. Tanınmayan/değişmiş komutlar veya birden fazla kayıt korunur ve uyarı verilir. Seçili Discord için etkin HKLM/başlangıç klasörü kaydı varsa sıra koordinasyonu kurulmaz; bu kayıtlar değiştirilmez.
+Two independent `Run` entries do not guarantee a startup order, so the connection helper coordinates the original Discord entry ([Windows documentation](https://learn.microsoft.com/windows/win32/setupapi/run-and-runonce-registry-keys)). If the recognized Discord entry is created again later, the tray session checks for it every five seconds. Unrecognized or modified commands, or multiple entries, are left in place and a warning is shown. If the selected Discord has an active HKLM or Startup folder entry, no order coordination is set up; those entries are not changed.
 
-Paketi bağlantı açıkken taşımayın. Başlangıç kaydı açıkken başka klasöre geçecekseniz önce tepsiden **Windows ile başlat** seçeneğini kapatın; yeni kalıcı klasörde tekrar etkinleştirin. Uzun başlangıç komutları Windows'un 260 karakter sınırına takılırsa paket için daha kısa klasör kullanın.
+Do not move the package while the connection is active. If you want to move to another folder while startup is enabled, first turn off **Windows ile başlat** in the tray, then turn it on again in the new permanent folder. If long startup commands hit Windows' 260-character limit, use a shorter folder for the package.
 
-Paket dosyasına veya üst klasörlerine başka standart kullanıcıların yazabildiği konumlara otomatik başlangıç kaydı kurulmaz. v4.22, böyle bir konumdan normal elle açılışta paketi `%USERPROFILE%\DiscordAccess\packages\<uygulama-hash>` altına kopyalar ve doğrulanan EXE ile yeniden başlar. Yalnız uygulama, sabit hash'li motor ve paketin üç kullanım/lisans/kaynak metni kopyalanır; profil, ayar, log veya başka dosya taşınmaz. Kaynak paket yerinde kalır; mevcut dosyaların veya klasörlerin izinleri değiştirilmez. Sonraki elle açılışlar aynı içerikteki kişisel kopyayı kullanır.
+No automatic startup entry is created if other standard users can write to the package file or any of its parent folders. When v4.22 is opened manually from such a location, it copies the package to `%USERPROFILE%\DiscordAccess\packages\<app-hash>` and restarts from the verified EXE. Only the app, the hash-pinned engine and the package's three usage/license/source texts are copied; no profile, settings, logs or other files are moved. The source package stays where it is, and the permissions of existing files and folders are not changed. Later manual launches use the personal copy with the same content.
 
-Kullanıcı klasörü ve kurulumun bütün üst klasörleri de doğrulanır. Güvensiz kullanıcı klasörü, junction/symlink, farklı mevcut dosya veya eksik/yanlış motor durumunda kurulum reddedilir; güvenlik kontrolü atlanmaz. Windows açılışı, geri alma, konsol ve Discord açma kısayolu yeni kurulum oluşturmaz. Önceden kapatılmış **Windows ile başlat** tercihi korunur; yeni konumda isterseniz tepsiden yeniden etkinleştirin.
+The user folder and all parent folders of the installation are also verified. Installation is refused for an unsafe user folder, a junction/symlink, a different existing file, or a missing or wrong engine; the security check is never skipped. Windows startup, rollback, console mode and the Discord launch shortcut do not create a new installation. A previously disabled **Windows ile başlat** preference is kept; turn it on again from the tray in the new location if you want.
 
-Sürekli durumda bir DiscordAccess ve bir sing-box motoru çalışır. Discord'un kendi Electron alt süreçleri normaldir; bunlar ek Discord kopyası değildir ve program tarafından kapatılmaz.
+In steady state, one DiscordAccess and one sing-box engine are running. Discord's own Electron child processes are normal; they are not extra Discord copies and the program does not close them.
 
-Kurulum, doğrulanmış hatırlanan klasör, `%LOCALAPPDATA%\Discord` ve kişisel Discord kısayollarından bulunur. Başka diskte bulunamazsa:
+The installation is found from the verified remembered folder, `%LOCALAPPDATA%\Discord` and personal Discord shortcuts. If it is on another drive and is not found:
 
 ```powershell
-.\DiscordAccess.exe --discord-path "D:\Programlar\Discord"
+.\DiscordAccess.exe --discord-path "D:\Programs\Discord"
 ```
 
-Kurulum klasörü, `Discord.exe`, `Update.exe` veya `app-sürüm` klasörü kabul edilir. Yalnız kurulum kökü hatırlanır; sürüm sonraki açılışta yeniden bulunur. Tam disk taraması yapılmaz. PTB/Canary, ağ paylaşımı ve junction/symlink kurulumları desteklenmez.
+The installation folder, `Discord.exe`, `Update.exe` or an `app-<version>` folder is accepted. Only the installation root is remembered; the version is detected again on the next launch. No full disk scan is performed. PTB/Canary, network shares and junction/symlink installations are not supported.
 
-Önceki konsol akışı gerekirse paket klasöründe `.\DiscordAccess.exe --console` ile kullanılabilir:
+The earlier console flow is still available with `.\DiscordAccess.exe --console` in the package folder:
 
-| Konsol komutu | İşlev |
+| Console command | Function |
 | --- | --- |
-| `Q` + Enter | Bağlantıyı kapatır; normal Discord sürecini öldürmez. |
-| `T` + Enter | Bağlantı tanısı. |
-| `D` + Enter | Discord ek dosyası bağlantısıyla indirme. |
-| `A` + Enter | Uyumlu kısayol bulunmazsa seçilen resmi Discord'u açma. |
+| `Q` + Enter | Closes the connection; does not kill the normal Discord process. |
+| `T` + Enter | Connection diagnostics. |
+| `D` + Enter | Download via a Discord attachment link. |
+| `A` + Enter | Opens the selected official Discord if no compatible shortcut is found. |
 
-Tepsi modu açıkken konsol indirmesine geçecekseniz önce Discord'u tamamen kapatın ve DiscordAccess tepsisinden **Çıkış** seçin. Paket klasöründe `.\DiscordAccess.exe --console` açın; bağlantı hazır olunca `D` + Enter ile ek dosyası bağlantısını yapıştırın. İkinci EXE açmak açık tepsi oturumunu konsola dönüştürmez.
+If tray mode is running and you want to switch to a console download, first fully close Discord and choose **Çıkış** from the DiscordAccess tray menu. Run `.\DiscordAccess.exe --console` in the package folder; when the connection is ready, press `D` + Enter and paste the attachment link. Opening a second EXE does not turn the running tray session into a console.
 
-Discord içindeki ek dosyası indirme desteği korunur. Tanınan modül girişine geçici destek eklenir; normal `settings.json` dosyasındaki iki güncelleme uç noktası oturumun yerel köprüsüne gider. Discord EXE'si, güncelleyici ve `app.asar`/`core.asar` değiştirilmez. Hesap veya profil kopyalanmaz.
+Attachment downloads inside Discord remain supported. Temporary support is added to the recognized module entry point, and the two update endpoints in the normal `settings.json` file point to the session's local bridge. The Discord EXE, the updater and `app.asar`/`core.asar` are not modified. No account or profile is copied.
 
-## Geri alma ve güncelleme
+## Rollback and updates (Windows)
 
-Discord açıkken DiscordAccess kapatılırsa geri alma kaydı kalabilir. Discord'u tamamen kapatıp aşağıdaki komutu çalıştırın veya bağlantıyı yeniden başlatın:
+If DiscordAccess is closed while Discord is still open, a recovery record may remain. Fully close Discord and run the command below, or restart the connection:
 
 ```powershell
 .\DiscordAccess.exe --restore
 ```
 
-Discord'un uygulama sürümü veya desktop core modülü güncellenirse Discord'u tamamen kapatın, tepsiden **Çıkış** seçin ve `DiscordAccess.exe` dosyasını yeniden açın. Oturum boyunca doğrulanan sürümün dosyaları tutulur; yeni sürüm ve modül desteği sonraki başlangıçta hazırlanır. `--restore`, bağlantı/kısayollar ile birlikte DiscordAccess otomatik başlangıcını da geri alır ve kapalı tercih bırakır.
+If Discord's app version or desktop core module is updated, fully close Discord, choose **Çıkış** from the tray and open `DiscordAccess.exe` again. During the session, the files of the verified version are kept; support for the new version and module is prepared at the next start. `--restore` also undoes the DiscordAccess automatic startup along with the connection and shortcuts, and leaves the preference disabled.
 
-Dosya işlem sırasında başka bir program tarafından değiştirilirse işlem durabilir. Tanınmayan içerik ve `.discordaccess-fs-*.preserved` / `.rollback-preserved` kurtarma dosyaları korunur; bunları otomatik temizlikle silmeyin veya herkese açık hata kaydına yüklemeyin.
+If a file is changed by another program during an operation, the operation may stop. Unrecognized content and the `.discordaccess-fs-*.preserved` / `.rollback-preserved` recovery files are kept; do not delete them with automatic cleanup or upload them to a public bug report.
 
-Discord EXE'sini doğrudan açmak ve `discord://` bağlantıları kısayol akışının kapsamına girmez. Koordine edilmiş Windows başlangıcı resmi Discord'u sabit proxy argümanlarıyla açar. Ortak Başlat menüsü kısayolları okunabilir, değiştirilmez. Ses/video UDP akışı doğrudan kalır. Her internet sağlayıcısı veya tüm ses/yayın işlevleri için başarı garantisi verilmez.
+Opening the Discord EXE directly and `discord://` links are outside the scope of the shortcut flow. The coordinated Windows startup opens the official Discord with fixed proxy arguments. Shared Start menu shortcuts may be read but are not changed. Voice/video UDP traffic stays direct. Success is not guaranteed for every internet provider or for all voice/streaming features.
 
-Kayıtlar `%LOCALAPPDATA%\DiscordAccess\v3` konumundadır. Bağlantı açıkken paket klasörünü taşımayın. Proje imzasızdır; Smart App Control veya anti-cheat onayı olduğunu iddia etmez.
+Logs are in `%LOCALAPPDATA%\DiscordAccess\v3`. Do not move the package folder while the connection is active. The project is unsigned; it does not claim Smart App Control or anti-cheat approval.
 
-## Geliştirme
+## Development
 
-Derleme, testler ve katkı akışı için [CONTRIBUTING.md](CONTRIBUTING.md), sürüm değişiklikleri için [CHANGELOG.md](CHANGELOG.md), güven sınırları için [güvenlik notları](docs/SECURITY-NOTES.md) dosyasına bakın. Yayın hazırlama adımları [RELEASING.md](docs/RELEASING.md) içindedir. v4.22 mevcut resmî Discord/profil/ağ akışını değiştirmez. Loglar, hesap/profil dosyaları ve yerel test çıktıları depoya dahil edilmez.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for building, tests and the contribution workflow, [CHANGELOG.md](CHANGELOG.md) for release changes, and the [security notes](docs/SECURITY-NOTES.md) for trust boundaries. Release steps are in [RELEASING.md](docs/RELEASING.md). v4.22 does not change the existing official Discord/profile/network flow. Logs, account/profile files and local test output are not included in the repository.
 
-Normal hatalar için [Issues](https://github.com/alpertknn/DiscordAccess/issues) şablonunu kullanın; program ve Windows sürümünü, yapılan işlemi ve kısa hata kodunu yazın. Güvenlik sorunlarını herkese açık issue veya PR'ye yazmadan önce [SECURITY.md](SECURITY.md) politikasını okuyun. Discord profili, kurtarma `journal.json` dosyası, hesap token'ı veya imzalı dosya bağlantısı paylaşmayın. Yerel kayıtlar kişisel yol içeriyorsa paylaşmadan önce bu kısımları çıkarın.
+For normal bugs, use the [Issues](https://github.com/alpertknn/DiscordAccess/issues) template; include the program version, your Windows or macOS version, what you did and the short error code. Read the [SECURITY.md](SECURITY.md) policy before writing about a security issue in a public issue or PR. Do not share your Discord profile, the recovery `journal.json` file, account tokens or signed attachment links. If local logs contain personal paths, remove those parts before sharing.
 
-## Lisans
+## License
 
-DiscordAccess'in kendi C#/JavaScript kodu ve kendi derleme araçları [MIT](LICENSE) lisanslıdır. `engine-patches/` altındaki upstream sing-box/sing kaynaklarından türetilen Go dosyaları GPL-3.0-or-later kapsamını korur; bu klasörün MIT olarak yeniden lisanslandığı iddia edilmez. Ayrı motorun ve native bileşenlerin bildirimleri [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) ve [ENGINE-THIRD-PARTY-NOTICES.txt](licenses/ENGINE-THIRD-PARTY-NOTICES.txt), sürüm/kaynak/hash envanteri [engine-source-manifest.json](licenses/engine-source-manifest.json) içindedir. Bileşenlerin kendi lisansları geçerlidir. Hazır paketteki `LISANSLAR.txt` bu metinleri birlikte içerir; karşılık gelen motor kaynak paketi ayrı Release dosyasıdır. Discord uygulaması bu depoda dağıtılmaz; bu proje Discord'un resmi ürünü değildir.
+DiscordAccess's own C#/JavaScript code and its own build tools are licensed under [MIT](LICENSE). The Go files under `engine-patches/` that are derived from upstream sing-box/sing sources remain under GPL-3.0-or-later; this folder is not claimed to be relicensed as MIT. Notices for the separate engine and native components are in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) and [ENGINE-THIRD-PARTY-NOTICES.txt](licenses/ENGINE-THIRD-PARTY-NOTICES.txt); the version/source/hash inventory is in [engine-source-manifest.json](licenses/engine-source-manifest.json). Each component's own license applies. `LISANSLAR.txt` in the ready-made package contains these texts together; the corresponding engine source package is a separate release file. The Discord app is not distributed in this repository; this project is not an official Discord product.

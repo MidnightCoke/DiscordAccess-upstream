@@ -93,7 +93,7 @@ public final class ProxyGate {
     }
 
     /// Whether the gate is started and still accepts: neither `close()` nor a failure closed it. A session reads it once
-    /// its `faulted` handler is in place, since a failure before then was reported to no one (design 9).
+    /// its `faulted` handler is in place, since a failure before then was reported to no one (design 8).
     public var isAccepting: Bool {
         lock.lock()
         defer { lock.unlock() }

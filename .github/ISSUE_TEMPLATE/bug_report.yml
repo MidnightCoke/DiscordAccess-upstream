@@ -1,64 +1,64 @@
-name: Hata bildirimi
-description: Kişisel veri paylaşmadan bir kullanım veya regresyon sorunu bildirin.
-title: "[Hata]: "
+name: Bug report
+description: Report a usage or regression problem without sharing personal data.
+title: "[Bug]: "
 body:
   - type: markdown
     attributes:
       value: |
-        Güvenlik açığının ayrıntılarını bu forma yazmayın; önce [SECURITY.md](https://github.com/alpertknn/DiscordAccess/blob/main/SECURITY.md) politikasını okuyun.
-        Token, parola, profil, journal, .preserved yedek, ham log, gerçek kullanıcı yolu/IP veya imzalı indirme URL'si eklemeyin. Kısa hata kodu ve sentetik örnek yeterlidir.
+        Do not write security vulnerability details in this form; read the [SECURITY.md](https://github.com/alpertknn/DiscordAccess/blob/main/SECURITY.md) policy first.
+        Do not include tokens, passwords, profiles, journal.json recovery files, .preserved backups, raw logs, real user paths/IP addresses or signed download URLs. A short error code and a synthetic example are enough.
   - type: input
     id: version
     attributes:
-      label: DiscordAccess sürümü veya tam commit
-      placeholder: "Örnek: v4.21 hazır paket veya 40 karakterli commit"
+      label: DiscordAccess version or full commit
+      placeholder: "Example: v4.22 ready-made package, macos-v0.1 or a 40-character commit"
     validations:
       required: true
   - type: input
     id: windows
     attributes:
-      label: Windows sürümü ve build
-      placeholder: "Örnek: Windows 11 x64, build numarası; kullanıcı adı yazmayın"
+      label: Windows or macOS version and build
+      placeholder: "Example: Windows 11 x64 build 26100, or macOS 27 on Apple Silicon; do not include your user name"
     validations:
       required: true
   - type: dropdown
     id: mode
     attributes:
-      label: Kullanılan akış
+      label: Flow used
       options:
-        - Hazır paket / tepsi
-        - Hazır paket / konsol
-        - Kaynaktan derleme veya test
-        - Önceki sürümden geçiş / geri alma
+        - Ready-made package / tray or menu bar
+        - Ready-made package / console
+        - Building or testing from source
+        - Upgrading from a previous version / rollback
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Yeniden üretim adımları
-      description: Kısa adımlar yazın; gerçek dosya/hesap bağlantısı kullanmayın.
+      label: Steps to reproduce
+      description: Write short steps; do not use real file or account links.
     validations:
       required: true
   - type: textarea
     id: behavior
     attributes:
-      label: Beklenen ve gözlenen davranış
+      label: Expected and observed behavior
     validations:
       required: true
   - type: input
     id: error
     attributes:
-      label: Kısa hata kodu veya temizlenmiş mesaj
-      description: Ham log veya kişisel yol yapıştırmayın. Kod yoksa "yok" yazın.
+      label: Short error code or sanitized message
+      description: Do not paste raw logs or personal paths. If there is no code, write "none".
   - type: textarea
     id: checks
     attributes:
-      label: İlgili kontrol sonuçları
-      description: Katkı/test sorunuysa komutları, kontrol edilen tam commit'i, geçen ve engellenen/atlanmış grupları belirtin. Çalışmayan test başarı değildir.
+      label: Relevant check results
+      description: For contribution/test problems, list the commands, the exact commit checked, and the groups that passed or were blocked/skipped. A test that did not run is not a pass.
   - type: checkboxes
     id: privacy
     attributes:
-      label: Gizlilik
+      label: Privacy
       options:
-        - label: Hassas veri, ham log veya gerçek kullanıcı yolu eklemedim; bu bir özel güvenlik raporu değil.
+        - label: I did not include sensitive data, raw logs or real user paths; this is not a private security report.
           required: true

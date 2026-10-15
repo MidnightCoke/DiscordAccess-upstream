@@ -1,28 +1,26 @@
-# Güvenlik bildirimi
+# Security policy
 
-## Desteklenen sürümler
+## Supported versions
 
-Güvenlik düzeltmeleri en son yayımlanan sürüm için değerlendirilir. v4.22 yayımlandığında güncel sürüm odur; v4.20 ve önceki sürümler için yeni düzeltme desteği verilmez. Eski etiketler kaynak geçmişini korur ve güvenli/güncel ikili dağıtım önerisi sayılmaz.
+Security fixes are considered for the latest published release. For Windows, that is v4.22; earlier versions no longer receive new fixes. For macOS, the latest release is the `macos-v0.1` pre-release. Old tags preserve source history and are not a recommendation for a safe or current binary download.
 
-Normal kullanım sorunları için [Issues](https://github.com/alpertknn/DiscordAccess/issues) şablonlarını kullanın. Güvenlik açığının ayrıntılarını herkese açık issue, PR, yorum veya log eki olarak paylaşmayın.
+For normal usage problems, use the [Issues](https://github.com/alpertknn/DiscordAccess/issues) templates. Do not share details of a security vulnerability in a public issue, PR, comment or log attachment.
 
-## Özel bildirim yolu
+## Reporting a vulnerability privately
 
-Depo private iken GitHub'ın public depolar için özel güvenlik bildirimi özelliğinin etkin olduğu varsayılmamalıdır. Public geçişinden sonra bakımcı **Private vulnerability reporting** özelliğini etkinleştirmeli ve aşağıdaki yolu doğrulamalıdır:
+Use GitHub's private vulnerability reporting: open the repository's **Security** tab and choose **Report a vulnerability**, or go directly to:
 
-[Özel güvenlik raporu / Report a vulnerability](https://github.com/alpertknn/DiscordAccess/security/advisories/new)
+[Report a vulnerability](https://github.com/alpertknn/DiscordAccess/security/advisories/new)
 
-Bu sayfa veya **Report a vulnerability** düğmesi henüz yoksa hassas ayrıntı göndermeyin. Bakımcıdan yalnız özel bildirim kanalının etkinleştirilmesini isteyin; bu talebe açık, token veya kişisel veri eklemeyin. Bu belge, özelliğin private depoda şu anda etkin olduğunu iddia etmez.
+The report is visible only to you and the repository maintainers. Do not post sensitive details publicly, including in issues, pull requests or discussions. If the **Report a vulnerability** button is not available, open an issue that only asks for a private contact channel, without any vulnerability details.
 
-Rapora yalnız gereken bilgileri ekleyin:
+Include only the information that is needed:
 
-- Etkilenen sürüm/commit ve Windows sürümü.
-- Beklenen güven sınırı, gözlenen davranış ve etkisi.
-- Sentetik verilerle kısa yeniden üretim adımları.
-- Varsa kişisel verilerden arındırılmış düzeltme veya test önerisi.
+- The affected version/commit and your Windows or macOS version.
+- The expected trust boundary, the observed behavior and its impact.
+- Short reproduction steps using synthetic data.
+- If available, a suggested fix or test with personal data removed.
 
-Discord token'ı, parola, profil, `journal.json`, `.preserved` yedek, tam kullanıcı yolu, IP veya imzalı ek dosyası URL'si göndermeyin. Gerçek hesaba, başkasının verisine veya sisteme zarar veren deneme yapmayın. İnceleme gönüllü bakımcı çalışmasıdır; sabit yanıt/düzeltme süresi veya ödül programı vaat edilmez.
+Do not send Discord tokens, passwords, profiles, `journal.json`, `.preserved` backups, full user paths, IP addresses or signed attachment URLs. Do not run tests that harm a real account, someone else's data or a system. Reviews are volunteer maintainer work; no fixed response or fix time and no bounty program are promised.
 
-Teknik kapsam ve bilinen sınırlar [SECURITY-NOTES.md](docs/SECURITY-NOTES.md) içindedir. Proje Discord'un resmî ürünü değildir; imzasızdır ve Windows güvenlik kontrollerini atlamaz.
-
-For security vulnerabilities, use the private reporting link only after the maintainer enables it for the public repository. Do not post sensitive details in public issues or pull requests. If reporting is unavailable, request a private channel without including the vulnerability or personal data.
+The technical scope and known limits are in [SECURITY-NOTES.md](docs/SECURITY-NOTES.md) (Windows) and [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md) (macOS). The project is not an official Discord product; it is unsigned and does not bypass Windows or macOS security controls.

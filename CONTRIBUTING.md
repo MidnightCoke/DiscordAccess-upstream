@@ -1,8 +1,8 @@
-# Katkı rehberi
+# Contributing guide
 
-## Derleme ve kontroller
+## Building and checks (Windows)
 
-Windows 10/11 x64 üzerinde .NET Framework 4.8 ve Node.js kullanın. Motor yapılandırma kontrolü için ayrıca PowerShell 7 (`pwsh`) gerekir. Lisans envanteri ve yayın paketleme betikleri için Python 3.11 veya üzeri gerekir. Depo kökünde:
+Use .NET Framework 4.8 and Node.js on Windows 10/11 x64. The engine configuration check also needs PowerShell 7 (`pwsh`). The license inventory and release packaging scripts need Python 3.11 or later. In the repository root:
 
 ```powershell
 powershell -NoProfile -File scripts/Fetch-Engine.ps1
@@ -14,90 +14,104 @@ node tests/external-wrapper.test.cjs
 python -B tests/release-packaging.test.py
 ```
 
-`Test.cmd`, ikinci Node testinin ihtiyaç duyduğu sentetik wrapper dosyalarını `work/` altında üretir; bu nedenle sırayı koruyun. Kısayol testleri ayrı, geçici fixture verileri kullanır. Arka plan ve başlangıç kontrolleri aynı test çalıştırıcısında sahte işlemler, registry ve kayıt verileriyle yapılır. Kontroller gerçek Discord hesabı açmaz; ağ kontrolleri loopback ve sentetik yanıtlarla yapılır. Test çıktıları ve derlenen dosyalar Git dışında kalır.
+`Test.cmd` generates the synthetic wrapper files under `work/` that the second Node test needs, so keep this order. The shortcut tests use separate, temporary fixture data. Background and startup checks run in the same test runner with fake processes, registry and record data. The checks do not open a real Discord account; network checks use loopback and synthetic responses. Test output and build artifacts stay out of Git.
 
-Windows bir üretilmiş test EXE'sini engellerse bunu tam test başarısı olarak raporlamayın. Hangi grubun çalışmadığını ve kalan kontrolleri PR'da belirtin; Windows güvenlik ayarlarını değiştiren veya engeli aşan kod eklemeyin.
+If Windows blocks a generated test EXE, do not report it as a full test pass. State in the PR which group did not run and which checks remain; do not add code that changes Windows security settings or works around the block.
 
-### Windows testlerini elle çalıştırma
+### Running the Windows tests manually
 
-GitHub Actions kaldırıldı; push veya PR açılması otomatik test çalıştırmaz. Yukarıdaki derleme/test sırasını, Windows güvenlik politikasının üretilen test dosyalarını çalıştırmaya izin verdiği bir geliştirme ortamında tamamlayın. Engellenen EXE için güvenlik ayarlarını düşürmeyin veya farklı yükleme yöntemi kullanmayın. Çalışmayan grubu geçmiş saymayın.
+GitHub Actions has been removed; pushing or opening a PR does not run tests automatically. Complete the build/test sequence above in a development environment where Windows security policy allows the generated test files to run. For a blocked EXE, do not lower security settings or use a different loading method. Do not count a group that did not run as passed.
 
-Motor kaynak testleri için ayrıca:
+For the engine source tests, also run:
 
 ```powershell
 powershell -NoProfile -File scripts/Build-SecurityEngine.ps1 -RunSourceTests
 pwsh -NoProfile -File scripts/Test-EngineConfig.ps1 -RunChecks
 ```
 
-İlk komut sabit kaynak/Go/bağımlılık kilitleri ve tam dosya değişikliklerinden motoru yeniden derler, üç HTTP/listener birim test grubunu sentetik/loopback bağlantılarla çalıştırır ve sonuç hash'ini doğrular. İkinci komut, önceden hazırlanmış sabit motorun altı DNS ayarını yalnız `check` komutuyla sınar; motoru `run` ile başlatmaz ve Discord isteği göndermez. Discord/profil açılmaz. Bu açık seçenekler Windows uygulama denetimini atlamaz.
+The first command rebuilds the engine from the pinned source/Go/dependency locks and the exact file changes, runs three HTTP/listener unit test groups over synthetic/loopback connections and verifies the resulting hash. The second command tests the six DNS settings of the already prepared pinned engine with the `check` command only; it does not start the engine with `run` and sends no Discord requests. Discord and its profile are not opened. These explicit options do not bypass Windows application control.
 
-`engine-build/go.mod`, `go.sum` ve kaynak değişiklikleri byte düzeyinde sabittir; `Build-SecurityEngine.ps1` değişiklik öncesi/sonrası dosya hash'lerini kontrol edip beklenen motor hash'inden farklı normal çıktıyı reddeder. Motor güncellemesinde önce `-ReviewCandidate -RunSourceTests` ile ayrı inceleme çıktısı üretip kaynak farkını, gömülü modülleri ve bilinen açıkları inceleyin; sonra sabitleri birlikte değiştirin. İnceleme çıktısı `-OutFile` ile birleştirilemez ve hazır paket olarak kabul edilmez.
+`engine-build/go.mod`, `go.sum` and the source changes are pinned byte for byte; `Build-SecurityEngine.ps1` checks file hashes before and after the changes and rejects normal output that differs from the expected engine hash. When updating the engine, first produce a separate review build with `-ReviewCandidate -RunSourceTests` and review the source diff, embedded modules and known vulnerabilities; then change the pins together. The review build cannot be combined with `-OutFile` and is not accepted as a ready-made package.
 
-Test raporlarını `work/` altında yerel olarak saklayın; motorun karşılık gelen kaynak/derleme kanıtlarını dağıtımla birlikte sunun. Daha önceki Windows test kayıtları geçmiş sürümlerin kanıtıdır. Tamamlanan kontrolleri kontrol edilen tam commit ile belirtin; gerçek hesapla mesaj, indirme, yayın ve yeniden başlatma denemesi ayrıdır.
+Keep test reports locally under `work/`; ship the engine's corresponding source and build evidence with the distribution. Earlier Windows test records are evidence for past releases. Report completed checks together with the exact commit that was checked; messaging, downloads, streaming and restart tests with a real account are separate.
 
-## Katkı gönderme
+## Building and checks (macOS)
 
-Depoya yazma yetkiniz yoksa GitHub'da fork oluşturun, kendi fork'unuzu klonlayın ve asıl depoyu `upstream` olarak ekleyin:
+The macOS app lives under `macos/`. It needs an Apple Silicon Mac with Xcode (Swift 6 or later) and Python 3. In the repository root:
+
+```bash
+python3 macos/scripts/build-engine.py --out macos/build/engine/sing-box
+swift test --package-path macos
+python3 macos/Tests/build-engine.test.py
+macos/scripts/build-app.sh
+```
+
+Build the engine first: the Swift tests run the real engine from `macos/build/engine/sing-box`, with sample Discord bundles and profiles and without network access. When Node.js is installed, `swift test` also runs the session wrapper's Node test (`macos/Tests/wrapper.test.cjs`). They never open a real Discord account or touch the real Discord profile. Build and usage details are in [macos/README.md](macos/README.md); the design and its verification records are in [macos/docs/DESIGN.md](macos/docs/DESIGN.md). Keep macOS changes under `macos/`; the shared inputs (`bridge/attachment-download.cjs`, `engine-patches/`, `engine-build/`) and the Windows sources and scripts do not change for a Mac-only change.
+
+## Submitting contributions
+
+If you do not have write access to the repository, fork it on GitHub, clone your fork and add the main repository as `upstream`:
 
 ```powershell
-git clone https://github.com/KULLANICI/DiscordAccess.git
+git clone https://github.com/USERNAME/DiscordAccess.git
 cd DiscordAccess
 git remote add upstream https://github.com/alpertknn/DiscordAccess.git
 git fetch upstream
-git switch -c feature/kisa-ad upstream/main
+git switch -c feature/short-name upstream/main
 ```
 
-`KULLANICI` yerine kendi GitHub adınızı yazın. Değişikliği tamamlayıp ilgili elle çalıştırılan kontrolleri bitirdikten sonra dalı kendi fork'unuza gönderin:
+Replace `USERNAME` with your GitHub username, and `feature/short-name` with a short branch name. After you finish the change and the relevant manual checks, push the branch to your fork:
 
 ```powershell
-git push -u origin feature/kisa-ad
+git push -u origin feature/short-name
 ```
 
-GitHub'da asıl deponun `main` dalını hedefleyen bir pull request açın. Güncelleme gerektiğinde `git fetch upstream` ile son değişiklikleri alın; başkasının dalını veya yayımlanmış sürüm etiketini yeniden yazmayın.
+On GitHub, open a pull request that targets the `main` branch of the main repository. When you need updates, fetch the latest changes with `git fetch upstream`; do not rewrite someone else's branch or a published release tag.
 
-Depoya yazma yetkisi olan ekip üyeleri `main` üzerinden kendi iş dalını açabilir:
+Team members with write access can create their own work branch from `main`:
 
 ```powershell
 git switch main
 git pull --ff-only
-git switch -c feature/kisa-ad
+git switch -c feature/short-name
 ```
 
-PR açıklamasında somut sorunu, yeni davranışı, kontrol edilen tam commit'i, kullanılan komutları, sonuçları ve çalışmayan test gruplarını yazın. Bir komutun engellenmesi veya atlanması başarı sayılmaz. Mevcut çalışan sürümü değiştiren büyük düzenlemeleri küçük, incelenebilir değişikliklere ayırın. Normal hatalar için issue şablonlarını, hassas güvenlik bulguları için [SECURITY.md](SECURITY.md) politikasını kullanın.
+In the PR description, include the concrete problem, the new behavior, the exact commit that was checked, the commands used, the results and any test groups that did not run. A blocked or skipped command does not count as a success. Split large edits that change the current working release into small, reviewable changes. Use the issue templates for normal bugs and the [SECURITY.md](SECURITY.md) policy for sensitive security findings.
 
-## Dizinler ve sahip oldukları iş
+## Directories and what they own
 
-| Dizin/dosya | Amaç |
+| Directory/file | Purpose |
 | --- | --- |
-| `src/` | C# uygulaması; bazı `TEST_BUILD` kontrolleri de burada tutulur. |
-| `bridge/` | Uygulamaya kaynak olarak gömülen ek dosyası indirme desteği. |
-| `tests/` | Çalıştırıcılar, JavaScript testleri ve sentetik kısayol fixture'ları. |
-| `engine-build/` | Byte düzeyinde sabit Go bağımlılık kilitleri. |
-| `engine-patches/http-limits/` | Hash ile doğrulanan upstream motor kaynak değişiklikleri ve Go testleri. |
-| `scripts/` | Motor hazırlama, yapılandırma kontrolü, lisans toplama ve yayın paketleme. |
-| `licenses/` | Kaynak/lisans envanteri ve özgün üçüncü taraf bildirimleri. |
-| `docs/` | Kullanım, güven sınırları ve [yayın hazırlama](docs/RELEASING.md). |
-| `work/`, `engine/` | Yerel kanıtlar ve hazırlanan motor; Git'e eklenmez. |
+| `src/` | The C# application; some `TEST_BUILD` checks also live here. |
+| `bridge/` | Attachment download support, embedded in the app as a resource. |
+| `tests/` | Test runners, JavaScript tests and synthetic shortcut fixtures. |
+| `engine-build/` | Byte-for-byte pinned Go dependency locks. |
+| `engine-patches/http-limits/` | Hash-verified upstream engine source changes and Go tests. |
+| `scripts/` | Engine preparation, configuration checks, license collection and release packaging. |
+| `licenses/` | Source/license inventory and original third-party notices. |
+| `docs/` | Usage, trust boundaries and [release preparation](docs/RELEASING.md). |
+| `macos/` | The native macOS app with its tests, build and release scripts, notices and [documents](macos/docs/DESIGN.md). |
+| `work/`, `engine/` | Local evidence and the prepared engine; not added to Git. |
 
-Yayın etiketleri ve mevcut commit geçmişi kaynak/derleme izini korur. Tamamlanmış iş dalları, değişiklikleri `main` içinde doğrulandıktan sonra kaldırılabilir; görünümü sadeleştirmek için geçmişi veya eski etiketleri yeniden yazmayın.
+Release tags and the existing commit history preserve the source/build trail. Finished work branches can be removed once their changes are verified in `main`; do not rewrite history or old tags to tidy up the view.
 
-## Korunması gereken davranış
+## Behavior that must be preserved
 
-- Resmi Discord kısayol hedefini ve mevcut profilini koruyun; helper hedefi veya ayrı kopya kullanmayın.
-- Normal elle açılışta Discord'u otomatik başlatmayın. Windows açılışında yalnız korunmuş otomatik başlatma tercihi varsa, bağlantı hazır olduktan sonra bir kez açın. Normal Discord sürecini kapanışta öldürmeyin.
-- Aynı kullanıcı için tek bağlantı oturumu ve tek motor bırakın. Tepsi modu açık CMD, ikinci helper veya ayrı Discord kopyası oluşturmasın.
-- Başlangıç kaydını yalnız doğrulanmış seçili resmi Discord'un kişisel Run girdisiyle koordine edin. Kayıtları değiştirmeden önce kurtarma kanıtını yazın; kullanıcı değişikliğinin üzerine yazmayın. StartupApproved, HKLM ve başka uygulamaların kayıtlarını değiştirmeyin.
-- Genel Windows proxy/DNS/yönlendirme ayarı, TUN, sürücü veya yönetici gereksinimi eklemeyin.
-- Proxy erişimini mevcut kullanıcı/oturumda doğrulanmış resmi Discord görüntüleri ve uygulamanın kendi tanı/indirme işlemleriyle sınırlandırın.
-- Yol bulma ve kısayol taramasını sınırlı tutun. Kullanıcının değiştirdiği dosya veya ayarların üzerine geri almada yazmayın.
-- İndirme adreslerini belirli Discord ek dosyası alanlarıyla sınırlayın; dosyaları otomatik çalıştırmayın.
+- Keep the official Discord shortcut target and the existing profile; do not use a helper target or a separate copy.
+- Do not start Discord automatically on a normal manual launch. At Windows sign-in, open it once after the connection is ready, and only if a preserved auto-start preference exists. Do not kill the normal Discord process on exit.
+- Leave a single connection session and a single engine per user. Tray mode must not create an open CMD window, a second helper or a separate Discord copy.
+- Coordinate the startup entry only with the personal Run entry of the verified, selected official Discord. Write recovery evidence before changing entries; do not overwrite user changes. Do not change StartupApproved, HKLM or other apps' entries.
+- Do not add a global Windows proxy/DNS/routing setting, TUN, a driver or an administrator requirement.
+- Limit proxy access to the official Discord executables verified in the current user/session and to the app's own diagnostics/download operations.
+- Keep path discovery and shortcut scanning limited. During rollback, do not overwrite files or settings that the user changed.
+- Limit download addresses to specific Discord attachment domains; never run downloaded files automatically.
 
-Bağlantı, yol bulma, kısayol argümanları, modül desteği veya geri alma değişikliklerine uygun anlamlı fixture ekleyin. Anonim Gateway HELLO kontrolü, hesap girişi, mesaj, dosya veya yayın işlevlerinin canlı doğrulaması değildir; sonuçları ayrı belirtin.
+Add meaningful fixtures for changes to connections, path discovery, shortcut arguments, module support or rollback. An anonymous Gateway HELLO check is not a live verification of account sign-in, messaging, files or streaming; report those results separately.
 
-## Depoya eklenmeyecek veriler
+## Data that must not be added to the repository
 
-Token, parola, kod imzalama anahtarı, Discord profili, oturum/kurtarma kaydı, `.lnk`, gerçek kullanıcı yolu, IP veya dosya indirme bağlantısı paylaşmayın. Hata örneklerinde sentetik veriler kullanın. Log klasörleri, motor EXE'si, paketler ve diğer derleme çıktıları `.gitignore` kapsamındadır.
+Do not share tokens, passwords, code signing keys, Discord profiles, session/recovery records, `.lnk` files, real user paths, IP addresses or file download links. Use synthetic data in bug examples. Log folders, the engine EXE, packages and other build output are covered by `.gitignore`.
 
-Motor sürümünü değiştirirken indirme URL'si, ZIP/EXE SHA-256 değerleri, uygulamanın bağımlılık doğrulaması ve üçüncü taraf bildirimlerini birlikte güncelleyin. Binary'nin Go build bilgisine göre gerçek modül/sürüm listesini çıkarın; kaynak arşivlerini kayıtlı `h1` toplamlarıyla doğrulayın. Gömülü native kaynakları da envantere katın: Go modül lisansı, içindeki wrapper/DLL lisanslarının tamamını tek başına kapsamayabilir. LICENSE/NOTICE/COPYING metinlerini ve `licenses/engine-source-manifest.json` dosyasını güncelleyin; bulunmayan lisansı tahmin etmeyin.
+When changing the engine version, update the download URL, the ZIP/EXE SHA-256 values, the app's dependency verification and the third-party notices together. Derive the real module/version list from the binary's Go build info; verify source archives against the recorded `h1` sums. Include embedded native sources in the inventory as well: a Go module's license may not by itself cover all of the wrapper/DLL licenses inside it. Update the LICENSE/NOTICE/COPYING texts and `licenses/engine-source-manifest.json`; do not guess a license that cannot be found.
 
-DiscordAccess'in kendi uygulama/araç kodu MIT, upstream'den türetilen motor dosyaları GPL-3.0-or-later kapsamındadır; native ve diğer bağımlılıkların kendi lisansları korunur. Hazır paketin `LISANSLAR.txt` dosyasına bu bildirimleri birlikte dahil edin. Üretim paketine test veya yerel kayıt dosyalarını dahil etmeyin. Yayın için [RELEASING.md](docs/RELEASING.md) adımlarını izleyin.
+DiscordAccess's own app/tool code is MIT, and the engine files derived from upstream are GPL-3.0-or-later; native and other dependencies keep their own licenses. Include all of these notices in the ready-made package's `LISANSLAR.txt` file. Do not include test or local record files in the production package. Follow the steps in [RELEASING.md](docs/RELEASING.md) for releases.

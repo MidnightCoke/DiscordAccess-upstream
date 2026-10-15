@@ -41,7 +41,7 @@ MANIFEST = "macos/licenses/engine-source-manifest.json"
 AGGREGATE = "macos/licenses/ENGINE-THIRD-PARTY-NOTICES.txt"
 NOTICES = "macos/licenses/THIRD_PARTY_NOTICES.txt"
 RECIPE = "macos/scripts/build-engine.py"
-USAGE = "macos/docs/OKU-BENI.md"
+USAGE = "macos/README.md"
 DEFAULT_CACHE = MACOS / "work" / "license-source-cache"
 SEPARATOR = "=" * 78
 EVIDENCE_FILES = ("build-metadata.json", "compiled-packages.txt", "go-version-m.txt", "selected-modules.txt",
@@ -402,7 +402,7 @@ def package(version: str, commit: str, app: Path, evidence: Path, cache: Path, o
             "Distribute this exact source package together with the runtime package. It is not needed to run DiscordAccess.\n").encode("utf-8")
     runtime = app_entries(app, prefix + "/", version, pins)
     runtime[prefix + "/"] = (b"", stat.S_IFDIR | 0o755)
-    for name, data in (("OKU-BENI.md", usage), ("LISANSLAR.txt", licenses), ("KAYNAK.txt", note)):
+    for name, data in (("README.md", usage), ("LICENSES.txt", licenses), ("SOURCE.txt", note)):
         runtime[prefix + "/" + name] = (data, stat.S_IFREG | 0o644)
     assets = {prefix + ".zip": deterministic_zip(runtime), source_name: source_zip, "engine-source-manifest.json": manifest_bytes}
     assets["SHA256SUMS.txt"] = "".join(checks.sha(data) + "  " + name + "\n" for name, data in sorted(assets.items())).encode("ascii")

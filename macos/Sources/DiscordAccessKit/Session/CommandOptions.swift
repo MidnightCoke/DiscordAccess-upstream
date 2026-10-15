@@ -1,4 +1,4 @@
-/// The options of the `DiscordAccess` command (design 4; Windows `Program.Main`). Without a mode it is the menu bar app.
+/// The options of the `DiscordAccess` command (design 5; Windows `Program.Main`). Without a mode it is the menu bar app.
 public struct CommandOptions: Equatable {
     public enum Mode: Equatable {
         /// The menu bar app; `startup` when the login item started it (Windows `--startup`).

@@ -50,7 +50,7 @@ public enum DiscordProfile {
     }
 }
 
-/// DiscordAccess's own data folder (design 8, "Durum klasörü"): `~/Library/Application Support/DiscordAccess`, private to
+/// DiscordAccess's own data folder (design 8, "State folder"): `~/Library/Application Support/DiscordAccess`, private to
 /// this user, with the profile changes' journal in `installed-session`.
 public enum StateStore {
     public static var standardRoot: String { DiscordProfile.home() + "/Library/Application Support/DiscordAccess" }

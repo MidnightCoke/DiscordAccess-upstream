@@ -2,7 +2,7 @@ import CryptoKit
 import Darwin
 import Foundation
 
-/// Careful file operations on Discord's profile and DiscordAccess's own state (design 8, "Dosya işlemleri"; Windows
+/// Careful file operations on Discord's profile and DiscordAccess's own state (design 8, "File operations"; Windows
 /// `FileTransaction`). Paths are absolute and spelled as the system reports them, and no existing component may be a
 /// symbolic link. Files are regular, owned by this user, and read with a size limit.
 ///

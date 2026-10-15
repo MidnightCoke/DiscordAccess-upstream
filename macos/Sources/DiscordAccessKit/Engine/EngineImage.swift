@@ -2,7 +2,7 @@ import CryptoKit
 import Darwin
 import Foundation
 
-/// The pinned identity of the engine built by `macos/scripts/build-engine.py` (darwin/arm64, reproduced in Aşama 0).
+/// The pinned identity of the engine built by `macos/scripts/build-engine.py` (darwin/arm64, reproduced in stage 0).
 public struct EngineIdentity: Equatable, Sendable {
     public let sha256: String
     public let cdhash: String

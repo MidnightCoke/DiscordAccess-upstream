@@ -246,7 +246,7 @@ public final class SessionController {
             if let connection { self?.backendFailed(connection) }
         }
         watch(connection)
-        // A gate that failed before its handler was in place reported it to no one (design 9).
+        // A gate that failed before its handler was in place reported it to no one (design 8).
         guard connection.gate.isAccepting else { throw KitError.engineStopped() }
         let bridge = try UpdateBridge(proxyPort: connection.gate.port, admission: admission, log: log, faulted: { [weak self, weak connection] in
             if let connection { self?.backendFailed(connection) }
