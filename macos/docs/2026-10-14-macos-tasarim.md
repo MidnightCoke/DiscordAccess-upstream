@@ -174,6 +174,13 @@ Bütün testler `Tests/` altındadır; ayrı bir `tests/` klasörü yoktur. macO
   - `/updates/…` → `https://updates.discord.com/…`
   - `/download/<alan>/…` → `https://<alan>/…` (alan, `ProcessGate.AllowedDomains` kapsamında olmalı)
 - Manifest ve yönlendirmedeki indirme adresleri köprüye yeniden yazılır. Ana uygulama güncellemesini ShipIt kurar; Discord'un imzasını kendisi doğrular. Aşama 0'da 0.0.397 → 0.0.415 güncellemesiyle doğrulandı.
+- Köprünün sınırları Windows'takiyle aynıdır (1e):
+  - en fazla 16 bağlantı; başlık en fazla 16 KiB ve 10 sn içinde gelir;
+  - yalnız gövdesiz GET ve HEAD; istemcinin başlıkları Discord'a iletilmez;
+  - istek başına toplam 180 sn, indirme dahil; URLSession'ın iki paket arasındaki sınırı 30 sn (Windows ilk yanıtı 180 sn bekler; burada ilk bayt da 30 sn içinde gelmelidir);
+  - manifest en fazla 4 MiB ve 64 düzey.
+- İstekler URLSession'la kapı üzerinden gider. Kapı onları bu sürecin tanı izniyle kabul eder (1d). İndirme URLSession delegesiyle akar: delege istemciye yazarken URLSession okumayı bekletir. Bu Mac'te yavaş bir tüketiciyle 600 MB'lık aktarımda bellek yaklaşık 12 MB'ta kaldı.
+- 1e canlı doğrulaması (2026-10-15, bu Mac'in engelli ağı): eski güncelleyicinin beslemesi, yeni güncelleyicinin manifesti ve bir indirmenin HEAD isteği köprü, kapı ve motor üzerinden geçti. Manifestteki 35 adresin hepsi köprüye yazıldı. Yeni güncelleyicinin manifest isteği `arch` parametresi olmadan `400` alır. İlk denemede manifest isteği 30 sn içinde yanıt almadı (nedeni belirlenemedi; köprü bu durumda zaman aşımıyla 502 döndürür); sonraki bütün denemeler 2 sn içinde geçti.
 
 **Proxy'nin uygulanması**
 - Menüdeki "Discord'u aç" şu argümanlarla açar: `--proxy-server=http://127.0.0.1:<kapı> --proxy-bypass-list=127.0.0.1;localhost --disable-quic`. Açılış `NSWorkspace.OpenConfiguration.arguments` ile yapılır.
@@ -292,6 +299,12 @@ module.exports = require('./core.asar');
     - İşleyici ayarlanmadan önce kapı arızalanırsa bunu bildiren bir şey yoktur (Windows'ta da aynı boşluk var). Oturum işleyiciyi ayarladıktan sonra kapının açık olduğunu denetleyebilmelidir; bunun için kapının durumu dışarıdan okunabilir olmalıdır.
     - Kapatma işleyiciyi temizler; işleyici oturumu zayıf tutmalıdır. Kapanışla yarışan bir arıza yine de bir kez bildirilebilir.
     - `DnsConnection.close()` ikinci çağrıda hiçbir şey yapmaz, ilk çağrı DNS-E03 vermiş olsa da. "Yeniden bağlan" bunu başarı saymamalı; toplanamayan motor varken yeni aday başlatmamalıdır.
+- **Güncelleme köprüsü** (1e, Windows `UpdateBridge` karşılığı):
+  - Yalnız 127.0.0.1'de, rastgele bir portta dinler. Her yol 24 baytlık rastgele bir token ile başlar.
+  - İstemci, kapıdaki gibi `PeerAdmission` ile kabul edilir: kabul edilen Discord süreçleri ve tanı izniyle bu süreç. Reddedilen istemci, isteği okunmadan 403 alır.
+  - Yalnız izinli Discord alanlarına, https ve 443 ile ve kapı üzerinden gider. Yönlendirme izlenmez; çerez, önbellek ve kimlik bilgisi tutulmaz ya da sunulmaz.
+  - Yönlendirme ve manifestteki adresler yalnız izinli bir Discord adresiyse köprüye yazılır. Discord dışına giden bir yönlendirme 400 ile reddedilir; güncelleyici başka bir yere gönderilemez.
+  - Tanı satırları yalnız sabit aşama, kategori, HTTP durumu ve sayısal hata kodu içerir; URL, token, başlık, gövde ya da hata metni yazılmaz.
 - **Kapı için bilinen sınırlar:**
   - Düz HTTP keep-alive bağlantısında yalnız ilk istek politikadan geçer; sonraki istekler olduğu gibi aktarılır. Windows'ta da durum aynıdır ve motorun kendi yönlendirmesi hedefleri yine sınırlar.
   - Başlığı gönderip hemen yarım kapatan istemci reddedilir: sahiplik yalnız kurulu (ESTABLISHED) bağlantılara bakar. Windows'ta da durum aynıdır; Chromium böyle yapmaz.
@@ -368,6 +381,7 @@ module.exports = require('./core.asar');
 - **1b durumu:** Tamamlandı (kapı istek politikası ve eş kimliği). Plan: macos/docs/plans/2026-10-14-asama-1b-kapi-politikasi-ve-es-kimligi.md.
 - **1c durumu:** Tamamlandı (kapının ağ katmanı; eş araması yalnız adaylarda). Plan: macos/docs/plans/2026-10-14-asama-1c-kapi-ag-katmani.md.
 - **1d durumu:** Tamamlandı (bağlantı tanısı ve otomatik DNS seçimi; canlı doğrulama bu Mac'te geçti). Plan: macos/docs/plans/2026-10-15-asama-1d-baglanti-tanisi-ve-dns-secimi.md.
+- **1e durumu:** Tamamlandı (güncelleme köprüsü; canlı doğrulama bu Mac'te geçti). 1e'den itibaren aşamalar hash'li plan olmadan, doğrudan depoda testleriyle yazılır; güvenlik açısından önemli kodu bağımsız bir kritik inceleme denetler.
 - `scripts/build-engine.py` darwin hash sabitiyle tamamlanır: `ENGINE_SHA256 = 013ba5d5055988953ebec1a1ac0eceb8aead52415e3ef186a5c7481083472cb0`; tekrarlanabilirlik Aşama 0'da doğrulandı.
 - Profil değişiklikleri yeni güncelleyici düzenine (`app-<sürüm>/modules/discord_desktop_core-<N>`) göre yazılır. Windows'taki gibi tüm çekirdek nesilleri sarılır.
 - Ek dosyası kancası sarmalayıcıya gömülü olarak kurulur. Discord içinden ek dosyası indirme Mac'te doğrulanır.
@@ -409,6 +423,7 @@ module.exports = require('./core.asar');
 | macOS yeni bir çalıştırılabilir dosyayı ilk çalıştırmada tarar. Motorun ilk açılışı bu yüzden gecikir. `syspolicyd` zaman zaman takılır ve sistem onu yeniden başlatana kadar yeni dosyaların açılışı bekler. | Aşama 1a: yeni kopyada 0,4 sn; sistem yükü altında 7–10 sn görüldü. Aşama 1b: `syspolicyd` takılıp yeniden başlarken bir derleme 160 sn bekledi. | DNS adayının motoru dinleyicisini 30 sn içinde açmalıdır (1d); motor çıkarsa sınır beklenmez. `EngineProcess.start`'ın varsayılanı Windows'taki gibi 12 sn kalır. |
 | Önceki DNS adayının motoru toplanamazsa yeni aday başlatılmamalıdır (Windows `DnsConnection.Dispose`). | 1d: uygulandı | `DnsConnection.close()`, motor toplanamazsa DNS-E03 verir; seçim başka aday başlatmaz. |
 | Motor yalnız `PATH` ortam değişkeniyle başlatılıyor; dış DoH/TLS bağlantısı birim testlerinde denenmiyor. | 1d canlı doğrulama (2026-10-15, bu Mac'in engelli ağı): otomatik seçim ilk adayı (Cloudflare, IP sertifikası) seçti; Gateway API, güncelleme sunucusu ve WebSocket HELLO kapı üzerinden doğrulandı; üç sağlayıcı da Gateway API'ye erişti. | Canlı denetim normal test çalıştırmasına girmez; `-Xswiftc -DDISCORDACCESS_LIVE` ile derlenir. |
+| Bir köprü isteği, indirme dahil, en fazla 180 sn sürer (Windows'ta da aynı). Yavaş ağda büyük bir indirme yarıda kesilir; örneğin 154 MB'lık tam paket 0,85 MB/s'nin altında. | 1e | Windows'la aynı bırakıldı. Gerekirse indirmede toplam süre yerine yalnız boşta kalma süresi uygulanır. |
 | SMAppService ve bildirimler yerel imzalı uygulamada kısıtlı olabilir. | Aşama 2 | Kullanıcı LaunchAgent plist'i; bildirim yerine menü durum metni. |
 | Discord güncellemesi profil yapısını değiştirebilir. | Sürekli | Tanınmayan yapıda değişiklik yapılmaz; kullanıcı bilgilendirilir. |
 | macOS 13–26'da test yapılmadı. | — | Yalnız macOS 27'de doğrulandığı belirtilir. |
