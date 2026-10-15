@@ -53,4 +53,47 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
     static func randomUnavailable() -> KitError {
         KitError(code: "SYS-E01", message: "Güvenli rastgele değer üretilemedi.")
     }
+
+    static func hookIntegrity() -> KitError {
+        KitError(code: "PKG-E05", message: "Ek dosyası kancası bütünlük kontrolünden geçemedi. DiscordAccess'i yeniden kurun.")
+    }
+
+    static func discordNotFound() -> KitError {
+        KitError(code: "DSC-E01", message: "Resmi Discord (Stable) kurulumu bulunamadı. Discord'u Uygulamalar klasörüne kurun ya da yolunu " +
+            "--discord-path ile belirtin.")
+    }
+
+    static func discordUnverified(_ path: String) -> KitError {
+        KitError(code: "DSC-E02", message: path + " resmi Discord (Stable) uygulaması olarak doğrulanamadı: imza, paket kimliği, sürüm " +
+            "kanalı ya da yol uygun değil.")
+    }
+
+    /// The process list could not be read completely, so Discord may be running.
+    static func discordStateUnknown() -> KitError {
+        KitError(code: "DSC-E04", message: "Discord'un açık olup olmadığı denetlenemedi. Discord'u tamamen kapatıp yeniden deneyin.")
+    }
+
+    static func discordAmbiguous() -> KitError {
+        KitError(code: "DSC-E03", message: "Birden fazla resmi Discord kurulumu bulundu. Kullanılacak kurulumu --discord-path ile belirtin.")
+    }
+
+    /// Windows `InstalledDiscord.Conflict`: nothing that changed since is overwritten.
+    static func profileConflict() -> KitError {
+        KitError(code: "PRF-E01", message: "Discord'un geçici ayarları güvenli biçimde doğrulanamadı. Değişmiş dosya veya tercihin üzerine yazılmadı.")
+    }
+
+    static func profileUnsupported() -> KitError {
+        KitError(code: "PRF-E02", message: "Discord'un resmi sürümü veya başlangıç modülü tanınmadı; Discord dosyaları değiştirilmedi.")
+    }
+
+    static func profileMissingModule() -> KitError {
+        KitError(code: "PRF-E03", message: "Discord'un beklenen başlangıç modülü bulunamadı. Discord'u bir kez normal açıp kapatın, sonra " +
+            "yeniden deneyin.")
+    }
+
+    /// macOS keeps Discord's data folder from other apps without asking (TCC); only Full Disk Access opens it.
+    static func profileAccessDenied() -> KitError {
+        KitError(code: "PRF-E04", message: "Discord'un veri klasörüne erişim izni yok. Sistem Ayarları > Gizlilik ve Güvenlik > Tam Disk " +
+            "Erişimi'nde DiscordAccess'i açın. İzin verilmeden Discord ayarları değiştirilmez.")
+    }
 }

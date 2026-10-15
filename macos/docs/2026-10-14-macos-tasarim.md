@@ -156,12 +156,15 @@ Bütün testler `Tests/` altındadır; ayrı bir `tests/` klasörü yoktur. macO
    - Tek oturum kilidi alınır. Kilit başka oturumdaysa ona durum isteği gönderilip çıkılır.
    - Bekleyen kurtarma günlüğü varsa ve Discord kapalıysa önce geri alma yapılır.
    - `Discord.app` bulunur ve imzası doğrulanır.
+   - Discord açıksa profil değişikliği yapılmaz. Süreç listesi eksiksiz okunamazsa Discord açık sayılır (DSC-E04); başka bir konumdaki Discord kopyaları da sayılır (1f).
    - Discord veri klasörüne erişim (Tam Disk Erişimi) denetlenir. İzin yoksa profil değişikliği yapılmaz; kullanıcıya gerekçe gösterilir ve ilgili Sistem Ayarları sayfası açılır.
 2. DNS seçimi: Adaylar sırayla denenir. Her aday için motor ve kapı açılır; kapı üzerinden Discord Gateway API'sine (`https://discord.com/api/v10/gateway`) HTTPS isteği yapılır ve yanıtın Gateway adresi olduğu doğrulanır (Windows `CheckDnsCandidate`). Başarılı aday oturuma alınır; başarısız aday, sıradaki açılmadan önce tamamen kapatılır. Kullanıcı bir sağlayıcı adlandırdıysa (`--dns=…`) denetim yapılmaz. Anonim Gateway WebSocket HELLO tanısı "Bağlantıyı kontrol et" ile yapılır.
 3. Güncelleme köprüsü rastgele port ve gizli yol belirteciyle başlar.
 4. Profil değişiklikleri (günlüklü):
    - `settings.json` → `UPDATE_ENDPOINT = <köprü>/legacy`, `NEW_UPDATE_ENDPOINT = <köprü>/updates/`.
    - `discord_desktop_core/index.js` → oturum sarmalayıcısı (7.2).
+   - Kurulu sürümün (`build_info.json`) bütün çekirdek nesilleri sarılır: `app-<sürüm>/modules/discord_desktop_core-<N>`, en fazla 16. Her giriş dosyası Discord'un kendi girişi ya da günlüğü kaybolmuş eski bir sarmalayıcı olmalıdır; başka içerik PRF-E02, eksik modül PRF-E03 verir (1f).
+   - Her değişiklik önce durum klasöründeki günlüğe yazılır (`installed-session/journal.json`). Geri alma ve bir sonraki açılıştaki kurtarma yalnız hâlâ DiscordAccess'e ait olanı geri koyar; kullanıcının ya da bir güncellemenin değiştirdiği değer yerinde kalır ve PRF-E01 ile bildirilir, günlük korunur (Windows `InstalledDiscord`).
 5. Hazır bildirimi gösterilir. Açılış oturum girişindeyse ve "Girişte Discord'u da aç" açıksa Discord bir kez açılır.
 
 ### 7.2 Discord açıldığında
@@ -208,7 +211,8 @@ module.exports = require('./core.asar');
   Aşama 0'da doğrulandı:
   - Yükleme bariyeri `app.on('web-contents-created')` olayında her `loadURL` çağrısını `setProxy` tamamlanana kadar bekletir.
   - `,direct://` yedeği, kapı kapalıysa Discord'u denemeden önceki davranışına döndürür. Başarı bu yüzden Discord'un açılmasıyla değil, kapı kaydındaki bağlantılarla değerlendirilir.
-  - Kanca kurulumu Windows'taki sarmalayıcıyla aynı çağrıyı kullanır. Ancak kanca dosyası Discord'un okuyabileceği yerde olmalıdır (bkz. 12). Mac'te kancanın sarmalayıcıya gömülmesi tercih edilir.
+  - Kanca kurulumu Windows'taki sarmalayıcıyla aynı çağrıyı kullanır. Kanca dosyası Discord'un okuyabileceği yerde olmalıdır (bkz. 12); bu yüzden kanca sarmalayıcıya gömülür (1f). Gömülen kanca `bridge/attachment-download.cjs`'dir; SHA-256'sı Kit'te sabittir, farklı bir dosya PKG-E05 verir. Kancanın kayıtları Discord'un kendi klasörüne yazılır (`DiscordAccess-downloads.log`).
+  - Üretilen sarmalayıcı Node ile, sahte bir Electron'la sınanır (`Tests/wrapper.test.cjs`): proxy yokken `setProxy` ve yükleme bariyeri, `setProxy` başarısız olsa da sayfanın yüklenmesi, menünün proxy argümanıyla açılışta ek iş olmaması, kancanın kurulması, ana süreç dışındaki süreçlere ve Electron hatasında Discord'a dokunulmaması.
 
 **Trafik**
 - Pencere trafiği (HTTPS/WSS) şu yolu izler: Discord Helper (ağ süreci) → kapı → motor → DoH ve TLS kayıt parçalamayla doğrudan çıkış.
@@ -314,11 +318,14 @@ module.exports = require('./core.asar');
   - Sahiplik, izin ve ACL denetlenir.
   - Değişiklik `renamex_np(RENAME_SWAP)` ile atomik takasla yapılır; yerinden çıkan içerik beklenenle karşılaştırılır.
   - Tanınmayan içerik `.discordaccess-fs-*.preserved` olarak korunur.
-- **Durum klasörü:** klasör 0700, dosyalar 0600. Kurtarma günlüğü ve kayıtlar kişisel veridir.
+  - Silme de bir karşılaştırmadır: dosya önce benzersiz bir ada taşınır, baytları beklenenle aynıysa silinir, değilse geri konur ya da yanında korunur (1f).
+- **Durum klasörü:** klasör 0700, dosyalar 0600. Kurtarma günlüğü ve kayıtlar kişisel veridir. Klasörün sahibi bu kullanıcı olmalı, grup ve diğerlerine izin vermemeli ve erişim denetim listesi (ACL) taşımamalıdır; değilse profil değişikliği yapılmaz (1f).
+  - Günlük, macOS'un Discord'un klasörü kadar korumadığı bir yerdedir. Kurtarma bu yüzden günlüğe sınırlı güvenir: yalnız standart Discord klasörüne dokunur ve güncelleme ayarlarına yalnız Discord'un kendi alanlarındaki https adreslerini geri yazar. Başka bir önceki değer, oturum başında değiştirilmeden reddedilir (PRF-E01).
+  - Günlük ve değiştirilen dosyalar `F_FULLFSYNC` ile diske yazılır, klasör de eşitlenir; önce yazılan günlük, güç kesintisinden sonra da önce kalır.
 - **Kontrol soketi:** dosya 0600. Karşı tarafın kullanıcısı (`LOCAL_PEERCRED`) ve kod imzası (audit token) doğrulanır.
 - **Diğer uygulamaların verisi (Tam Disk Erişimi):**
   - Bu izin geniştir. Uygulama onu yalnız Discord'un veri klasöründeki sahiplenilen dosyalar için kullanır.
-  - İzin yoksa profil değişikliği yapılmaz. Uygulama izni kendisi değiştirmeye çalışmaz.
+  - İzin yoksa profil değişikliği yapılmaz. Uygulama izni kendisi değiştirmeye çalışmaz. İzin, klasörün içeriği okunarak denetlenir (`DiscordProfile.access`); macOS'un engellediği bir dosya işlemi PRF-E04 verir (1f).
   - TCC izni uygulamanın kod kimliğine bağlıdır. Ad-hoc imzalı derlemede her yeniden derleme izni geçersiz kılar. Kalıcı izin için sabit bir imza kimliği gerekir (yerel kişisel imza veya Developer ID).
 - **Kapsam dışı (Windows ile aynı):** aynı kullanıcı yetkisini ele geçirmiş zararlı yazılım ve root saldırganı. İmzasız/yerel imzalı uygulama Gatekeeper onayı iddia etmez.
 
@@ -382,6 +389,7 @@ module.exports = require('./core.asar');
 - **1c durumu:** Tamamlandı (kapının ağ katmanı; eş araması yalnız adaylarda). Plan: macos/docs/plans/2026-10-14-asama-1c-kapi-ag-katmani.md.
 - **1d durumu:** Tamamlandı (bağlantı tanısı ve otomatik DNS seçimi; canlı doğrulama bu Mac'te geçti). Plan: macos/docs/plans/2026-10-15-asama-1d-baglanti-tanisi-ve-dns-secimi.md.
 - **1e durumu:** Tamamlandı (güncelleme köprüsü; canlı doğrulama bu Mac'te geçti). 1e'den itibaren aşamalar hash'li plan olmadan, doğrudan depoda testleriyle yazılır; güvenlik açısından önemli kodu bağımsız bir kritik inceleme denetler.
+- **1f durumu:** Kit tamamlandı: Discord.app doğrulaması, Tam Disk Erişimi denetimi, güvenli dosya işlemleri, oturum sarmalayıcısı (gömülü kanca, Node testi) ve günlüklü profil değişiklikleri. Testler yalnız geçici örnek profillerle çalışır. Gerçek profile uygulama, Sistem Ayarları yönlendirmesi ve Discord içinden ek dosyası indirmenin doğrulanması 1g'de, kullanıcının onayıyla yapılır.
 - `scripts/build-engine.py` darwin hash sabitiyle tamamlanır: `ENGINE_SHA256 = 013ba5d5055988953ebec1a1ac0eceb8aead52415e3ef186a5c7481083472cb0`; tekrarlanabilirlik Aşama 0'da doğrulandı.
 - Profil değişiklikleri yeni güncelleyici düzenine (`app-<sürüm>/modules/discord_desktop_core-<N>`) göre yazılır. Windows'taki gibi tüm çekirdek nesilleri sarılır.
 - Ek dosyası kancası sarmalayıcıya gömülü olarak kurulur. Discord içinden ek dosyası indirme Mac'te doğrulanır.
@@ -416,8 +424,8 @@ module.exports = require('./core.asar');
 | Ana uygulama güncellemesi köprüden geçmeyebilir. | Aşama 0: doğrulandı (yeni güncelleyici ve ShipIt, 0.0.397 → 0.0.415) | Oturum boyunca `SKIP_HOST_UPDATE` sahiplenilen ayar olarak yazılır ve geri alınır. |
 | macOS, Discord'un veri klasörüne erişimi engelliyor ve izin penceresi göstermiyor (TCC). | Aşama 0: doğrulandı | Tam Disk Erişimi gerekir; uygulama yönlendirir. İzin verilmezse profil değişikliği yapılamaz; yalnız argümanla açılış kalır ve güncelleme yapılamaz. |
 | Ad-hoc imzalı uygulamada TCC izni her yeniden derlemede sıfırlanır. | Aşama 2 | Sabit imza kimliği (yerel kişisel sertifika veya Developer ID). |
-| DiscordAccess'in kendi veri klasörü etiketlenirse Discord kanca dosyasını okuyamaz. | Aşama 1 | Kanca sarmalayıcıya gömülür. Discord'un yazdığı kayıtlar Discord'un kendi klasörüne yazılır. |
-| Güncelleyici oturum sırasında yeni bir çekirdek nesli kurarsa sarmalayıcı devre dışı kalır. | Aşama 1 | Windows'taki gibi tüm nesiller sarılır; oturum başında yeniden denetlenir. |
+| DiscordAccess'in kendi veri klasörü etiketlenirse Discord kanca dosyasını okuyamaz. | 1f: uygulandı | Kanca sarmalayıcıya gömülür. Discord'un yazdığı kayıtlar Discord'un kendi klasörüne yazılır. |
+| Güncelleyici oturum sırasında yeni bir çekirdek nesli kurarsa sarmalayıcı devre dışı kalır. | 1f: tüm nesiller sarılıyor | Windows'taki gibi tüm nesiller sarılır; oturum başında yeniden denetlenir. |
 | Discord'un kendi giriş öğesiyle açılış sırası koordine edilemez. | Tasarım gereği | Belgelenir; erken açılışta uyarı verilir. |
 | Job nesnesi olmadığı için çökme sonrası motor kalabilir. | Aşama 1 | Bir sonraki açılışta yetim motor temizlenir. Temizlik motorun yoluna bakar; uygulama taşınmışsa eski yoldaki yetim motor kalır. Zararsızdır, çünkü kimlik bilgisini bilen yoktur. Aşama 2'de cdhash'e veya durum klasöründeki PID ve başlangıç zamanı kaydına göre eşleştirme değerlendirilir. |
 | macOS yeni bir çalıştırılabilir dosyayı ilk çalıştırmada tarar. Motorun ilk açılışı bu yüzden gecikir. `syspolicyd` zaman zaman takılır ve sistem onu yeniden başlatana kadar yeni dosyaların açılışı bekler. | Aşama 1a: yeni kopyada 0,4 sn; sistem yükü altında 7–10 sn görüldü. Aşama 1b: `syspolicyd` takılıp yeniden başlarken bir derleme 160 sn bekledi. | DNS adayının motoru dinleyicisini 30 sn içinde açmalıdır (1d); motor çıkarsa sınır beklenmez. `EngineProcess.start`'ın varsayılanı Windows'taki gibi 12 sn kalır. |
