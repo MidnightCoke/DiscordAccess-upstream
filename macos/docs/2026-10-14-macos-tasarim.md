@@ -133,7 +133,7 @@ Bütün testler `Tests/` altındadır; ayrı bir `tests/` klasörü yoktur. macO
 | UpdateBridge | Yerel güncelleme köprüsü; manifest ve yönlendirme adreslerini köprüye yazar. | `UpdateBridge` |
 | DiscordInstallation | `Discord.app`'i bulur ve doğrular; hatırlanan yol ve `--discord-path`. | `DiscordInstallation`, `DiscordPathOptions` |
 | DiscordProfileChanges | `settings.json`'daki iki anahtar ve çekirdek sarmalayıcısı; günlüklü değiştirme ve geri alma. | `InstalledDiscord`, `FileTransaction` |
-| DiscordLauncher | Discord'u NSWorkspace ile argümanlı açar. | `ResidentController` açma yolu |
+| Launcher | Discord'u Launch Services ile (`/usr/bin/open`) argümanlı açar (1g). | `ResidentController` açma yolu |
 | ResidentInstance | Tek oturum kilidi ve kontrol soketi. | `ResidentInstance`, `ManualLaunchSignal` |
 | StartupRegistration | Giriş öğesi ve konum güveni. | `StartupCoordinator`, `StartupPathTrust`, `StartupPackage` |
 | Connectivity | Anonim Gateway HELLO tanısı. | `ConnectivityChecks` |
@@ -144,8 +144,8 @@ Bütün testler `Tests/` altındadır; ayrı bir `tests/` klasörü yoktur. macO
 | Bileşen | Sorumluluk | Windows karşılığı |
 | --- | --- | --- |
 | MenuBarController | Menü, durum metni, bildirimler. | `TrayHost` |
-| SessionController | Oturum yaşam döngüsü (7.1). | `BackgroundLifecycle`, `ResidentController` |
-| CommandLine | Terminal modları ve seçenek ayrıştırma. | `ConsoleHost`, `ConsoleDownload`, `ResidentOptions` |
+| SessionController | Oturum yaşam döngüsü (7.1); 1g'de Kit içinde yazıldı, menü çubuğu da onu kullanır. | `BackgroundLifecycle`, `ResidentController` |
+| CommandLine | Terminal modları ve seçenek ayrıştırma (1g: Kit'te `CommandOptions`, `ConsoleSession`, `ConsoleProgram`). | `ConsoleHost`, `ConsoleDownload`, `ResidentOptions` |
 
 ## 7. Veri akışı
 
@@ -153,10 +153,10 @@ Bütün testler `Tests/` altındadır; ayrı bir `tests/` klasörü yoktur. macO
 
 1. Ön denetimler:
    - root ise durulur.
-   - Tek oturum kilidi alınır. Kilit başka oturumdaysa ona durum isteği gönderilip çıkılır.
+   - Tek oturum kilidi alınır. Kilit başka oturumdaysa ona durum isteği gönderilip çıkılır. 1g'de Terminal'deki ikinci örnek yalnız uyarı verip çıkar; durum isteği kontrol soketiyle Aşama 2'de gelir.
    - Bekleyen kurtarma günlüğü varsa ve Discord kapalıysa önce geri alma yapılır.
    - `Discord.app` bulunur ve imzası doğrulanır.
-   - Discord açıksa profil değişikliği yapılmaz. Süreç listesi eksiksiz okunamazsa Discord açık sayılır (DSC-E04); başka bir konumdaki Discord kopyaları da sayılır (1f).
+   - Discord açıksa profil değişikliği yapılmaz. Süreç listesi eksiksiz okunamazsa Discord açık sayılır (DSC-E04); başka bir konumdaki Discord kopyaları da sayılır (1f). 1g'den beri Discord'un ana ya da yardımcı dosyasını çalıştıran, adı değiştirilmiş bir uygulama da sayılır. Okunamayan ama yaşayan bir süreç de, çekirdek onu Discord olarak adlandırıyorsa sayılır (Windows `Unknown` gözlemini engel sayar).
    - Discord veri klasörüne erişim (Tam Disk Erişimi) denetlenir. İzin yoksa profil değişikliği yapılmaz; kullanıcıya gerekçe gösterilir ve ilgili Sistem Ayarları sayfası açılır.
 2. DNS seçimi: Adaylar sırayla denenir. Her aday için motor ve kapı açılır; kapı üzerinden Discord Gateway API'sine (`https://discord.com/api/v10/gateway`) HTTPS isteği yapılır ve yanıtın Gateway adresi olduğu doğrulanır (Windows `CheckDnsCandidate`). Başarılı aday oturuma alınır; başarısız aday, sıradaki açılmadan önce tamamen kapatılır. Kullanıcı bir sağlayıcı adlandırdıysa (`--dns=…`) denetim yapılmaz. Anonim Gateway WebSocket HELLO tanısı "Bağlantıyı kontrol et" ile yapılır.
 3. Güncelleme köprüsü rastgele port ve gizli yol belirteciyle başlar.
@@ -281,10 +281,10 @@ module.exports = require('./core.asar');
   - Her bağlantı sırayla: eş kabulü (reddedilene `403 Forbidden`), başlık (en fazla 32 KiB, 15 sn içinde, yalnız ASCII), istek politikası, motora bağlantı (5 sn), motor kimliği, başlığın yazılması, iki yönlü aktarım. Bir yön bitince karşı soketin gönderme yönü kapatılır; kalan yön en fazla 30 sn boşalır. Aşamalar, süreler, 64 bağlantı sınırı ve tanı satırları Windows'takiyle aynıdır.
   - Motor kimliği her bağlantıda doğrulanır: motor çalışıyor, bağlantının kendi ucunu motor tutuyor ve motor hâlâ çalışıyor. Motor toplanmamış bir alt süreç olduğu için iki denetim arasında PID'si başka bir sürece geçemez. Motor bağlantıyı kendi zamanında kabul ettiği için bu uç en fazla 1 sn beklenir. Doğrulanmamış bir arka uca tek bayt gönderilmez; kimlik bilgisi de buna dahildir.
   - Bütün soketler close-on-exec'tir. macOS'ta `SOCK_CLOEXEC` yoktur: soketin açılmasıyla bayrağın konması arasında başka bir iş parçacığının başlattığı alt süreç tanıtıcıyı devralabilir. Uygulamanın her alt süreci bu yüzden `POSIX_SPAWN_CLOEXEC_DEFAULT` ile başlatılır; motor 1a'dan beri böyledir, Discord'u başlatan kod da (1f/1g) böyle olmalıdır.
-  - Her bağlantı kendi iş parçacığında, bloklamayan soketler ve `poll` ile çalışır; eş denetimi kabul döngüsünü bekletmez. Kapanış, bütün beklemelere katılan bir borunun yazma ucu kapatılarak bildirilir; hiçbir iş parçacığı başkasının tanıtıcısını kapatmaz. Dinleyiciyi kabul iş parçacığı kapatır; `close()` bunu bekler ve döndüğünde port boştur (Windows `Dispose` gibi). Kabul iş parçacığı o sırada bir tanı geri çağrısında olabileceği için `close()`, geri çağrının beklediği bir kilit ya da kuyruk tutulurken çağrılmaz; 1g'de tanı kaydı eşzamansız yazılır. Biten bağlantıların tanı satırları `close()` döndükten kısa süre sonra da gelebilir. Kapı kendi kapanış durumunu da denetler; eş kabulünün `close()` ile çakışan bir sonucu kullanılmaz.
+  - Her bağlantı kendi iş parçacığında, bloklamayan soketler ve `poll` ile çalışır; eş denetimi kabul döngüsünü bekletmez. Kapanış, bütün beklemelere katılan bir borunun yazma ucu kapatılarak bildirilir; hiçbir iş parçacığı başkasının tanıtıcısını kapatmaz. Dinleyiciyi kabul iş parçacığı kapatır; `close()` bunu bekler ve döndüğünde port boştur (Windows `Dispose` gibi). Kabul iş parçacığı o sırada bir tanı geri çağrısında olabileceği için `close()`, geri çağrının beklediği bir kilit ya da kuyruk tutulurken çağrılmaz; 1g'de tanı kaydı eşzamansız yazılır (`ConsoleOutput`). Biten bağlantıların tanı satırları `close()` döndükten kısa süre sonra da gelebilir. Kapı kendi kapanış durumunu da denetler; eş kabulünün `close()` ile çakışan bir sonucu kullanılmaz.
   - Zaman sınırları monoton saatle (`ContinuousClock`) ölçülür; sistem saatinin değişmesi onları kısaltmaz ya da uzatmaz.
   - Dinleyici `SO_REUSEADDR` ile açılır: yeni bir kapı, kapanan kapının portunu eski bağlantılar TIME_WAIT'teyken de alabilir. Dinleyici açıkken başka bir soket 127.0.0.1 üzerindeki aynı portu alamaz.
-  - Kabul sırasında beklenmeyen bir hata (örneğin `EMFILE`) kapıyı kapatır: önce dinleyici kapanır, sonra `faulted` bildirilir (Windows gibi). Kapıyı denetleyici yeniden kurar (1g) ve bunu `faulted` içinde aynı portla yapabilir. O anda başlatılmakta olan bir alt süreç `exec`'e kadar dinleyicinin kopyasını tutabileceği için aynı porta yeniden bağlanma kısa bir süre yeniden denenmelidir. 1g'de `EMFILE`, `ENFILE`, `ENOBUFS` ve `ENOMEM` kabulde geçici sayılıp kısa bir beklemeyle yeniden denenebilir. 64 bağlantı 128 tanıtıcı kullanır ve macOS'un varsayılan yumuşak tanıtıcı sınırı 256'dır; uygulama açılışta bu sınırı (`RLIMIT_NOFILE`) yükseltir (1g).
+  - Kabul sırasında beklenmeyen bir hata (örneğin `EMFILE`) kapıyı kapatır: önce dinleyici kapanır, sonra `faulted` bildirilir (Windows gibi). 1g'de kapı arızası Windows'taki gibi oturumu kapatır; kapı yeniden kurulmaz. Kabulde `EMFILE` gibi hatalar yeniden denenmez. Bunun yerine uygulama açılışta yumuşak tanıtıcı sınırını (`RLIMIT_NOFILE`) 4096'ya, sert sınır izin verdiği kadar yükseltir: 64 bağlantı 128 tanıtıcı kullanır ve macOS'un varsayılan yumuşak sınırı 256'dır.
   - Retler görünür: sahiplik reddi `Failure stage=Ownership target=unknown category=UnownedClient reason=<neden>` satırıyla yazılır. Neden, satırın öteki değişken parçaları gibi yazılmadan önce süzülür; yeni bir satır başlatamaz. Nedenler: `NoHolder`, `DiagnosticNotAllowed`, `OtherUser`, `StartedBeforeReady`, `RequirementNotMet`, `UnknownProcess`, `HoldersChanged`, `Unreadable`, `Capacity`, `Closed` ve yürütülebilir dosya adıyla birlikte `UnapprovedExecutable`. Onaylanmamış bir Discord yardımcısı aday olmadığından `NoHolder` olarak görünür; yeni yardımcıları kurulu uygulamayla karşılaştıran test geliştirme sırasında yakalar. Onaylı dosyalardan biri eksikse `PeerAdmission` artık `missingExecutable` hatası verir (kullanıcı iletisi 1f).
   - Kapı yalnız tam olarak 127.0.0.1'den gelen bağlantıyı eşleştirir. Başka bir loopback adresi (ör. root'un lo0'a eklediği 127.0.0.2) `RemoteAddress` nedeniyle reddedilir.
   - Politika, motora gidecek baytların aynısını görür: başlık ham baytlarda ilk CRLFCRLF'de ayrılır; motora `rewrite` çıktısı ve ardından kalan baytlar olduğu gibi gider.
@@ -299,16 +299,27 @@ module.exports = require('./core.asar');
   - Hata iletileri yalnız sabit bir kategori, HTTP durumu ve yanıt türü içerir; URL, başlık, gövde ya da hata metni tutulmaz.
   - `discord.com` ve `discord.gg` HSTS önyükleme listesindedir: URLSession düz `http` ve `ws` isteklerini de `https` ve `wss`'e çevirir. Testler bu yüzden `.invalid` adlarla düz HTTP kullanır; bu adlar hiçbir yere çözülmez.
   - Seçilen aday oturumun motoru ve kapısı olur. Oturum (1g), kapının kendini kapattığını `DnsConnection.onGateFault` ile öğrenir (Windows `Gate.Faulted`). Motorun çıkışını da ayrıca izlemelidir (Windows `Engine.Exited`): 1d'de duran motor yalnız denetim sırasında fark edilir ve ENG-E02 olarak bildirilir.
-  - 1g için açık noktalar:
-    - İşleyici ayarlanmadan önce kapı arızalanırsa bunu bildiren bir şey yoktur (Windows'ta da aynı boşluk var). Oturum işleyiciyi ayarladıktan sonra kapının açık olduğunu denetleyebilmelidir; bunun için kapının durumu dışarıdan okunabilir olmalıdır.
-    - Kapatma işleyiciyi temizler; işleyici oturumu zayıf tutmalıdır. Kapanışla yarışan bir arıza yine de bir kez bildirilebilir.
-    - `DnsConnection.close()` ikinci çağrıda hiçbir şey yapmaz, ilk çağrı DNS-E03 vermiş olsa da. "Yeniden bağlan" bunu başarı saymamalı; toplanamayan motor varken yeni aday başlatmamalıdır.
+  - 1d'de açık kalan noktalar 1g'de şöyle kapandı:
+    - İşleyici ayarlanmadan önce kapı arızalanırsa bunu bildiren bir şey yoktu (Windows'ta da aynı boşluk var). Oturum, işleyiciyi ayarladıktan sonra ve bağlantının sonunda kapının hâlâ kabul ettiğini `ProxyGate.isAccepting` ile denetler.
+    - İşleyiciler oturumu zayıf tutar. Kapanışla yarışan bir arıza yine bir kez bildirilebilir; oturumun bağlantısı artık o aday olmadığı için yok sayılır.
+    - `DnsConnection.close()` ikinci çağrıda hiçbir şey yapmaz, ilk çağrı DNS-E03 vermiş olsa da. Oturum denetleyicisi bu yüzden tek kullanımlıktır; yeniden bağlanma yeni bir denetleyiciyle yapılır. Menü çubuğunun "Yeniden bağlan"ı (Aşama 2) da toplanamayan motor varken yeni aday başlatmamalıdır.
 - **Güncelleme köprüsü** (1e, Windows `UpdateBridge` karşılığı):
   - Yalnız 127.0.0.1'de, rastgele bir portta dinler. Her yol 24 baytlık rastgele bir token ile başlar.
   - İstemci, kapıdaki gibi `PeerAdmission` ile kabul edilir: kabul edilen Discord süreçleri ve tanı izniyle bu süreç. Reddedilen istemci, isteği okunmadan 403 alır.
   - Yalnız izinli Discord alanlarına, https ve 443 ile ve kapı üzerinden gider. Yönlendirme izlenmez; çerez, önbellek ve kimlik bilgisi tutulmaz ya da sunulmaz.
   - Yönlendirme ve manifestteki adresler yalnız izinli bir Discord adresiyse köprüye yazılır. Discord dışına giden bir yönlendirme 400 ile reddedilir; güncelleyici başka bir yere gönderilemez.
   - Tanı satırları yalnız sabit aşama, kategori, HTTP durumu ve sayısal hata kodu içerir; URL, token, başlık, gövde ya da hata metni yazılmaz.
+- **Oturum ve Terminal modu** (1g, Windows `Controller` ve `ConsoleHost` karşılığı):
+  - Bağlanma sırası: Discord.app doğrulanır ve kapalı olmalıdır; önceki oturumun günlüğü geri alınır; veri klasörü okunabilmelidir; kanca ve motor doğrulanır; bu paketin motor yolundan launchd'ye geçmiş (yetim) motorlar kapatılır; DNS adayı seçilir; köprü başlar; Discord hâlâ kapalı olmalıdır; profil değişiklikleri yapılır. Bir adım başarısız olursa yapılan her şey geri alınır.
+  - Arka uç hatası: motorun çıkışı (`DispatchSource` süreç izleyicisi), kapının ya da köprünün kendini kapatması oturumu kapatır. Kapı ve motor hemen durur, geri kalanı kapanıştaki gibi işlem kilidi alındıktan sonra yapılır (Windows `BackendFailed`).
+  - Kapanış: profil değişiklikleri ancak Discord kapalıysa geri alınır. Kapının kabul ettiği bir Discord süreci hâlâ çalışıyorsa, bir Discord süreci 1 sn içinde kapanmazsa, süreç listesi okunamazsa, geri alma başarısız olursa ya da bir günlük kalırsa değişiklikler günlükleriyle korunur (SES-E01). Geri alma bir sonraki açılışta ya da `--restore` ile yapılır; `--restore` Discord açıkken bir şey değiştirmez (DSC-E07).
+  - Tek oturum: durum klasöründeki `session.lock` üzerinde `flock`. Kilit süreç bitene kadar tutulur ve sistemce bırakılır, çökme de buna dahildir; süresi dolan bir kapanışta profili değiştirmekte olan bir iş parçacığı varken başka bir örnek başlayamaz. İkinci örnek "zaten çalışıyor" der ve çıkar; `--restore` da kilidi alır (SES-E04). Böylece ikinci bir örnek, ilk oturumun değişikliklerini geri alamaz ya da üstüne yazamaz.
+  - Discord'u açma (A): Discord yeniden doğrulanır; sürüm değiştiyse açılmaz (SES-E03), açıksa ikinci kez açılmaz. İmza denetimi saniyeler sürebildiği için işlem kilidi tutulmadan yapılır; Discord açılırken oturum hâlâ aynı olmalıdır. `open` en fazla 10 sn beklenir. Açılış `/usr/bin/open -a <Discord.app> --args --proxy-server=… --proxy-bypass-list=127.0.0.1;localhost --disable-quic` ile yapılır. `open` yalnız /dev/null'a bağlı standart tanıtıcılarla ve `POSIX_SPAWN_CLOEXEC_DEFAULT` ile başlar. Discord'u Launch Services başlatır; Discord bu sürecin ortamını almaz (testte doğrulandı).
+  - Terminal: A, Q, T, D komutları; en fazla 64 bekleyen komut, her biri en fazla 8192 karakter. Her işlem kendi iş parçacığında çalışır; Q her an kapatır. Ctrl-C, SIGTERM ve SIGHUP (kapanan Terminal penceresi) Q gibi kapatır, çıkış kodu 130 olur. Kapanış en fazla 15 sn sürer; süre dolarsa bu sürecin motor alt süreçleri öldürülür, çünkü macOS'ta motor ebeveyninden sonra da yaşar. Çıkış kodları: 0, 1 (bağlantı ya da temizlik başarısız), 3 (açılamadı), 64 (hatalı komut satırı), 130.
+  - Çıktı: ekran ve kayıt için ayrı, sınırlı kuyruklar vardır (32 ve 512 satır). Duraklatılmış bir Terminal ya da yavaş bir disk kapıyı, köprüyü ve kapanışı bekletmez; sığmayan satırlar düşer ve sayılır. Satırlar 1000 karakterle sınırlıdır; kontrol ve metin yönü karakterleri boşluk olur, böylece bir dosya adı uzantısını gizleyemez. Kayıt `session.log` dosyasına yazılır (0600, 256 KiB'da yeniden başlar). Kayıtta bağlantı, belirteç ya da başlık bulunmaz.
+  - Tam Disk Erişimi: Terminal'den çalıştırıldığında macOS izni terminal uygulamasından ister. PRF-E04'te Sistem Ayarları'nın Tam Disk Erişimi sayfası açılır ve Terminal'e özgü ileti gösterilir.
+  - Açılışta root reddedilir (SYS-E02) ve SIGPIPE yok sayılır; kapanmış bir Terminal temizliği yarıda kesmez. Alt süreçler (motor, `open`) bu sinyallerin varsayılan işleyişiyle başlar. Terminal satırları en fazla 32 KiB okunur; daha uzunu atlanır. Komut satırı dışında yazılan hata satırları da temizlenir.
+  - Ek dosyası indirme (D) Windows kurallarını izler. Bağlantı yazıldığı gibi gönderilir. En fazla 3 yönlendirme izlenir ve her biri yeniden doğrulanır. İndirme toplam 15 dk, veri gelmeden en fazla 30 sn sürer. Dosya `~/Downloads/DiscordAccess/<zaman>-<rastgele>/` altında gizli bir `.part` dosyasına yazılır, `RENAME_EXCL` ile adına taşınır ve karantina özniteliği alır. Windows'un aygıt adı kuralı (CON vb.) macOS'ta uygulanmaz. Ad en fazla 160 karakter ve macOS'un sınırı olan 255 bayttır; daha uzun bir ad uzantısını korur ve `_` ile başlar (Windows'un kısalttığı adlar gibi). Dosya tanıtıcısı yazılırken kilitli kalır; kapatılan bir tanıtıcının numarası yazma sürerken başka bir dosyaya geçemez. İmzalı bağlantı kayda, ekrana ya da dosya adına girmez.
 - **Kapı için bilinen sınırlar:**
   - Düz HTTP keep-alive bağlantısında yalnız ilk istek politikadan geçer; sonraki istekler olduğu gibi aktarılır. Windows'ta da durum aynıdır ve motorun kendi yönlendirmesi hedefleri yine sınırlar.
   - Başlığı gönderip hemen yarım kapatan istemci reddedilir: sahiplik yalnız kurulu (ESTABLISHED) bağlantılara bakar. Windows'ta da durum aynıdır; Chromium böyle yapmaz.
@@ -333,7 +344,7 @@ module.exports = require('./core.asar');
 
 - **Mesajlar:** Hata kodları ve Türkçe mesajlar Windows'taki aileyi izler (`PKG-E01` vb.). Arka planda uyarı penceresi, Terminal'de stderr kullanılır.
 - **DNS:** Başarısız adayın ardından sıradaki denenir. Hepsi başarısızsa yalnız sabit bir ileti gösterilir (DNS-E02) ve "Yeniden bağlan" önerilir. HTTP 429 (Discord'un hız sınırı başka bir sağlayıcıyla aşılmaya çalışılmaz), iptal edilen denetim, açılamayan aday (paket bütünlüğü, motor başlatma) ve güvenle kapatılamayan aday (DNS-E03) seçimi başka sağlayıcı denemeden durdurur. Denetim sırasında duran motor ENG-E02 olarak bildirilir. Geçersiz ya da tekrarlanan `--dns` seçeneği DNS-E01'dir.
-- **Motor kopması:** Menü durumu "bağlantı koptu" olur. "Yeniden bağlan" temiz yeniden kurulum yapar.
+- **Motor kopması:** Menü durumu "bağlantı koptu" olur. "Yeniden bağlan" temiz yeniden kurulum yapar. Terminal modunda oturum kapanır ve neden ekranda gösterilir (1g).
 - **Yetim motor:** Çökme sonrası kalan motor, bir sonraki açılışta bu paketin motor yolu, kullanıcı kimliği ve üst süreç (1) ile bulunup kapatılır.
 - **Profil çakışması:** Kullanıcının değiştirdiği değerin üzerine yazılmaz. İşlem durur, kurtarma dosyası korunur ve kullanıcı bilgilendirilir.
 - **Discord güncellemesi:** Oturum boyunca doğrulanan sürüm tutulur. Yeni sürüm desteği bir sonraki açılışta hazırlanır. Tanınmayan profil yapısında değişiklik yapılmaz.
@@ -349,6 +360,7 @@ module.exports = require('./core.asar');
   - yol güveni
   - imza gereksinimi
   - soketten süreç bulma (yerel test süreciyle)
+  - oturum yaşam döngüsü (gerçek motor, örnek Discord.app ve örnek profille; ağsız), Terminal komut akışı, ek dosyası indirme (URLSession içinde sahte sunucu), Launch Services ile açılış (arka planda çalışan deneme uygulaması) (1g)
 - **Node testleri:**
   - `node macos/Tests/wrapper.test.cjs`
   - mevcut `node tests/attachment-download.test.cjs` (yalnız çalıştırılır, değiştirilmez)
@@ -390,6 +402,7 @@ module.exports = require('./core.asar');
 - **1d durumu:** Tamamlandı (bağlantı tanısı ve otomatik DNS seçimi; canlı doğrulama bu Mac'te geçti). Plan: macos/docs/plans/2026-10-15-asama-1d-baglanti-tanisi-ve-dns-secimi.md.
 - **1e durumu:** Tamamlandı (güncelleme köprüsü; canlı doğrulama bu Mac'te geçti). 1e'den itibaren aşamalar hash'li plan olmadan, doğrudan depoda testleriyle yazılır; güvenlik açısından önemli kodu bağımsız bir kritik inceleme denetler.
 - **1f durumu:** Kit tamamlandı: Discord.app doğrulaması, Tam Disk Erişimi denetimi, güvenli dosya işlemleri, oturum sarmalayıcısı (gömülü kanca, Node testi) ve günlüklü profil değişiklikleri. Testler yalnız geçici örnek profillerle çalışır. Gerçek profile uygulama, Sistem Ayarları yönlendirmesi ve Discord içinden ek dosyası indirmenin doğrulanması 1g'de, kullanıcının onayıyla yapılır.
+- **1g durumu:** Terminal modu yazıldı: oturum denetleyicisi, `DiscordAccess` komutu (`--console`, `--restore`, `--verify-package`, `--discord-path`, `--dns`, `--help`), tek oturum kilidi, Launch Services ile Discord açılışı, Terminal'den ek dosyası indirme ve Sistem Ayarları yönlendirmesi. Otomatik testler ağsız ve örnek profillerle geçer. Gerçek profille uçtan uca doğrulama, kullanıcının onayıyla ve Tam Disk Erişimi verilmiş bir Terminal'de yapılacak.
 - `scripts/build-engine.py` darwin hash sabitiyle tamamlanır: `ENGINE_SHA256 = 013ba5d5055988953ebec1a1ac0eceb8aead52415e3ef186a5c7481083472cb0`; tekrarlanabilirlik Aşama 0'da doğrulandı.
 - Profil değişiklikleri yeni güncelleyici düzenine (`app-<sürüm>/modules/discord_desktop_core-<N>`) göre yazılır. Windows'taki gibi tüm çekirdek nesilleri sarılır.
 - Ek dosyası kancası sarmalayıcıya gömülü olarak kurulur. Discord içinden ek dosyası indirme Mac'te doğrulanır.
@@ -402,7 +415,7 @@ module.exports = require('./core.asar');
 
 - ResidentInstance, MenuBarController, SessionController, StartupRegistration ve bildirimler yazılır.
 - `KitError`, `LocalizedError`'a uyar; uygulamanın uyarı ve bildirimleri Türkçe hata mesajını gösterir.
-- `--restore`, `--verify-package`, `--help`, `--discord-path`, `--dns` seçenekleri eklenir.
+- Terminal için 1g'de eklenen seçenekler (`--restore`, `--verify-package`, `--help`, `--discord-path`, `--dns`) paketlenmiş uygulamada da çalışır.
 - `build-app.sh` ile `.app` paketi üretilir. Paket ve gömülü motor, kalıcı TCC izni için sabit bir imza kimliğiyle imzalanır.
 - `macos/docs/` altına kullanım ve güven sınırları belgeleri yazılır.
 - Çıkış: canlı doğrulama listesi bu Mac'te tamamlanır ve sonuçlar ayrı raporlanır.

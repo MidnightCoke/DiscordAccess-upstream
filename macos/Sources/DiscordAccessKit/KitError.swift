@@ -77,6 +77,51 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
         KitError(code: "DSC-E03", message: "Birden fazla resmi Discord kurulumu bulundu. Kullanılacak kurulumu --discord-path ile belirtin.")
     }
 
+    static func discordRunning() -> KitError {
+        KitError(code: "DSC-E05", message: "Önce Discord'u tamamen kapatın (Discord > Discord'dan Çık ya da Cmd+Q); ardından DiscordAccess'i yeniden " +
+            "açın. Açık Discord değiştirilmedi.")
+    }
+
+    static func discordOpenedDuringPreparation() -> KitError {
+        KitError(code: "DSC-E06", message: "Hazırlık sırasında Discord açıldı. Discord'u tamamen kapatıp DiscordAccess'i yeniden açın; ayarlar " +
+            "değiştirilmedi.")
+    }
+
+    /// `--restore` changes nothing while Discord runs.
+    static func discordRunningDuringRestore() -> KitError {
+        KitError(code: "DSC-E07", message: "Önce Discord'u tamamen kapatın (Discord > Discord'dan Çık ya da Cmd+Q); ardından DiscordAccess --restore " +
+            "çalıştırın. Bekleyen geri alma kaydı korunuyor.")
+    }
+
+    static func discordLaunchFailed() -> KitError {
+        KitError(code: "DSC-E08", message: "Discord açılış isteği gönderilemedi. Discord'u Dock, Launchpad ya da Spotlight'tan açabilirsiniz; " +
+            "bağlantı açık kalır.")
+    }
+
+    /// Discord was open when the session ended, or undoing failed: the journal is kept for the next start or `--restore`.
+    static func sessionRestoreDeferred() -> KitError {
+        KitError(code: "SES-E01", message: "Bağlantı kapandı. Discord'u tamamen kapatıp DiscordAccess --restore çalıştırın ya da DiscordAccess'i " +
+            "yeniden açın. Geçici ayarların kurtarma kaydı korundu.")
+    }
+
+    static func sessionNotReady() -> KitError {
+        KitError(code: "SES-E02", message: "Bağlantı hazır değil.")
+    }
+
+    static func discordChanged() -> KitError {
+        KitError(code: "SES-E03", message: "Discord değişti. Discord'u tamamen kapatıp Q ile çıkın; DiscordAccess'i yeniden açın.")
+    }
+
+    /// `--restore` while another DiscordAccess holds the session (Windows `ResidentInstance`).
+    static func sessionStillOpen() -> KitError {
+        KitError(code: "SES-E04", message: "DiscordAccess hâlâ açık. Önce mevcut bağlantıyı kapatın.")
+    }
+
+    /// Windows `Safety.RejectElevation`: root would own the files it writes in the user's folders.
+    static func runningAsRoot() -> KitError {
+        KitError(code: "SYS-E02", message: "DiscordAccess yönetici (root) olarak çalıştırılmaz. sudo kullanmadan, kendi kullanıcı hesabınızla açın.")
+    }
+
     /// Windows `InstalledDiscord.Conflict`: nothing that changed since is overwritten.
     static func profileConflict() -> KitError {
         KitError(code: "PRF-E01", message: "Discord'un geçici ayarları güvenli biçimde doğrulanamadı. Değişmiş dosya veya tercihin üzerine yazılmadı.")
@@ -89,6 +134,13 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
     static func profileMissingModule() -> KitError {
         KitError(code: "PRF-E03", message: "Discord'un beklenen başlangıç modülü bulunamadı. Discord'u bir kez normal açıp kapatın, sonra " +
             "yeniden deneyin.")
+    }
+
+    /// Run from a terminal, macOS asks Full Disk Access of the terminal app, not of DiscordAccess.
+    static func profileAccessDeniedInTerminal() -> KitError {
+        KitError(code: "PRF-E04", message: "Discord'un veri klasörüne erişim izni yok. Terminal'den açıldığında bu izin terminal uygulamasına " +
+            "verilir: Sistem Ayarları > Gizlilik ve Güvenlik > Tam Disk Erişimi'nde Terminal'i (ya da kullandığınız terminal uygulamasını) açın, " +
+            "uygulamayı kapatıp yeniden açın ve DiscordAccess'i tekrar çalıştırın. İzin verilmeden Discord ayarları değiştirilmez.")
     }
 
     /// macOS keeps Discord's data folder from other apps without asking (TCC); only Full Disk Access opens it.

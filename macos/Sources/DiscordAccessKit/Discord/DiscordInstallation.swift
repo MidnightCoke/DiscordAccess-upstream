@@ -50,15 +50,33 @@ public struct DiscordInstallation: Equatable, Sendable {
         DiscordApplication.approvedExecutables(bundle: bundle)
     }
 
-    /// This user's processes running from this or any other Discord.app (a copy elsewhere, or a translocated one, shares
-    /// the profile); the profile may only change while there are none. A process list that cannot be read completely is
-    /// DSC-E04: Discord may be running.
+    /// This user's processes of Discord (`isDiscordProcess`): every copy shares the profile, which may only change while
+    /// there are none. A process list that cannot be read completely is DSC-E04: Discord may be running.
     public func runningProcesses() throws -> [pid_t] {
+        try Self.runningProcesses(bundle: bundle)
+    }
+
+    /// As `runningProcesses()`, with or without a selected `bundle` (`--restore` needs no installation). A live process
+    /// that cannot be read counts when the kernel names it Discord (Windows `InstalledObservationBlocksCleanup`).
+    static func runningProcesses(bundle: String?) throws -> [pid_t] {
         guard let processes = ProcessInspector.completeUserProcessIDs(uid: getuid()) else { throw KitError.discordStateUnknown() }
-        return processes.filter { pid in
-            guard let path = ProcessInspector.record(for: pid)?.path else { return false }
-            return path.hasPrefix(bundle + "/Contents/") || path.contains("/Discord.app/Contents/")
+        return try processes.filter { pid in
+            if let path = ProcessInspector.record(for: pid)?.path { return isDiscordProcess(path, bundle: bundle) }
+            switch ProcessInspector.kernelState(of: pid) {
+            case .gone?, .zombie?: return false
+            case .running(let name)?: return name.hasPrefix("Discord")
+            case nil: throw KitError.discordStateUnknown()
+            }
         }
+    }
+
+    /// Whether `path` runs from the selected bundle, from any `Discord.app` (a copy elsewhere, or a translocated one), or
+    /// is Discord's main or helper executable in an app of another name.
+    static func isDiscordProcess(_ path: String, bundle: String?) -> Bool {
+        if let bundle, path.hasPrefix(bundle + "/Contents/") { return true }
+        if path.contains("/Discord.app/Contents/") { return true }
+        let name = (path as NSString).lastPathComponent
+        return (name == "Discord" || name.hasPrefix("Discord Helper")) && path.contains(".app/Contents/")
     }
 
     /// `path` as processes report it: a `/System/Volumes/Data/...` spelling becomes the firmlinked one if it names the

@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// The session wrapper written over Discord's core entry (design 7.2). In Discord's main process it applies the
@@ -59,6 +60,33 @@ public struct SessionWrapper: Equatable, Sendable {
 
         """ + Self.officialEntry + "\n"
         bytes = Array(text.utf8)
+    }
+
+    /// The shared hook at `path`, read without following a link at its end: PKG-E01 when it is missing, PKG-E05 when it
+    /// is not the pinned hook. Only its digest is trusted, so whoever owns the file does not matter.
+    public static func loadHook(path: String) throws -> [UInt8] {
+        let descriptor = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
+        guard descriptor >= 0 else {
+            if errno == ENOENT { throw KitError.engineMissing(path) }
+            throw KitError.hookIntegrity()
+        }
+        defer { close(descriptor) }
+        var status = stat()
+        guard fstat(descriptor, &status) == 0, status.st_mode & S_IFMT == S_IFREG, status.st_size <= off_t(maxHookBytes) else {
+            throw KitError.hookIntegrity()
+        }
+        var bytes = [UInt8](repeating: 0, count: maxHookBytes + 1)
+        var count = 0
+        while count < bytes.count {
+            let result = bytes.withUnsafeMutableBytes { Darwin.read(descriptor, $0.baseAddress! + count, $0.count - count) }
+            if result < 0 && errno == EINTR { continue }
+            guard result >= 0 else { throw KitError.hookIntegrity() }
+            if result == 0 { break }
+            count += result
+        }
+        let hook = Array(bytes[..<count])
+        guard SafeFile.sha256(hook) == hookSHA256 else { throw KitError.hookIntegrity() }
+        return hook
     }
 
     /// Discord's own entry (Windows `InstalledDiscord.Original`): UTF-8, at most 16 KiB.

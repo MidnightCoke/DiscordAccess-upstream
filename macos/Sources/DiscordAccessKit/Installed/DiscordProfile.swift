@@ -16,6 +16,12 @@ public enum DiscordProfile {
         case missing
     }
 
+    /// Opens System Settings at Full Disk Access; true when the request went out.
+    @discardableResult
+    public static func openFullDiskAccessSettings() -> Bool {
+        Launcher.open([fullDiskAccessSettings.absoluteString])
+    }
+
     /// Whether this process may read the folder at `root`. macOS protects Discord's data from other apps without asking,
     /// so without Full Disk Access reading its contents fails.
     public static func access(root: String) -> Access {

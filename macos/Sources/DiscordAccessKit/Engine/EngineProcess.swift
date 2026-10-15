@@ -78,6 +78,17 @@ public final class EngineProcess {
         return orphans.map(\.pid)
     }
 
+    /// Kills this process's own engines of `enginePath` that still run, for an exit that cannot wait for the session to
+    /// stop them: on macOS an engine outlives its parent, where a Windows job would end it. Unreaped children keep their
+    /// process IDs, so none can name another process.
+    @discardableResult
+    public static func terminateChildren(enginePath: String) -> [pid_t] {
+        let children = ProcessInspector.userProcessIDs(uid: getuid()).compactMap(ProcessInspector.record(for:))
+            .filter { $0.parentPid == getpid() && $0.path == enginePath }
+        for child in children { kill(child.pid, SIGKILL) }
+        return children.map(\.pid)
+    }
+
     private func waitUntilListening(timeout: TimeInterval, cancel: Cancellation?) throws {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
@@ -132,9 +143,10 @@ public final class EngineProcess {
         guard posix_spawnattr_init(&attributes) == 0 else { throw KitError.engineStartFailed() }
         defer { posix_spawnattr_destroy(&attributes) }
         // Only the descriptors set up below reach the engine; it gets its own process group and starts suspended,
-        // so none of its code runs before the signature check.
-        guard posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_START_SUSPENDED)) == 0,
-              posix_spawnattr_setpgroup(&attributes, 0) == 0 else { throw KitError.engineStartFailed() }
+        // so none of its code runs before the signature check. Signals the terminal session ignores are default again.
+        guard posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_START_SUSPENDED |
+                                                          POSIX_SPAWN_SETSIGDEF)) == 0,
+              posix_spawnattr_setpgroup(&attributes, 0) == 0, setDefaultSignals(&attributes) else { throw KitError.engineStartFailed() }
         var actions: posix_spawn_file_actions_t?
         guard posix_spawn_file_actions_init(&actions) == 0 else { throw KitError.engineStartFailed() }
         defer { posix_spawn_file_actions_destroy(&actions) }
@@ -194,7 +206,16 @@ public final class EngineProcess {
     }
 }
 
-private func withCStringArray<Result>(_ strings: [String], _ body: ([UnsafeMutablePointer<CChar>?]) -> Result) -> Result {
+/// Gives a child the default handling of the signals the terminal session ignores (`POSIX_SPAWN_SETSIGDEF` must be set):
+/// an ignored signal would otherwise stay ignored across exec.
+func setDefaultSignals(_ attributes: inout posix_spawnattr_t?) -> Bool {
+    var signals = sigset_t()
+    sigemptyset(&signals)
+    for number in [SIGINT, SIGTERM, SIGHUP, SIGPIPE] { sigaddset(&signals, number) }
+    return posix_spawnattr_setsigdefault(&attributes, &signals) == 0
+}
+
+func withCStringArray<Result>(_ strings: [String], _ body: ([UnsafeMutablePointer<CChar>?]) -> Result) -> Result {
     var pointers = strings.map { strdup($0) }
     pointers.append(nil)
     defer { pointers.forEach { free($0) } }

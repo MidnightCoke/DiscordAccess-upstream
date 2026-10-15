@@ -47,6 +47,37 @@ import Testing
         })
     }
 
+    /// Every copy of Discord shares the profile, whatever its app is called.
+    @Test func recognizesDiscordByWhatRuns() {
+        let own = "/Applications/Discord.app"
+        for path in ["/Applications/Discord.app/Contents/MacOS/Discord", "/Users/a/Desktop/Discord.app/Contents/Frameworks/x/chrome_crashpad_handler",
+                     "/Applications/Discord Old.app/Contents/MacOS/Discord", "/Volumes/D/discord.app/Contents/MacOS/Discord",
+                     "/Applications/Old.app/Contents/Frameworks/Discord Helper (Renderer).app/Contents/MacOS/Discord Helper (Renderer)"] {
+            #expect(DiscordInstallation.isDiscordProcess(path, bundle: nil))
+        }
+        #expect(DiscordInstallation.isDiscordProcess("/Applications/Chat.app/Contents/Frameworks/ShipIt", bundle: "/Applications/Chat.app"))
+        for path in ["/Applications/Discord PTB.app/Contents/MacOS/Discord PTB", "/usr/local/bin/Discord", "/Applications/Chat.app/Contents/MacOS/Chat",
+                     "/Applications/DiscordAccess.app/Contents/MacOS/DiscordAccess"] {
+            #expect(!DiscordInstallation.isDiscordProcess(path, bundle: own))
+        }
+    }
+
+    /// The kernel names a process libproc cannot read, and tells a zombie from one that runs.
+    @Test func readsTheKernelsViewOfAProcess() throws {
+        guard case .running(let name)? = ProcessInspector.kernelState(of: getpid()) else {
+            Issue.record("This process was not seen running.")
+            return
+        }
+        #expect(!name.isEmpty && name.utf8.count <= 16 && ProcessInfo.processInfo.processName.hasPrefix(name))
+        var pid: pid_t = 0
+        let status = withCStringArray(["/usr/bin/true"]) { argv in posix_spawn(&pid, "/usr/bin/true", nil, nil, argv, nil) }
+        try #require(status == 0)
+        #expect(waitFor { ProcessInspector.kernelState(of: pid) == .zombie ? true : nil } == true)
+        var result: Int32 = 0
+        while waitpid(pid, &result, 0) == -1 && errno == EINTR {}
+        #expect(ProcessInspector.kernelState(of: pid) == .gone)
+    }
+
     @Test func tellsWhetherTheDataFolderCanBeRead() throws {
         let directory = try TemporaryDirectory()
         #expect(DiscordProfile.access(root: directory.path + "/missing") == .missing)

@@ -36,6 +36,26 @@ public enum ProcessInspector {
                       startMicroseconds: info.pbi_start_tvusec, path: String(cString: buffer))
     }
 
+    public enum KernelState: Equatable, Sendable {
+        case gone
+        case zombie
+        /// `name` holds at most the first 16 bytes of the executable's name.
+        case running(name: String)
+    }
+
+    /// The process as the kernel's process table shows it, also when `record(for:)` cannot read it; nil when the table
+    /// could not be read.
+    static func kernelState(of pid: pid_t) -> KernelState? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var name: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard pid > 0, sysctl(&name, 4, &info, &size, nil, 0) == 0 else { return nil }
+        guard size > 0 else { return .gone }
+        if Int32(info.kp_proc.p_stat) == SZOMB { return .zombie }
+        let command = withUnsafeBytes(of: info.kp_proc.p_comm) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+        return .running(name: command)
+    }
+
     /// True when `pid` holds a TCP socket listening on 127.0.0.1:`port` (Windows `TcpOwner.OwnsListener`).
     public static func ownsLoopbackListener(pid: pid_t, port: UInt16) -> Bool {
         tcpSockets(of: pid)?.contains { $0.listening && $0.localLoopback && $0.localPort == port } ?? false
