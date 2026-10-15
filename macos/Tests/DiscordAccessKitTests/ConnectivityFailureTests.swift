@@ -8,31 +8,31 @@ import Testing
     static let secret = "SYNTHETIC_SECRET https://private.invalid/?token=PRIVATE /Users/PRIVATE/config.json\u{1B}"
 
     @Test(arguments: [
-        (ConnectivityFailure.Reason.dns, "DNS çözümleme başarısız"),
-        (.tls, "TLS bağlantısı veya sertifika doğrulaması başarısız"),
-        (.connect, "ağ veya yerel proxy bağlantısı kurulamadı"),
-        (.timeout, "zaman aşımı"),
-        (.invalidResponse, "beklenen yanıt biçimi doğrulanamadı"),
-        (.responseTooLarge, "yanıt boyut sınırını aşıyor"),
-        (.incompleteResponse, "yanıt aktarımı tamamlanamadı"),
-        (.canceled, "işlem iptal edildi"),
-        (.other, "erişim doğrulanamadı"),
+        (ConnectivityFailure.Reason.dns, "DNS resolution failed"),
+        (.tls, "TLS connection or certificate validation failed"),
+        (.connect, "could not connect to the network or the local proxy"),
+        (.timeout, "timed out"),
+        (.invalidResponse, "the expected response format could not be verified"),
+        (.responseTooLarge, "the response exceeds the size limit"),
+        (.incompleteResponse, "the response transfer did not finish"),
+        (.canceled, "the operation was canceled"),
+        (.other, "access could not be verified"),
     ])
     func namesTheEndpointAndTheReason(reason: ConnectivityFailure.Reason, detail: String) {
-        #expect(ConnectivityFailure(endpoint: .gateway, reason: reason).message == "Discord Gateway API kontrolü başarısız (" + detail + ").")
-        #expect(ConnectivityFailure(endpoint: .updates, reason: reason).description == "Discord güncelleme sunucusu kontrolü başarısız (" + detail + ").")
+        #expect(ConnectivityFailure(endpoint: .gateway, reason: reason).message == "Discord Gateway API check failed (" + detail + ").")
+        #expect(ConnectivityFailure(endpoint: .updates, reason: reason).description == "Discord update server check failed (" + detail + ").")
     }
 
     @Test func keepsAnHTTPStatusOnlyWhenItIsOne() {
         #expect(ConnectivityFailure(endpoint: .gateway, reason: .http, httpStatus: 429, responseKind: .html).message ==
-            "Discord Gateway API kontrolü başarısız (HTTP 429; yanıt türü HTML).")
+            "Discord Gateway API check failed (HTTP 429; response type HTML).")
         #expect(ConnectivityFailure(endpoint: .updates, reason: .http, httpStatus: 503, responseKind: .json).message ==
-            "Discord güncelleme sunucusu kontrolü başarısız (HTTP 503; yanıt türü JSON).")
+            "Discord update server check failed (HTTP 503; response type JSON).")
         #expect(ConnectivityFailure(endpoint: .gateway, reason: .invalidResponse, responseKind: .other).message ==
-            "Discord Gateway API kontrolü başarısız (beklenen yanıt biçimi doğrulanamadı; yanıt türü diğer).")
+            "Discord Gateway API check failed (the expected response format could not be verified; response type other).")
         for status in [-1, 0, 99, 600, Int.max] {
             let failure = ConnectivityFailure(endpoint: .gateway, reason: .http, httpStatus: status)
-            #expect(failure.httpStatus == 0 && failure.message == "Discord Gateway API kontrolü başarısız (HTTP hata yanıtı).")
+            #expect(failure.httpStatus == 0 && failure.message == "Discord Gateway API check failed (HTTP error response).")
         }
         #expect(ConnectivityFailure(endpoint: .gateway, reason: .timeout, httpStatus: 429).httpStatus == 0)
     }

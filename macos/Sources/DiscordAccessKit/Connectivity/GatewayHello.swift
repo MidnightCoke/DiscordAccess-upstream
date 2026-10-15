@@ -17,8 +17,8 @@ public struct GatewayHelloFailure: Error, Equatable, CustomStringConvertible {
     public let reason: Reason
 
     public var message: String {
-        "[WS-" + (opened ? "HELLO" : "CONNECT") + "-" + reason.rawValue + "] Gateway WebSocket kontrolü tamamlanamadı. HTTP API başarısı " +
-            "canlı mesaj bağlantısını doğrulamaz."
+        "[WS-" + (opened ? "HELLO" : "CONNECT") + "-" + reason.rawValue + "] The Gateway WebSocket check did not finish. A working HTTP API does not prove " +
+            "the live message connection."
     }
 
     public var description: String { message }
@@ -35,8 +35,8 @@ public enum GatewayHello {
     /// Returns the summary to show; throws `GatewayHelloFailure`, or `CancellationError` once `cancel` is canceled.
     public static func check(proxyPort: UInt16, cancel: Cancellation = Cancellation()) throws -> String {
         try check(url: url, proxyPort: proxyPort, cancel: cancel)
-        return "[WS-OK] Gateway WebSocket bağlantısı ve HELLO yanıtı proxy üzerinden doğrulandı. Bu kontrol hesap oturumunu, mesaj " +
-            "gönderimini veya ses/ekran paylaşımını doğrulamaz."
+        return "[WS-OK] The Gateway WebSocket connection and the HELLO reply were verified through the proxy. This check does not " +
+            "verify the account session, sending messages, or voice and screen sharing."
     }
 
     static func check(url: URL, proxyPort: UInt16, cancel: Cancellation, deadline: TimeInterval = deadline) throws {

@@ -20,8 +20,8 @@ public enum ConnectivityProbe {
     /// The Gateway API and the update server both answer (Windows `Check`); returns the summary to show.
     public static func check(proxyPort: UInt16, cancel: Cancellation = Cancellation()) throws -> String {
         try check(gateway: gatewayURL, updates: updatesURL, proxyPort: proxyPort, cancel: cancel)
-        return "Discord API ve güncelleme sunucusuna proxy üzerinden HTTPS erişimi doğrulandı. Masaüstü güncellemesi, hesap girişi ve " +
-            "sesli sohbet ayrıca kontrol edilmelidir."
+        return "HTTPS access to the Discord API and the update server was verified through the proxy. Desktop updates, account " +
+            "sign-in and voice chat must be checked separately."
     }
 
     static func check(gateway: URL, updates: URL, proxyPort: UInt16, cancel: Cancellation, deadline: TimeInterval = deadline) throws {

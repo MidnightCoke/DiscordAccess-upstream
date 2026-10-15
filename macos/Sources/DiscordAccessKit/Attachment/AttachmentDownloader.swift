@@ -22,7 +22,7 @@ public enum AttachmentDownloader {
     /// macOS's limit for one file name (`NAME_MAX`), in UTF-8 bytes.
     static let maxNameBytes = 255
     static let hosts = ["cdn.discordapp.com", "media.discordapp.net"]
-    static let invalidLink = "Yalnızca Discord ek dosyasının HTTPS bağlantısı kabul edilir. Discord'da bağlantıyı kopyalayıp yeniden yapıştırın."
+    static let invalidLink = "Only the HTTPS link of a Discord attachment is accepted. Copy the link in Discord and paste it again."
 
     /// `~/Downloads/DiscordAccess`.
     public static var standardRoot: String { DiscordProfile.home() + "/Downloads/DiscordAccess" }
@@ -64,7 +64,7 @@ public enum AttachmentDownloader {
         name = trimmed(name.trimmingCharacters(in: .whitespaces))
         if name.count > maxNameLength { name = trimmed(String(name.prefix(maxNameLength))) }
         if name.hasPrefix(".") { name = "_" + name.dropFirst() }
-        return fitted(name.trimmingCharacters(in: .whitespaces).isEmpty ? "Discord-dosyasi" : name)
+        return fitted(name.trimmingCharacters(in: .whitespaces).isEmpty ? "Discord-file" : name)
     }
 
     /// A name over 255 bytes keeps its extension (20 bytes at most) and starts with `_`, as Windows marks a name it
@@ -76,7 +76,7 @@ public enum AttachmentDownloader {
         var stem = String(name.dropLast(suffix.count))
         while !stem.isEmpty && ("_" + stem + suffix).utf8.count > maxNameBytes { stem.removeLast() }
         stem = trimmed(stem)
-        return stem.isEmpty ? "Discord-dosyasi" + suffix : "_" + stem + suffix
+        return stem.isEmpty ? "Discord-file" + suffix : "_" + stem + suffix
     }
 
     /// Downloads the attachment of `link` into a new folder under `root` and returns the saved file's path. Throws
@@ -88,7 +88,7 @@ public enum AttachmentDownloader {
     /// `protocolClasses` lets tests stand in for Discord's servers.
     static func download(_ link: String, root: String, proxyPort: UInt16, cancel: Cancellation, now: Date, protocolClasses: [AnyClass]?) throws -> String {
         var current = try validate(link)
-        guard proxyPort > 0 else { throw AttachmentDownloadFailure(message: "Önce DiscordAccess bağlantısını başlatın.") }
+        guard proxyPort > 0 else { throw AttachmentDownloadFailure(message: "Start the DiscordAccess connection first.") }
         let destination = try prepareDestination(for: current, root: root, now: now)
         let folder = (destination as NSString).deletingLastPathComponent
         let deadline = Date().addingTimeInterval(totalTimeout)
@@ -104,11 +104,11 @@ public enum AttachmentDownloader {
                 }
                 switch outcome {
                 case .redirect(let location):
-                    guard redirects < maxRedirects else { throw AttachmentDownloadFailure(message: "İndirme sunucusu çok fazla yönlendirme döndürdü.") }
+                    guard redirects < maxRedirects else { throw AttachmentDownloadFailure(message: "The download server returned too many redirects.") }
                     redirects += 1
                     guard let location, (1...8192).contains(location.utf8.count), location.utf8.allSatisfy({ $0 > 32 && $0 != 127 && $0 != 92 }),
                           let next = URL(string: location, relativeTo: current)?.absoluteURL else {
-                        throw AttachmentDownloadFailure(message: "Dosya indirme yönlendirmesi doğrulanamadı.")
+                        throw AttachmentDownloadFailure(message: "The download redirect could not be verified.")
                     }
                     current = try validate(next.absoluteString)
                 case .saved(let temporary):
@@ -147,9 +147,9 @@ public enum AttachmentDownloader {
     }
 
     static func rateLimitMessage(_ retryAfter: String?) -> String {
-        let wait = retryAfterSeconds(retryAfter, now: Date()).map { "Yaklaşık " + String($0) + " saniye bekleyip yeniden deneyin." } ??
-            "Bir süre bekleyip yeniden deneyin."
-        return "İndirme sunucusu istek sınırı uyguluyor (HTTP 429). " + wait + " Otomatik tekrar yapılmadı."
+        let wait = retryAfterSeconds(retryAfter, now: Date()).map { "Wait about " + String($0) + " seconds and try again." } ??
+            "Wait a while and try again."
+        return "The download server is rate limiting requests (HTTP 429). " + wait + " No automatic retry was made."
     }
 
     /// A new folder `<yyyyMMdd-HHmmss>-<id>` under `root` and the file's path in it; no link anywhere on the way.
@@ -159,17 +159,17 @@ public enum AttachmentDownloader {
         format.dateFormat = "yyyyMMdd-HHmmss"
         let folder = root + "/" + format.string(from: now) + "-" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
         guard (try? SafeFile.requireNoLinks(folder)) != nil else {
-            throw AttachmentDownloadFailure(message: "İndirme klasöründe yönlendirilmiş dosya yolu kullanılamıyor.")
+            throw AttachmentDownloadFailure(message: "A redirected file path cannot be used in the download folder.")
         }
         do {
             try FileManager.default.createDirectory(atPath: root, withIntermediateDirectories: true)
-            guard mkdir(folder, 0o755) == 0 else { throw AttachmentDownloadFailure(message: "İndirme klasörü doğrulanamadı.") }
+            guard mkdir(folder, 0o755) == 0 else { throw AttachmentDownloadFailure(message: "The download folder could not be verified.") }
         } catch let failure as AttachmentDownloadFailure {
             throw failure
         } catch {
-            throw AttachmentDownloadFailure(message: "İndirme klasörü oluşturulamadı. İndirilenler klasörüne erişimi kontrol edin.")
+            throw AttachmentDownloadFailure(message: "The download folder could not be created. Check access to the Downloads folder.")
         }
-        guard (try? SafeFile.requireNoLinks(folder)) != nil else { throw AttachmentDownloadFailure(message: "İndirme klasörü doğrulanamadı.") }
+        guard (try? SafeFile.requireNoLinks(folder)) != nil else { throw AttachmentDownloadFailure(message: "The download folder could not be verified.") }
         return folder + "/" + suggestedName(url)
     }
 
@@ -179,7 +179,7 @@ public enum AttachmentDownloader {
         guard setxattr(temporary, "com.apple.quarantine", quarantine, quarantine.utf8.count, 0, XATTR_NOFOLLOW) == 0,
               renamex_np(temporary, destination, UInt32(RENAME_EXCL)) == 0 else {
             unlink(temporary)
-            throw AttachmentDownloadFailure(message: "Dosya kaydedilemedi. İndirilenler klasörüne erişimi kontrol edin.")
+            throw AttachmentDownloadFailure(message: "The file could not be saved. Check access to the Downloads folder.")
         }
         return destination
     }
@@ -256,9 +256,9 @@ private final class Transfer: NSObject, URLSessionDataDelegate {
         if status == 429 { return .failed(AttachmentDownloadFailure(message: AttachmentDownloader.rateLimitMessage(retryAfter))) }
         if error != nil || status == 0 { return .failed(Self.generic) }
         if status != 200 {
-            return .failed(AttachmentDownloadFailure(message: "Dosya indirilemedi (HTTP " + String(status) + "). Discord'dan yeni dosya bağlantısını kopyalayın."))
+            return .failed(AttachmentDownloadFailure(message: "The file could not be downloaded (HTTP " + String(status) + "). Copy a new file link from Discord."))
         }
-        if expected >= 0 && received != expected { return .failed(AttachmentDownloadFailure(message: "Dosya eksik geldi. İndirme tamamlanmadı.")) }
+        if expected >= 0 && received != expected { return .failed(AttachmentDownloadFailure(message: "The file arrived incomplete. The download did not finish.")) }
         return .saved(temporary)
     }
 
@@ -267,8 +267,8 @@ private final class Transfer: NSObject, URLSessionDataDelegate {
         unlink(temporary)
     }
 
-    static let generic = AttachmentDownloadFailure(message: "Dosya indirilemedi. Bağlantı veya disk erişimi kesilmiş ya da süre dolmuş olabilir. " +
-        "Discord'dan yeni bağlantıyı kopyalayıp tekrar deneyin.")
+    static let generic = AttachmentDownloadFailure(message: "The file could not be downloaded. The connection or disk access may have been lost, or the " +
+        "time ran out. Copy a new link from Discord and try again.")
 
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
@@ -283,7 +283,7 @@ private final class Transfer: NSObject, URLSessionDataDelegate {
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
                     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         guard let http = response as? HTTPURLResponse else {
-            record(AttachmentDownloadFailure(message: "İndirme yanıtı doğrulanamadı."))
+            record(AttachmentDownloadFailure(message: "The download response could not be verified."))
             completionHandler(.cancel)
             return
         }
@@ -299,7 +299,7 @@ private final class Transfer: NSObject, URLSessionDataDelegate {
         }
         let file = open(temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o644)
         guard file >= 0 else {
-            record(AttachmentDownloadFailure(message: "Dosya kaydedilemedi. İndirilenler klasörüne erişimi kontrol edin."))
+            record(AttachmentDownloadFailure(message: "The file could not be saved. Check access to the Downloads folder."))
             completionHandler(.cancel)
             return
         }
@@ -320,7 +320,7 @@ private final class Transfer: NSObject, URLSessionDataDelegate {
         }
         guard expected < 0 || received + Int64(data.count) <= expected else {
             lock.unlock()
-            record(AttachmentDownloadFailure(message: "Dosya boyutu sunucu yanıtıyla eşleşmedi. İndirme tamamlanmadı."))
+            record(AttachmentDownloadFailure(message: "The file size did not match the server's response. The download did not finish."))
             dataTask.cancel()
             return
         }
@@ -337,7 +337,7 @@ private final class Transfer: NSObject, URLSessionDataDelegate {
         if written { received += Int64(data.count) }
         lock.unlock()
         guard written else {
-            record(AttachmentDownloadFailure(message: "Dosya kaydedilemedi. İndirilenler klasörüne erişimi kontrol edin."))
+            record(AttachmentDownloadFailure(message: "The file could not be saved. Check access to the Downloads folder."))
             dataTask.cancel()
             return
         }

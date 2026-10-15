@@ -30,7 +30,7 @@ public enum DnsSelection {
                 throw error
             }
             if selected {
-                log?("DNS bağlantısı seçildi: " + provider.description)
+                log?("Selected DNS connection: " + provider.description)
                 return candidate
             }
             // Completely closed before the next opens; a failure to close ends the selection.
@@ -43,13 +43,13 @@ public enum DnsSelection {
     private static func attempt(_ candidate: DnsCandidate, automatic: Bool, log: ((String) -> Void)?, cancel: Cancellation) throws -> Bool {
         try cancel.check()
         if automatic {
-            log?("DNS erişim kontrolü: " + candidate.provider.description)
+            log?("DNS access check: " + candidate.provider.description)
             do {
                 try candidate.verify(cancel: cancel)
             } catch let failure as ConnectivityFailure {
                 try cancel.check()
                 guard !(failure.reason == .http && failure.httpStatus == 429), failure.reason != .canceled else { throw failure }
-                log?("DNS erişim kontrolü: " + failure.message)
+                log?("DNS access check: " + failure.message)
                 return false
             }
         }

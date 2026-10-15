@@ -212,7 +212,7 @@ import Testing
 
     @Test func namesTheStageAndAFixedReasonOnly() {
         #expect(GatewayHelloFailure(opened: true, reason: .timeout).message ==
-            "[WS-HELLO-TIMEOUT] Gateway WebSocket kontrolü tamamlanamadı. HTTP API başarısı canlı mesaj bağlantısını doğrulamaz.")
+            "[WS-HELLO-TIMEOUT] The Gateway WebSocket check did not finish. A working HTTP API does not prove the live message connection.")
         #expect(GatewayHelloFailure(opened: false, reason: .canceled).description.hasPrefix("[WS-CONNECT-CANCELLED] "))
         #expect(GatewayHelloFailure(opened: false, reason: .failed).description.hasPrefix("[WS-CONNECT-FAILED] "))
         #expect(GatewayHello.valid(hello: Self.hello))

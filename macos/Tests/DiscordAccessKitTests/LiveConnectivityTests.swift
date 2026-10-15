@@ -38,7 +38,7 @@ import Testing
         defer { try? connection.close() }
         do {
             try connection.verify(cancel: Cancellation())
-            print("LIVE " + provider.description + ": Gateway API erişildi")
+            print("LIVE " + provider.description + ": Gateway API reached")
         } catch {
             print("LIVE " + provider.description + ": " + String(describing: error))
         }

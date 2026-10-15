@@ -8,27 +8,27 @@ import Testing
         #expect(options == .automatic && options.isAutomatic && !options.recordFragment)
         #expect(options.candidates.map(\.name) == [.cloudflareIP, .cloudflare, .google])
         #expect(options.candidates.allSatisfy { !$0.recordFragment })
-        #expect(options.description == "Otomatik seçim DoH | DNS TLS kayıt parçalama: kapalı")
+        #expect(options.description == "Automatic DoH selection | DNS TLS record fragmentation: off")
         #expect(try DnsOptions.parse(["--dns=auto"]) == .automatic)
     }
 
-    @Test(arguments: [("cloudflare", DnsProvider.Name.cloudflare, "Cloudflare DoH"), ("cloudflare-ip", .cloudflareIP, "Cloudflare (IP sertifikası) DoH"),
+    @Test(arguments: [("cloudflare", DnsProvider.Name.cloudflare, "Cloudflare DoH"), ("cloudflare-ip", .cloudflareIP, "Cloudflare (IP certificate) DoH"),
                       ("google", .google, "Google DoH")])
     func usesOnlyTheProviderNamed(argument: String, name: DnsProvider.Name, label: String) throws {
         let options = try DnsOptions.parse(["--dns=" + argument])
         #expect(!options.isAutomatic && options.provider == name)
         #expect(options.candidates == [DnsProvider(name)])
-        #expect(options.description == label + " | DNS TLS kayıt parçalama: kapalı")
+        #expect(options.description == label + " | DNS TLS record fragmentation: off")
         let fragmented = try DnsOptions.parse(["--dns-record-fragment", "--dns=" + argument])
         #expect(fragmented.candidates == [DnsProvider(name, recordFragment: true)])
-        #expect(fragmented.description == label + " | DNS TLS kayıt parçalama: açık")
+        #expect(fragmented.description == label + " | DNS TLS record fragmentation: on")
     }
 
     @Test func keepsTheFragmentOptionForEveryAutomaticCandidate() throws {
         let options = try DnsOptions.parse(["--dns=auto", "--dns-record-fragment"])
         #expect(options.isAutomatic && options.recordFragment)
         #expect(options.candidates.count == 3 && options.candidates.allSatisfy(\.recordFragment))
-        #expect(options.description == "Otomatik seçim DoH | DNS TLS kayıt parçalama: açık")
+        #expect(options.description == "Automatic DoH selection | DNS TLS record fragmentation: on")
     }
 
     @Test(arguments: [["--dns=auto", "--dns=google"], ["--dns=auto", "--dns=auto"], ["--dns=google", "--dns=cloudflare"],
@@ -49,11 +49,11 @@ import Testing
     }
 
     @Test func namesItsErrorsWithFixedCodes() {
-        #expect(KitError.invalidDnsOption().description == "[DNS-E01] DNS seçeneği geçersiz veya tekrarlanmış. --dns=auto, --dns=cloudflare, " +
-            "--dns=cloudflare-ip ya da --dns=google seçin; gerekirse bir kez --dns-record-fragment ekleyin.")
+        #expect(KitError.invalidDnsOption().description == "[DNS-E01] The DNS option is invalid or repeated. Choose --dns=auto, --dns=cloudflare, " +
+            "--dns=cloudflare-ip or --dns=google; add --dns-record-fragment once if needed.")
         #expect(KitError.dnsSelectionFailed().description ==
-            "[DNS-E02] Discord'a erişebilen bir DNS bağlantısı bulunamadı. İnternet bağlantısını kontrol edip yeniden bağlanın.")
-        #expect(KitError.dnsCandidateNotClosed().description == "[DNS-E03] DNS bağlantısı güvenli biçimde kapatılamadı; başka bir aday başlatılmadı.")
-        #expect(KitError.engineStopped().description == "[ENG-E02] Bağlantı motoru durdu.")
+            "[DNS-E02] No DNS connection could reach Discord. Check your internet connection and reconnect.")
+        #expect(KitError.dnsCandidateNotClosed().description == "[DNS-E03] The DNS connection could not be closed safely; no other candidate was started.")
+        #expect(KitError.engineStopped().description == "[ENG-E02] The connection engine stopped.")
     }
 }

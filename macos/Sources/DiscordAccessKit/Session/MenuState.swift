@@ -18,17 +18,17 @@ public struct MenuState: Equatable {
 
     public var status: String {
         switch phase {
-        case .connecting: return "Bağlantı hazırlanıyor..."
-        case .ready: return "Bağlantı hazır"
-        case .failed: return "Bağlantı kurulamadı"
-        case .closed: return "Bağlantı kapalı"
-        case .closing: return "Kapatılıyor..."
+        case .connecting: return "Connecting..."
+        case .ready: return "Connection ready"
+        case .failed: return "Could not connect"
+        case .closed: return "Disconnected"
+        case .closing: return "Closing..."
         }
     }
 
     /// The status item's tooltip.
     public var tooltip: String {
-        "DiscordAccess — " + status.lowercased(with: Locale(identifier: "tr_TR"))
+        "DiscordAccess — " + status
     }
 
     public var canOpenDiscord: Bool { phase == .ready }

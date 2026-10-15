@@ -47,7 +47,7 @@ public final class SessionController {
         var anyRunning: () throws -> Bool = { try !DiscordInstallation.runningProcesses(bundle: nil).isEmpty }
     }
 
-    public static let readyMessage = "Bağlantı hazır. Discord'u kendi simgesinden (Dock, Launchpad, Spotlight) ya da A + Enter ile açabilirsiniz."
+    public static let readyMessage = "Connection ready. Open Discord from its own icon (Dock, Launchpad, Spotlight) or with A + Enter."
     /// How long disconnecting waits for Discord to close before it leaves the profile changes to their journal.
     static let exitWait: TimeInterval = 1
 
@@ -111,19 +111,19 @@ public final class SessionController {
         operations.lock()
         defer { operations.unlock() }
         guard !active else { return }
-        changed(false, "Bağlanıyor")
-        log("DiscordAccess: bağlantı hazırlanıyor.")
+        changed(false, "Connecting")
+        log("DiscordAccess: preparing the connection.")
         do {
             try connectCore()
             active = true
-            changed(true, "Bağlantı hazır; Discord kendi simgesinden açılabilir.")
+            changed(true, "Connection ready; Discord can be opened from its own icon.")
         } catch {
             do {
                 try disconnectCore()
             } catch {
-                log("Başlangıç sonrası geri alma tamamlanamadı; kurtarma kaydı korundu.")
+                log("Undoing the failed start did not finish; the recovery record was kept.")
             }
-            changed(false, "Bağlantı kurulamadı")
+            changed(false, "Could not connect")
             throw error
         }
     }
@@ -153,7 +153,7 @@ public final class SessionController {
         lifetime.cancel()
     }
 
-    /// Opens Discord with the session's proxy as arguments ("Discord'u aç"); Discord's own icon works as well (design 7.2).
+    /// Opens Discord with the session's proxy as arguments ("Open Discord"); Discord's own icon works as well (design 7.2).
     /// Discord's signature is checked again without holding up other operations, as it can take seconds; the session must
     /// still be the same one when Discord is opened.
     public func openDiscord() throws -> String {
@@ -164,22 +164,22 @@ public final class SessionController {
         }
         operations.unlock()
         try lifetime.check()
-        // Discord may have updated itself since; that version's profile has no wrapper (Windows: "Discord sürümü değişti").
+        // Discord may have updated itself since; that version's profile has no wrapper (Windows refuses the same way).
         guard (try? system.locate(installation.bundle)) == installation else { throw KitError.discordChanged() }
         operations.lock()
         defer { operations.unlock() }
         guard active, connection === observed else { throw KitError.sessionNotReady() }
         try lifetime.check()
-        if try system.running(installation) { return "Discord zaten açık; ikinci açılış yapılmadı." }
+        if try system.running(installation) { return "Discord is already open; it was not opened again." }
         try system.launch(installation, ["--proxy-server=" + proxy(observed), "--proxy-bypass-list=127.0.0.1;localhost", "--disable-quic"])
-        return "Resmi Discord'a açılış isteği gönderildi."
+        return "Sent the request to open the official Discord."
     }
 
     /// The HTTPS checks go to the log, the Gateway HELLO check is the result (Windows `DiagnoseAsync`).
     public func diagnose() throws -> String {
         operations.lock()
         defer { operations.unlock() }
-        guard active, let connection, connection.engine.isRunning else { return "Bağlantı açık değil." }
+        guard active, let connection, connection.engine.isRunning else { return "The connection is not open." }
         log(try ConnectivityProbe.check(proxyPort: connection.gate.port, cancel: lifetime))
         return try GatewayHello.check(proxyPort: connection.gate.port, cancel: lifetime)
     }
@@ -189,7 +189,7 @@ public final class SessionController {
         operations.lock()
         guard active, let connection else {
             operations.unlock()
-            throw AttachmentDownloadFailure(message: "Dosya indirmek için önce DiscordAccess ile bağlantıyı açın.")
+            throw AttachmentDownloadFailure(message: "Open the connection with DiscordAccess before downloading a file.")
         }
         let port = connection.gate.port
         operations.unlock()
@@ -201,7 +201,7 @@ public final class SessionController {
         operations.lock()
         defer { operations.unlock() }
         try disconnectCore()
-        changed(false, "Bağlantı kesildi")
+        changed(false, "Disconnected")
     }
 
     /// The engine's process ID, for tests.
@@ -215,7 +215,7 @@ public final class SessionController {
         guard try !system.running(installation) else { throw KitError.discordRunning() }
         self.installation = installation
         if try DiscordProfileChanges.recover(state: settings.state, profile: settings.profile) {
-            log("Önceki oturumun geçici Discord ayarları geri alındı.")
+            log("Restored the temporary Discord settings of the previous session.")
         }
         switch DiscordProfile.access(root: settings.profile) {
         case .denied: throw KitError.profileAccessDenied()
@@ -224,7 +224,7 @@ public final class SessionController {
         }
         let hook = try SessionWrapper.loadHook(path: settings.hook)
         let image = try EngineImage.verify(path: settings.engine)
-        if !EngineProcess.terminateOrphans(enginePath: image.path).isEmpty { log("Önceki oturumdan kalan bağlantı motoru durduruldu.") }
+        if !EngineProcess.terminateOrphans(enginePath: image.path).isEmpty { log("Stopped a connection engine left by a previous session.") }
         let admission: PeerAdmission
         do {
             admission = try PeerAdmission(approved: installation.approvedExecutables, readyTime: Date())
@@ -292,7 +292,7 @@ public final class SessionController {
             } catch {
                 self.log(ConsoleSession.message(error))
             }
-            self.changed(false, "Bağlantı motoru durdu; bağlantı kapatıldı.")
+            self.changed(false, "The connection engine stopped; the connection was closed.")
         }
     }
 
@@ -313,7 +313,7 @@ public final class SessionController {
                     self.changes = nil
                 } catch {
                     deferred = true
-                    log("Discord ayarları geri alınamadı; kurtarma kaydı korundu.")
+                    log("Discord's settings could not be restored; the recovery record was kept.")
                 }
             }
         }

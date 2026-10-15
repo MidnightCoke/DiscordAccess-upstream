@@ -63,8 +63,8 @@ import Testing
         let winner = try opener.select()
         #expect(opener.fixtures.count == 1 && winner === opener.fixtures[0])
         #expect(opener.fixtures[0].verifications == 1 && opener.fixtures[0].closings == 0)
-        #expect(opener.logs.all == ["DNS erişim kontrolü: Cloudflare (IP sertifikası) DoH | DNS TLS kayıt parçalama: kapalı",
-                                    "DNS bağlantısı seçildi: Cloudflare (IP sertifikası) DoH | DNS TLS kayıt parçalama: kapalı"])
+        #expect(opener.logs.all == ["DNS access check: Cloudflare (IP certificate) DoH | DNS TLS record fragmentation: off",
+                                    "Selected DNS connection: Cloudflare (IP certificate) DoH | DNS TLS record fragmentation: off"])
     }
 
     @Test func closesAFailedCandidateBeforeTheNextOneOpens() throws {
@@ -76,7 +76,7 @@ import Testing
         #expect(opener.fixtures[0].closings == 1 && opener.fixtures[1].closings == 0)
         let events = opener.events.all
         #expect(try #require(events.firstIndex(of: "close:cloudflare-ip")) < #require(events.firstIndex(of: "open:cloudflare")))
-        #expect(opener.logs.all.contains("DNS erişim kontrolü: " + Self.connectFailure.message))
+        #expect(opener.logs.all.contains("DNS access check: " + Self.connectFailure.message))
     }
 
     @Test func keepsOnlyAFixedMessageWhenEveryCandidateFails() {

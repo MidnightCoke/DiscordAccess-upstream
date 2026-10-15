@@ -36,17 +36,17 @@ public enum ConsoleProgram {
             case .verifyPackage:
                 _ = try EngineImage.verify(path: engine)
                 _ = try SessionWrapper.loadHook(path: hook)
-                writeLine("Paket doğrulandı.")
+                writeLine("Package verified.")
                 return 0
             case .restore:
                 guard let lock = try SessionLock.acquire() else { throw KitError.sessionStillOpen() }
                 heldLock = lock
-                writeLine(try terminalAccess { try SessionController.restore() } ? "Discord'un geçici bağlantı ayarları geri alındı." :
-                    "Geri alınacak geçici Discord ayarı bulunmadı.")
+                writeLine(try terminalAccess { try SessionController.restore() } ? "Discord's temporary connection settings were restored." :
+                    "There were no temporary Discord settings to restore.")
                 return 0
             case .resident, .console, .help:
                 guard let lock = try SessionLock.acquire() else {
-                    writeLine("DiscordAccess zaten çalışıyor; ikinci bağlantı başlatılmadı.")
+                    writeLine("DiscordAccess is already running; no second connection was started.")
                     return 0
                 }
                 heldLock = lock
@@ -54,7 +54,7 @@ public enum ConsoleProgram {
                 return console(options, engine: engine, hook: hook)
             }
         } catch {
-            writeLine("DiscordAccess açılamadı: " + ConsoleSession.message(error), to: STDERR_FILENO)
+            writeLine("DiscordAccess could not start: " + ConsoleSession.message(error), to: STDERR_FILENO)
             return 3
         }
     }
@@ -64,7 +64,7 @@ public enum ConsoleProgram {
         let output = ConsoleOutput(file: { log?.write($0) }, screen: { writeLine($0) })
         defer { output.close() }
         let state = ConsoleSession.State()
-        output.show("DiscordAccess | Bağlanıyor...")
+        output.show("DiscordAccess | Connecting...")
         let settings = SessionController.Settings(engine: engine, hook: hook, dns: options.dns, discordPath: options.discordPath)
         let controller = SessionController(settings: settings, log: output.file, changed: { active, message in
             state.stateChanged(active)

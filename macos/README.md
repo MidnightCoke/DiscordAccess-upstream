@@ -1,6 +1,6 @@
 # DiscordAccess for macOS — usage
 
-These notes cover the **macos-v0.1** pre-release. It runs only on Apple Silicon (arm64) Macs and has been tested only on macOS 27. The app's interface is in Turkish. Design details: [DESIGN.md](https://github.com/alpertknn/DiscordAccess/blob/main/macos/docs/DESIGN.md).
+These notes cover the **macos-v0.1** pre-release. It runs only on Apple Silicon (arm64) Macs and has been tested only on macOS 27. The app's interface is in English; macos-v0.1 shows the same items in Turkish. Design details: [DESIGN.md](https://github.com/alpertknn/DiscordAccess/blob/main/macos/docs/DESIGN.md).
 
 ## Requirements
 
@@ -49,26 +49,26 @@ A hash file is not a code signature.
 
 1. Quit Discord completely (Discord > Quit Discord, or Cmd+Q).
 2. Open DiscordAccess from Applications. Its icon appears in the menu bar, not in the Dock.
-3. macOS protects Discord's data folder from other apps and shows no permission prompt for it. On first launch an alert titled "Tam Disk Erişimi gerekiyor" (Full Disk Access required) appears:
-   - Click "Sistem Ayarları'nı aç" (Open System Settings) and turn on DiscordAccess under Full Disk Access.
+3. macOS protects Discord's data folder from other apps and shows no permission prompt for it. On first launch an alert titled "Full Disk Access required" appears:
+   - Click "Open System Settings" and turn on DiscordAccess under Full Disk Access.
    - Then restart the app.
    - Discord's settings are never changed without this permission.
    - With an ad-hoc signed build, the permission has to be granted again after every new build.
-4. Wait for the "Bağlantı hazır" (Connection ready) notification. Open Discord from its own icon (Dock, Launchpad, Spotlight) or with "Discord'u aç" in the menu. Your existing installation and account are used; no copy is made.
-5. When you are done, quit Discord first, then choose "Çıkış" (Quit) in the menu. If you quit while Discord is still open, Discord is not closed: the recovery record of the temporary settings is kept, and the settings are undone at the next launch or with `--restore`.
+4. Wait for the "Connection ready" notification. Open Discord from its own icon (Dock, Launchpad, Spotlight) or with "Open Discord" in the menu. Your existing installation and account are used; no copy is made.
+5. When you are done, quit Discord first, then choose "Quit" in the menu. If you quit while Discord is still open, Discord is not closed: the recovery record of the temporary settings is kept, and the settings are undone at the next launch or with `--restore`.
 
 ## Menu
 
 - **Status line:** the state of the connection.
-- **"Discord'u aç" (Open Discord):** opens Discord while the connection is ready. If Discord is already open, it is not opened again.
-- **"Yeniden bağlan" (Reconnect):** re-establishes a connection that closed or could not be set up.
-- **"Bağlantıyı kontrol et" (Check connection):** anonymously checks HTTPS access to Discord and the Gateway connection (HELLO). No account data is sent.
-- **"Oturum açılışında başlat" (Start at login):** starts DiscordAccess at login.
+- **Open Discord:** opens Discord while the connection is ready. If Discord is already open, it is not opened again.
+- **Reconnect:** re-establishes a connection that closed or could not be set up.
+- **Check connection:** anonymously checks HTTPS access to Discord and the Gateway connection (HELLO). No account data is sent.
+- **Start at login:** starts DiscordAccess at login.
   - After the first working connection it turns itself on, unless you turned it off. Once you turn it off, it stays off.
   - Only an app in a trusted location registers; the Applications folder qualifies. External drives and folders other users can change are refused.
   - If macOS asks for approval, allow DiscordAccess under System Settings > General > Login Items.
-- **"Girişte Discord'u da aç" (Also open Discord at login):** opens Discord once at login, after the connection is ready. Off by default. Turn off Discord's own "open at startup" setting; otherwise Discord opens before the connection and connecting fails.
-- **"Çıkış" (Quit):** closes the connection and undoes the temporary settings.
+- **Also open Discord at login:** opens Discord once at login, after the connection is ready. Off by default. Turn off Discord's own "open at startup" setting; otherwise Discord opens before the connection and connecting fails.
+- **Quit:** closes the connection and undoes the temporary settings.
 
 Opening DiscordAccess again does not start a second session; the running app reports its status.
 
@@ -109,7 +109,7 @@ When run from Terminal, macOS asks the terminal app for Full Disk Access. While 
 
 ## Common messages
 
-- **[DSC-E05]:** Discord is open. Quit Discord with Cmd+Q and choose "Yeniden bağlan" (Reconnect).
+- **[DSC-E05]:** Discord is open. Quit Discord with Cmd+Q and choose "Reconnect".
 - **[PRF-E04]:** Full Disk Access is missing. Follow the first-launch steps.
 - **[SES-E01]:** The connection closed while Discord was open. Quit Discord and open DiscordAccess again, or run `--restore`.
 - **[SYS-E03]:** The app is not in a trusted location. Move it to Applications and open it from there.

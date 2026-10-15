@@ -3,9 +3,9 @@ import DiscordAccessKit
 import UserNotifications
 
 /// The menu bar app (design 4-5, 7.4; Windows `TrayHost`): it connects when it starts and keeps the connection ready.
-/// Its menu holds the status line, Discord'u aç, Yeniden bağlan, Bağlantıyı kontrol et, Oturum açılışında başlat, Girişte
-/// Discord'u da aç and Çıkış. After the first connection that works it starts at login unless the user chose otherwise,
-/// as on Windows; a login launch opens Discord once when "Girişte Discord'u da aç" is on. Quitting, logging out or a
+/// Its menu holds the status line, Open Discord, Reconnect, Check connection, Start at login, Also open Discord at login
+/// and Quit. After the first connection that works it starts at login unless the user chose otherwise, as on Windows;
+/// a login launch opens Discord once when "Also open Discord at login" is on. Quitting, logging out or a
 /// termination signal shut the session down as the terminal's Q does.
 final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Runs the app on the main thread until it terminates.
@@ -27,12 +27,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let bundled = Bundle.main.bundleURL.pathExtension == "app"
     private var item: NSStatusItem?
     private let statusLine = NSMenuItem(title: MenuState(.connecting).status, action: nil, keyEquivalent: "")
-    private let openItem = NSMenuItem(title: "Discord'u aç", action: #selector(openDiscord), keyEquivalent: "")
-    private let reconnectItem = NSMenuItem(title: "Yeniden bağlan", action: #selector(reconnect), keyEquivalent: "")
-    private let checkItem = NSMenuItem(title: "Bağlantıyı kontrol et", action: #selector(check), keyEquivalent: "")
-    private let startItem = NSMenuItem(title: "Oturum açılışında başlat", action: #selector(toggleStartAtLogin), keyEquivalent: "")
-    private let discordAtLoginItem = NSMenuItem(title: "Girişte Discord'u da aç", action: #selector(toggleDiscordAtLogin), keyEquivalent: "")
-    private let quitItem = NSMenuItem(title: "Çıkış", action: #selector(quit), keyEquivalent: "q")
+    private let openItem = NSMenuItem(title: "Open Discord", action: #selector(openDiscord), keyEquivalent: "")
+    private let reconnectItem = NSMenuItem(title: "Reconnect", action: #selector(reconnect), keyEquivalent: "")
+    private let checkItem = NSMenuItem(title: "Check connection", action: #selector(check), keyEquivalent: "")
+    private let startItem = NSMenuItem(title: "Start at login", action: #selector(toggleStartAtLogin), keyEquivalent: "")
+    private let discordAtLoginItem = NSMenuItem(title: "Also open Discord at login", action: #selector(toggleDiscordAtLogin), keyEquivalent: "")
+    private let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
     private var state = MenuState(.connecting)
     private var controller: SessionController?
     private var lifecycle: ResidentLifecycle?
@@ -68,7 +68,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         item.menu = menu
         self.item = item
-        // A termination signal (or an interrupt in the terminal of a development build) quits as Çıkış does.
+        // A termination signal (or an interrupt in the terminal of a development build) quits as Quit does.
         signals = [SIGTERM, SIGINT, SIGHUP].map { number in
             signal(number, SIG_IGN)
             let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
@@ -76,7 +76,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             source.resume()
             return source
         }
-        output.file("DiscordAccess menü çubuğunda başladı.")
+        output.file("DiscordAccess started in the menu bar.")
         show(.connecting)
         if case .resident(startup: true) = options.mode { checkStartupLocation() }
         connect()
@@ -88,7 +88,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             tell(state.status + ".")
             return false
         }
-        tell(state.status + ". " + (StartupRegistration.state == .enabled ? "Oturum açılışında başlatma açık." : "Oturum açılışında başlatma kapalı."))
+        tell(state.status + ". " + (StartupRegistration.state == .enabled ? "Start at login is on." : "Start at login is off."))
         return false
     }
 
@@ -111,12 +111,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     EngineProcess.terminateChildren(enginePath: String(cString: resolved))
                     free(resolved)
                 }
-                output.file("Kapanış süresi doldu; bağlantı motoru durduruldu.")
+                output.file("Shutdown timed out; the connection engine was stopped.")
                 exitCode = 130
             case .failure(let error):
                 // Quitting never waits for an alert, as on Windows: a logout must not stall here.
                 let message = describe(error)
-                output.file("Oturum temizliği: " + message)
+                output.file("Session cleanup: " + message)
                 _ = notifier.post(message)
                 exitCode = 1
             }
@@ -126,7 +126,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        output.file("DiscordAccess kapandı.")
+        output.file("DiscordAccess quit.")
         output.close()
         exit(exitCode)
     }
@@ -151,9 +151,9 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             case .success(true):
                 break
             case .failure(let error as KitError) where error.code == "SES-E01" && previousController?.hasUnreapedEngine == false:
-                output.file("Önceki oturum: " + error.description)
+                output.file("Previous session: " + error.description)
             case .success(false), .failure:
-                if case .failure(let error) = result { output.file("Önceki oturum: " + describe(error)) }
+                if case .failure(let error) = result { output.file("Previous session: " + describe(error)) }
                 connected(.failure(ResidentFailure.previousSessionOpen))
                 return
             }
@@ -181,7 +181,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         switch result {
         case .success:
             ensureStartup()
-            tell("Bağlantı hazır. Discord'u kendi simgenizden açabilirsiniz.")
+            tell("Connection ready. You can open Discord from its own icon.")
             // A login launch opens Discord once, after the first connection that works (Windows `ConnectAsync`); the
             // lifecycle does not open a running Discord again.
             if startupPending {
@@ -189,7 +189,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 openDiscord()
             }
         case .failure(let error):
-            output.file("Arka plan başlangıcı: " + describe(error))
+            output.file("Background start: " + describe(error))
             report(error)
         }
     }
@@ -227,8 +227,8 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard !closing else { return }
                 checkItem.isEnabled = state.canCheck
                 switch result {
-                case .success(let message): announce("Bağlantı kontrolü", message)
-                case .failure(let error): announce("Bağlantı kontrolü", "Tanılama tamamlanamadı: " + describe(error))
+                case .success(let message): announce("Connection check", message)
+                case .failure(let error): announce("Connection check", "Diagnostics could not finish: " + describe(error))
                 }
             }
         }
@@ -252,8 +252,8 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             preferences.startAtLogin = false
             try? preferences.save()
             try? StartupRegistration.disable()
-            warn("DiscordAccess güvenli olmayan bir konumdan oturum açılışında başlatıldı; oturum açılışında başlatma kapatıldı. Uygulamayı " +
-                 "Uygulamalar klasörüne taşıyıp oradan açın.")
+            warn("DiscordAccess was started at login from a location that is not trusted, so start at login was turned off. Move the " +
+                 "app to the Applications folder and open it from there.")
         }
     }
 
@@ -267,9 +267,9 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let state = try StartupRegistration.enable()
             preferences.startAtLogin = true
             try preferences.save()
-            output.file(state == .needsApproval ? "Oturum açılışında başlatma macOS onayını bekliyor." : "Oturum açılışında başlatma açıldı.")
+            output.file(state == .needsApproval ? "Start at login is waiting for approval in macOS." : "Start at login was turned on.")
         } catch {
-            output.file("Oturum açılışında başlatma: " + describe(error))
+            output.file("Start at login: " + describe(error))
         }
     }
 
@@ -283,17 +283,17 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 try preferences.save()
                 let state = try StartupRegistration.enable()
                 if state == .needsApproval {
-                    let message = "macOS'un onayı gerekiyor: Sistem Ayarları > Genel > Giriş Öğeleri'nde DiscordAccess'e izin verin."
+                    let message = "macOS needs your approval: allow DiscordAccess under System Settings > General > Login Items."
                     output.file(message)
-                    if alert("Onay gerekiyor", message, action: "Giriş Öğeleri'ni aç") { StartupRegistration.openLoginItemsSettings() }
+                    if alert("Approval needed", message, action: "Open Login Items") { StartupRegistration.openLoginItemsSettings() }
                 } else {
-                    tell("Oturum açılışında başlatma açık.")
+                    tell("Start at login is on.")
                 }
             } else {
                 preferences.startAtLogin = false
                 try preferences.save()
                 try StartupRegistration.disable()
-                tell("Oturum açılışında başlatma kapalı.")
+                tell("Start at login is off.")
             }
         } catch {
             warn(describe(error))
@@ -308,8 +308,8 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             try preferences.save()
             // Discord's own login item would open Discord before the connection is ready, and connecting then stops.
-            tell(preferences.openDiscordAtLogin ? "Girişte Discord da açılacak. Discord'un kendi \"Başlangıçta aç\" ayarını kapatın; yoksa Discord bağlantıdan önce açılır." :
-                "Girişte Discord açılmayacak.")
+            tell(preferences.openDiscordAtLogin ? "Discord will also open at login. Turn off Discord's own open-at-login setting; otherwise " +
+                "Discord opens before the connection is ready." : "Discord will not open at login.")
         } catch {
             warn(describe(error))
         }
@@ -320,7 +320,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard StartupRegistration.isAvailable else {
             for entry in [startItem, discordAtLoginItem] {
                 entry.isEnabled = false
-                entry.toolTip = "Paketlenmiş uygulamada kullanılabilir."
+                entry.toolTip = "Available in the app bundle."
             }
             return
         }
@@ -372,7 +372,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let error = error as? KitError, error.code == "PRF-E04" {
             let message = KitError.profileAccessDenied(inTerminal: !bundled).description
             output.file(message)
-            if alert("Tam Disk Erişimi gerekiyor", message, action: "Sistem Ayarları'nı aç") { DiscordProfile.openFullDiskAccessSettings() }
+            if alert("Full Disk Access required", message, action: "Open System Settings") { DiscordProfile.openFullDiskAccessSettings() }
             return
         }
         warn(describe(error))
@@ -390,7 +390,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.messageText = title
         alert.informativeText = message
         if let action { alert.addButton(withTitle: action) }
-        alert.addButton(withTitle: "Tamam")
+        alert.addButton(withTitle: "OK")
         if #available(macOS 14, *) {
             NSApp.activate()
         } else {
@@ -405,7 +405,7 @@ enum ResidentFailure: Error, CustomStringConvertible {
     case previousSessionOpen
 
     var description: String {
-        "Önceki bağlantı kapanmayı tamamlayamadı. Discord'u tamamen kapatıp DiscordAccess'i yeniden başlatın."
+        "The previous connection did not finish closing. Quit Discord completely and restart DiscordAccess."
     }
 }
 

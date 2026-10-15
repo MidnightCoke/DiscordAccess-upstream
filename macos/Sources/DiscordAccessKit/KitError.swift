@@ -13,137 +13,137 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
     public var description: String { "[" + code + "] " + message }
 
     static func engineMissing(_ path: String) -> KitError {
-        KitError(code: "PKG-E01", message: path + " bulunamadı. Paket eksik; DiscordAccess'i yeniden kurun.")
+        KitError(code: "PKG-E01", message: path + " was not found. The package is incomplete; reinstall DiscordAccess.")
     }
 
     static func engineUnreadable(_ path: String) -> KitError {
-        KitError(code: "PKG-E02", message: path + " okunamadı. DiscordAccess'i yeniden kurup tekrar deneyin.")
+        KitError(code: "PKG-E02", message: path + " could not be read. Reinstall DiscordAccess and try again.")
     }
 
     static func engineIntegrity(_ path: String) -> KitError {
-        KitError(code: "PKG-E03", message: path + " bütünlük kontrolünden geçemedi. DiscordAccess'i yeniden kurun.")
+        KitError(code: "PKG-E03", message: path + " failed the integrity check. Reinstall DiscordAccess.")
     }
 
     static func engineUnsafePath(_ path: String) -> KitError {
-        KitError(code: "PKG-E04", message: path + " dosya yolu güvenli biçimde doğrulanamadı. DiscordAccess'i normal bir yerel klasöre kurun.")
+        KitError(code: "PKG-E04", message: path + " could not be verified as a safe file path. Install DiscordAccess in a normal local folder.")
     }
 
     static func engineStartFailed() -> KitError {
-        KitError(code: "ENG-E01", message: "Bağlantı motoru hazır olamadı.")
+        KitError(code: "ENG-E01", message: "The connection engine did not become ready.")
     }
 
     static func engineStopped() -> KitError {
-        KitError(code: "ENG-E02", message: "Bağlantı motoru durdu.")
+        KitError(code: "ENG-E02", message: "The connection engine stopped.")
     }
 
     static func invalidDnsOption() -> KitError {
-        KitError(code: "DNS-E01", message: "DNS seçeneği geçersiz veya tekrarlanmış. --dns=auto, --dns=cloudflare, --dns=cloudflare-ip ya da " +
-            "--dns=google seçin; gerekirse bir kez --dns-record-fragment ekleyin.")
+        KitError(code: "DNS-E01", message: "The DNS option is invalid or repeated. Choose --dns=auto, --dns=cloudflare, --dns=cloudflare-ip or " +
+            "--dns=google; add --dns-record-fragment once if needed.")
     }
 
     /// Every candidate failed its check; only this fixed message is shown (Windows `DnsSelectionException`).
     static func dnsSelectionFailed() -> KitError {
-        KitError(code: "DNS-E02", message: "Discord'a erişebilen bir DNS bağlantısı bulunamadı. İnternet bağlantısını kontrol edip yeniden bağlanın.")
+        KitError(code: "DNS-E02", message: "No DNS connection could reach Discord. Check your internet connection and reconnect.")
     }
 
     static func dnsCandidateNotClosed() -> KitError {
-        KitError(code: "DNS-E03", message: "DNS bağlantısı güvenli biçimde kapatılamadı; başka bir aday başlatılmadı.")
+        KitError(code: "DNS-E03", message: "The DNS connection could not be closed safely; no other candidate was started.")
     }
 
     static func randomUnavailable() -> KitError {
-        KitError(code: "SYS-E01", message: "Güvenli rastgele değer üretilemedi.")
+        KitError(code: "SYS-E01", message: "A secure random value could not be generated.")
     }
 
     static func hookIntegrity() -> KitError {
-        KitError(code: "PKG-E05", message: "Ek dosyası kancası bütünlük kontrolünden geçemedi. DiscordAccess'i yeniden kurun.")
+        KitError(code: "PKG-E05", message: "The attachment download hook failed the integrity check. Reinstall DiscordAccess.")
     }
 
     static func discordNotFound() -> KitError {
-        KitError(code: "DSC-E01", message: "Resmi Discord (Stable) kurulumu bulunamadı. Discord'u Uygulamalar klasörüne kurun ya da yolunu " +
-            "--discord-path ile belirtin.")
+        KitError(code: "DSC-E01", message: "The official Discord (Stable) installation was not found. Install Discord in the Applications folder " +
+            "or give its path with --discord-path.")
     }
 
     static func discordUnverified(_ path: String) -> KitError {
-        KitError(code: "DSC-E02", message: path + " resmi Discord (Stable) uygulaması olarak doğrulanamadı: imza, paket kimliği, sürüm " +
-            "kanalı ya da yol uygun değil.")
+        KitError(code: "DSC-E02", message: path + " could not be verified as the official Discord (Stable) app: its signature, bundle identifier, " +
+            "release channel or path is not valid.")
     }
 
     /// The process list could not be read completely, so Discord may be running.
     static func discordStateUnknown() -> KitError {
-        KitError(code: "DSC-E04", message: "Discord'un açık olup olmadığı denetlenemedi. Discord'u tamamen kapatıp yeniden deneyin.")
+        KitError(code: "DSC-E04", message: "Could not check whether Discord is open. Quit Discord completely and try again.")
     }
 
     static func discordAmbiguous() -> KitError {
-        KitError(code: "DSC-E03", message: "Birden fazla resmi Discord kurulumu bulundu. Kullanılacak kurulumu --discord-path ile belirtin.")
+        KitError(code: "DSC-E03", message: "More than one official Discord installation was found. Choose one with --discord-path.")
     }
 
     static func discordRunning() -> KitError {
-        KitError(code: "DSC-E05", message: "Önce Discord'u tamamen kapatın (Discord > Discord'dan Çık ya da Cmd+Q); ardından DiscordAccess'i yeniden " +
-            "açın. Açık Discord değiştirilmedi.")
+        KitError(code: "DSC-E05", message: "Quit Discord completely first (Discord > Quit Discord, or Cmd+Q), then open DiscordAccess again. " +
+            "The open Discord was not changed.")
     }
 
     static func discordOpenedDuringPreparation() -> KitError {
-        KitError(code: "DSC-E06", message: "Hazırlık sırasında Discord açıldı. Discord'u tamamen kapatıp DiscordAccess'i yeniden açın; ayarlar " +
-            "değiştirilmedi.")
+        KitError(code: "DSC-E06", message: "Discord was opened during preparation. Quit Discord completely and open DiscordAccess again; no " +
+            "settings were changed.")
     }
 
     /// `--restore` changes nothing while Discord runs.
     static func discordRunningDuringRestore() -> KitError {
-        KitError(code: "DSC-E07", message: "Önce Discord'u tamamen kapatın (Discord > Discord'dan Çık ya da Cmd+Q); ardından DiscordAccess --restore " +
-            "çalıştırın. Bekleyen geri alma kaydı korunuyor.")
+        KitError(code: "DSC-E07", message: "Quit Discord completely first (Discord > Quit Discord, or Cmd+Q), then run DiscordAccess --restore. " +
+            "The pending recovery record is kept.")
     }
 
     static func discordLaunchFailed() -> KitError {
-        KitError(code: "DSC-E08", message: "Discord açılış isteği gönderilemedi. Discord'u Dock, Launchpad ya da Spotlight'tan açabilirsiniz; " +
-            "bağlantı açık kalır.")
+        KitError(code: "DSC-E08", message: "The request to open Discord could not be sent. You can open Discord from the Dock, Launchpad or " +
+            "Spotlight; the connection stays open.")
     }
 
     /// Discord was open when the session ended, or undoing failed: the journal is kept for the next start or `--restore`.
     static func sessionRestoreDeferred() -> KitError {
-        KitError(code: "SES-E01", message: "Bağlantı kapandı. Discord'u tamamen kapatıp DiscordAccess --restore çalıştırın ya da DiscordAccess'i " +
-            "yeniden açın. Geçici ayarların kurtarma kaydı korundu.")
+        KitError(code: "SES-E01", message: "The connection closed. Quit Discord completely and run DiscordAccess --restore, or open DiscordAccess " +
+            "again. The recovery record of the temporary settings was kept.")
     }
 
     static func sessionNotReady() -> KitError {
-        KitError(code: "SES-E02", message: "Bağlantı hazır değil.")
+        KitError(code: "SES-E02", message: "The connection is not ready.")
     }
 
     static func discordChanged() -> KitError {
-        KitError(code: "SES-E03", message: "Discord değişti. Discord'u tamamen kapatıp Q ile çıkın; DiscordAccess'i yeniden açın.")
+        KitError(code: "SES-E03", message: "Discord has changed. Quit Discord completely, then quit DiscordAccess and open it again.")
     }
 
     /// `--restore` while another DiscordAccess holds the session (Windows `ResidentInstance`).
     static func sessionStillOpen() -> KitError {
-        KitError(code: "SES-E04", message: "DiscordAccess hâlâ açık. Önce mevcut bağlantıyı kapatın.")
+        KitError(code: "SES-E04", message: "DiscordAccess is still running. Close the current connection first.")
     }
 
     /// Windows `Safety.RejectElevation`: root would own the files it writes in the user's folders.
     static func runningAsRoot() -> KitError {
-        KitError(code: "SYS-E02", message: "DiscordAccess yönetici (root) olarak çalıştırılmaz. sudo kullanmadan, kendi kullanıcı hesabınızla açın.")
+        KitError(code: "SYS-E02", message: "DiscordAccess does not run as an administrator (root). Open it with your own user account, without sudo.")
     }
 
     /// Windows `StartupPathTrust`: an app that others could change must not start by itself at login.
     static func startupLocationUnsafe() -> KitError {
-        KitError(code: "SYS-E03", message: "DiscordAccess güvenli bir konumda değil; oturum açılışında başlatma kurulmadı. Uygulamayı Uygulamalar " +
-            "klasörüne taşıyıp oradan açın.")
+        KitError(code: "SYS-E03", message: "DiscordAccess is not in a trusted location, so start at login was not set up. Move the app to the " +
+            "Applications folder and open it from there.")
     }
 
     static func startupRegistrationFailed() -> KitError {
-        KitError(code: "SYS-E04", message: "Oturum açılışında başlatma değiştirilemedi. Sistem Ayarları > Genel > Giriş Öğeleri'ni kontrol edin.")
+        KitError(code: "SYS-E04", message: "Start at login could not be changed. Check System Settings > General > Login Items.")
     }
 
     /// Windows `InstalledDiscord.Conflict`: nothing that changed since is overwritten.
     static func profileConflict() -> KitError {
-        KitError(code: "PRF-E01", message: "Discord'un geçici ayarları güvenli biçimde doğrulanamadı. Değişmiş dosya veya tercihin üzerine yazılmadı.")
+        KitError(code: "PRF-E01", message: "Discord's temporary settings could not be verified safely. No changed file or preference was overwritten.")
     }
 
     static func profileUnsupported() -> KitError {
-        KitError(code: "PRF-E02", message: "Discord'un resmi sürümü veya başlangıç modülü tanınmadı; Discord dosyaları değiştirilmedi.")
+        KitError(code: "PRF-E02", message: "The official Discord version or its startup module was not recognized; Discord's files were not changed.")
     }
 
     static func profileMissingModule() -> KitError {
-        KitError(code: "PRF-E03", message: "Discord'un beklenen başlangıç modülü bulunamadı. Discord'u bir kez normal açıp kapatın, sonra " +
-            "yeniden deneyin.")
+        KitError(code: "PRF-E03", message: "Discord's expected startup module was not found. Open and quit Discord normally once, then " +
+            "try again.")
     }
 
     /// PRF-E04 as the app shows it: run outside an app bundle (from a terminal), macOS asks Full Disk Access of the
@@ -154,19 +154,19 @@ public struct KitError: Error, Equatable, CustomStringConvertible {
 
     /// Run from a terminal, macOS asks Full Disk Access of the terminal app, not of DiscordAccess.
     static func profileAccessDeniedInTerminal() -> KitError {
-        KitError(code: "PRF-E04", message: "Discord'un veri klasörüne erişim izni yok. Terminal'den açıldığında bu izin terminal uygulamasına " +
-            "verilir: Sistem Ayarları > Gizlilik ve Güvenlik > Tam Disk Erişimi'nde Terminal'i (ya da kullandığınız terminal uygulamasını) açın, " +
-            "uygulamayı kapatıp yeniden açın ve DiscordAccess'i tekrar çalıştırın. İzin verilmeden Discord ayarları değiştirilmez.")
+        KitError(code: "PRF-E04", message: "DiscordAccess cannot access Discord's data folder. When it runs from Terminal, macOS grants this " +
+            "permission to the terminal app: turn on Terminal (or the terminal app you use) under System Settings > Privacy & Security > Full " +
+            "Disk Access, quit and reopen that app, and run DiscordAccess again. Discord's settings are never changed without this permission.")
     }
 
     /// macOS keeps Discord's data folder from other apps without asking (TCC); only Full Disk Access opens it.
     static func profileAccessDenied() -> KitError {
-        KitError(code: "PRF-E04", message: "Discord'un veri klasörüne erişim izni yok. Sistem Ayarları > Gizlilik ve Güvenlik > Tam Disk " +
-            "Erişimi'nde DiscordAccess'i açın. İzin verilmeden Discord ayarları değiştirilmez.")
+        KitError(code: "PRF-E04", message: "DiscordAccess cannot access Discord's data folder. Turn on DiscordAccess under System Settings > " +
+            "Privacy & Security > Full Disk Access. Discord's settings are never changed without this permission.")
     }
 }
 
-/// Alerts and notifications show the Turkish message with its code.
+/// Alerts and notifications show the message with its code.
 extension KitError: LocalizedError {
     public var errorDescription: String? { description }
 }

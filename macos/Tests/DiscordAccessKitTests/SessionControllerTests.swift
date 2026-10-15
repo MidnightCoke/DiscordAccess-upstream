@@ -107,24 +107,24 @@ import Testing
         let modern = try #require(settings["NEW_UPDATE_ENDPOINT"] as? String)
         #expect(legacy.hasPrefix("http://127.0.0.1:") && legacy.hasSuffix("/legacy") && modern == String(legacy.dropLast("legacy".count)) + "updates/")
         #expect(!legacy.contains(":" + port + "/") && settings["BACKGROUND_COLOR"] as? String == "#202225")
-        #expect(session.states.all == ["Bağlanıyor", "Bağlantı hazır; Discord kendi simgesinden açılabilir."] && controller.isActive)
+        #expect(session.states.all == ["Connecting", "Connection ready; Discord can be opened from its own icon."] && controller.isActive)
         #expect(!controller.discordRunning())
         #expect(session.lines.all.contains("DNS: " + DnsOptions(provider: .google).description))
 
-        #expect(try controller.openDiscord() == "Resmi Discord'a açılış isteği gönderildi.")
+        #expect(try controller.openDiscord() == "Sent the request to open the official Discord.")
         #expect(session.discord.launches.all == [["--proxy-server=http://127.0.0.1:" + port, "--proxy-bypass-list=127.0.0.1;localhost", "--disable-quic"]])
         session.discord.set(true)
-        #expect(try controller.openDiscord() == "Discord zaten açık; ikinci açılış yapılmadı.")
+        #expect(try controller.openDiscord() == "Discord is already open; it was not opened again.")
         #expect(session.discord.launches.all.count == 1)
         #expect(throws: AttachmentDownloadFailure(message: AttachmentDownloader.invalidLink)) { try controller.download("https://example.com/file") }
 
         session.discord.set(false)
         try controller.disconnect()
         #expect(session.untouched && Self.gone(pid) && controller.enginePID == nil && !controller.isActive && !controller.hasUnreapedEngine)
-        #expect(session.states.all.last == "Bağlantı kesildi")
+        #expect(session.states.all.last == "Disconnected")
         #expect(throws: KitError.sessionNotReady()) { try controller.openDiscord() }
-        #expect(try controller.diagnose() == "Bağlantı açık değil.")
-        #expect(throws: AttachmentDownloadFailure(message: "Dosya indirmek için önce DiscordAccess ile bağlantıyı açın.")) { try controller.download(Self.hook) }
+        #expect(try controller.diagnose() == "The connection is not open.")
+        #expect(throws: AttachmentDownloadFailure(message: "Open the connection with DiscordAccess before downloading a file.")) { try controller.download(Self.hook) }
         try controller.disconnect()
     }
 
@@ -158,7 +158,7 @@ import Testing
         let controller = session.controller()
         #expect(throws: KitError.discordRunning()) { try controller.connect() }
         #expect(session.untouched && controller.enginePID == nil)
-        #expect(session.states.all == ["Bağlanıyor", "Bağlantı kurulamadı"])
+        #expect(session.states.all == ["Connecting", "Could not connect"])
     }
 
     @Test(.enabled(if: TestEngine.isAvailable))
@@ -186,7 +186,7 @@ import Testing
         #expect(throws: KitError.sessionRestoreDeferred()) { try first.disconnect() }
         #expect(Self.gone(pid) && SafeFileTests.text(session.fixture.journal) != nil)
         #expect(SafeFileTests.text(session.fixture.entry(1))?.hasPrefix(SessionWrapper.marker) == true)
-        #expect(session.lines.all.contains("DiscordAccess: bağlantı hazırlanıyor."))
+        #expect(session.lines.all.contains("DiscordAccess: preparing the connection."))
 
         let second = session.controller()
         #expect(throws: KitError.discordRunning()) { try second.connect() }
@@ -194,7 +194,7 @@ import Testing
         session.discord.set(false)
         let third = session.controller()
         try third.connect()
-        #expect(session.lines.all.contains("Önceki oturumun geçici Discord ayarları geri alındı."))
+        #expect(session.lines.all.contains("Restored the temporary Discord settings of the previous session."))
         try third.disconnect()
         #expect(session.untouched)
     }
@@ -206,7 +206,7 @@ import Testing
         try controller.connect()
         let pid = try #require(controller.enginePID)
         kill(pid, SIGKILL)
-        #expect(waitFor { session.states.all.contains("Bağlantı motoru durdu; bağlantı kapatıldı.") ? true : nil } == true)
+        #expect(waitFor { session.states.all.contains("The connection engine stopped; the connection was closed.") ? true : nil } == true)
         #expect(session.untouched && controller.enginePID == nil)
         #expect(throws: KitError.sessionNotReady()) { try controller.openDiscord() }
         try controller.disconnect()

@@ -64,14 +64,14 @@ Checks that needed a real account were confirmed on screen by the user.
 ## 4. User flow
 
 1. Quit Discord completely.
-2. Open `DiscordAccess.app` and wait for the "Bağlantı hazır" (Connection ready) notification.
+2. Open `DiscordAccess.app` and wait for the "Connection ready" notification.
 3. Open Discord from its own icon (Dock, Launchpad, Spotlight). The existing installation and account are used; no copy is made.
-4. When done, quit Discord first, then choose "Çıkış" (Quit) in the menu bar.
+4. When done, quit Discord first, then choose "Quit" in the menu bar.
 
 Differences the user will notice:
 
 - The icon is in the menu bar, not in a tray.
-- Discord's own login item cannot be read or taken over by a program. The "Girişte Discord'u da aç" (Also open Discord at login) preference is in the DiscordAccess menu, and Discord's own login item should be turned off.
+- Discord's own login item cannot be read or taken over by a program. The "Also open Discord at login" preference is in the DiscordAccess menu, and Discord's own login item should be turned off.
 - Instead of copying a package from an unsafe folder into the user's folder, as on Windows, the app is moved to the Applications folder.
 - Opening Discord from its own icon works as on Windows, by a different method (see 7.2).
 - On first launch DiscordAccess needs a one-time **Full Disk Access** permission. macOS protects Discord's data folder from other apps and shows no prompt for it (see 3, the TCC finding). The app never turns the permission on itself; it explains why it is needed and opens the right page of System Settings.
@@ -80,11 +80,11 @@ Differences the user will notice:
 
 | Windows v4.22 | macOS |
 | --- | --- |
-| `DiscordAccess.exe` in the tray | `DiscordAccess.app` in the menu bar (`LSUIElement`, no Dock icon). Menu: "Discord'u aç", "Yeniden bağlan", "Bağlantıyı kontrol et", "Oturum açılışında başlat", "Girişte Discord'u da aç", "Çıkış". |
+| `DiscordAccess.exe` in the tray | `DiscordAccess.app` in the menu bar (`LSUIElement`, no Dock icon). Menu: "Open Discord", "Reconnect", "Check connection", "Start at login", "Also open Discord at login", "Quit". |
 | sing-box `1.14.3-discordaccess.2` with a pinned hash | The same source commit, Go version and patches, built for `darwin/arm64`, with its own pinned hash and cdhash. |
 | Engine configuration generated in memory | The same policy: DoH, IPv4, authenticated HTTP inbound, TLS record fragmentation, rules and a final `reject`. |
 | `ProcessGate` | The same policy; the peer process is found with libproc and identified by Discord's Team ID signature. |
-| Proxy arguments on the `.lnk` shortcuts | The core wrapper applies the session proxy at run time; "Discord'u aç" also passes it as arguments. |
+| Proxy arguments on the `.lnk` shortcuts | The core wrapper applies the session proxy at run time; "Open Discord" also passes it as arguments. |
 | `UpdateBridge` (native updater) | The same bridge. The Mac uses the same native updater, so the manifest and download rewriting rules are the same; confirmed with a real update in stage 0. |
 | Direct access to `%LOCALAPPDATA%\Discord` | `~/Library/Application Support/discord` needs Full Disk Access (TCC). Without it, no profile change is made and the user is guided. |
 | Attachment download hook | The same file, unchanged. |
@@ -156,14 +156,14 @@ The app target (`Sources/DiscordAccess`) holds the AppKit menu bar app (`MenuBar
    - If Discord is open, connecting stops (DSC-E05) and no profile change is made. If the process list cannot be read completely, Discord counts as open (DSC-E04). Copies of Discord in other locations count too, and so does a renamed app running Discord's main or helper executable. A live process that cannot be read counts if the kernel names it Discord (Windows also treats an `Unknown` observation as an obstacle).
    - A recovery journal left by an earlier session is undone.
    - Access to Discord's data folder (Full Disk Access) is checked. Without it, no profile change is made; the user is told why and the relevant page of System Settings opens.
-2. DNS selection: candidates are tried in order. For each one, an engine and a gate start, and an HTTPS request to the Discord Gateway API (`https://discord.com/api/v10/gateway`) goes through the gate; the answer must be the Gateway address (Windows `CheckDnsCandidate`). The first successful candidate joins the session; a failed one is closed completely before the next one starts. If the user named a provider (`--dns=…`), no check is made. The anonymous Gateway WebSocket HELLO check runs from "Bağlantıyı kontrol et" (Check connection).
+2. DNS selection: candidates are tried in order. For each one, an engine and a gate start, and an HTTPS request to the Discord Gateway API (`https://discord.com/api/v10/gateway`) goes through the gate; the answer must be the Gateway address (Windows `CheckDnsCandidate`). The first successful candidate joins the session; a failed one is closed completely before the next one starts. If the user named a provider (`--dns=…`), no check is made. The anonymous Gateway WebSocket HELLO check runs from "Check connection".
 3. The update bridge starts on a random port with a secret path token.
 4. Profile changes, journaled:
    - `settings.json`: `UPDATE_ENDPOINT = <bridge>/legacy` and `NEW_UPDATE_ENDPOINT = <bridge>/updates/`.
    - `discord_desktop_core/index.js`: the session wrapper (7.2).
    - Every core generation of the installed version (`build_info.json`) is wrapped: `app-<version>/modules/discord_desktop_core-<N>`, at most 16. Each entry file must be Discord's own entry or an old wrapper whose journal was lost; other content gives PRF-E02, and a missing module PRF-E03.
    - Every change is written to the journal in the state folder first (`installed-session/journal.json`). Undoing, and recovery at the next launch, put back only what still belongs to DiscordAccess. A value the user or an update changed stays as it is and is reported with PRF-E01, and the journal is kept (Windows `InstalledDiscord`).
-5. The ready notification appears. On a login launch with "Girişte Discord'u da aç" on, Discord opens once.
+5. The ready notification appears. On a login launch with "Also open Discord at login" on, Discord opens once.
 
 ### 7.2 When Discord opens
 
@@ -185,7 +185,7 @@ The app target (`Sources/DiscordAccess`) holds the AppKit menu bar app (`MenuBar
 
 **Applying the proxy**
 
-- "Discord'u aç" (Open Discord) opens Discord through Launch Services with `--proxy-server=http://127.0.0.1:<gate> --proxy-bypass-list=127.0.0.1;localhost --disable-quic` (see 8, "Session and Terminal mode").
+- "Open Discord" opens Discord through Launch Services with `--proxy-server=http://127.0.0.1:<gate> --proxy-bypass-list=127.0.0.1;localhost --disable-quic` (see 8, "Session and Terminal mode").
 - A launch from the Dock, Launchpad or Spotlight has no arguments. The session wrapper then applies the proxy at run time. In outline:
 
 ```js
@@ -215,7 +215,7 @@ module.exports = require('./core.asar');
 
 ### 7.3 Shutdown and recovery
 
-- On "Çıkış" (Quit), the profile changes are undone, then the bridge, the gate and the engine close.
+- On "Quit", the profile changes are undone, then the bridge, the gate and the engine close.
 - If Discord is open, the recovery journal is kept. The undo happens at the next launch or with `--restore`.
 - An undo writes back only owned values. Values the user changed later, and other preferences, are never overwritten.
 
@@ -229,9 +229,9 @@ module.exports = require('./core.asar');
   - the volume is local and does not ignore ownership. macOS ignores ownership on external drives by default; there every file appears to belong to whoever asks.
 - A login launch (`--startup`) checks the location again. If it is no longer trusted, the registration is removed, Discord is not opened and the user is warned (Windows refuses a startup entry for another path).
 - Registration uses `SMAppService.agent`. The launch agent inside the bundle (`Contents/Library/LaunchAgents/`) starts the app with `--startup`, which tells a login launch apart from a manual one.
-- Turning off "Oturum açılışında başlat" (Start at login) removes the registration. A normal quit does not change this preference.
+- Turning off "Start at login" removes the registration. A normal quit does not change this preference.
 - After the first working connection, if the user has not chosen yet, start at login turns itself on, as on Windows (`EnsureEnabled`). Once the user turns it off, it stays off. The choice is written to `preferences.json` in the state folder before the registration changes. If that file exists but cannot be read safely, the app does not register itself.
-- "Girişte Discord'u da aç" is off by default. When it is on, Discord opens once after the first working connection at login. If connecting fails, the request is kept until a later "Yeniden bağlan" (Reconnect) succeeds; a failed open is not repeated. An open Discord is not opened again.
+- "Also open Discord at login" is off by default. When it is on, Discord opens once after the first working connection at login. If connecting fails, the request is kept until a later "Reconnect" succeeds; a failed open is not repeated. An open Discord is not opened again.
 - If Discord opened before the connection was ready, a warning is shown; Discord is not forced to quit.
 
 ## 8. Security boundaries
@@ -313,7 +313,7 @@ module.exports = require('./core.asar');
 - `discord.com` and `discord.gg` are on the HSTS preload list: URLSession turns plain `http` and `ws` requests into `https` and `wss`. Tests therefore use plain HTTP with `.invalid` names, which resolve nowhere.
 - The selected candidate becomes the session's engine and gate. The session learns that the gate closed itself through `DnsConnection.onGateFault` (Windows `Gate.Faulted`) and watches the engine's exit separately (Windows `Engine.Exited`). A gate that failed before the handler was set would have been reported to no one (Windows has the same gap), so the session checks with `ProxyGate.isAccepting`, after setting the handler and at the end of connecting, that the gate still accepts connections.
 - The handlers hold the session weakly. A fault that races with shutdown may still be reported once; the session ignores it, because its connection is no longer that candidate.
-- A second `DnsConnection.close()` does nothing, even if the first one gave DNS-E03. The session controller is therefore single-use, and reconnecting takes a new controller. "Yeniden bağlan" (Reconnect) starts no new candidate while an engine could not be reaped.
+- A second `DnsConnection.close()` does nothing, even if the first one gave DNS-E03. The session controller is therefore single-use, and reconnecting takes a new controller. "Reconnect" starts no new candidate while an engine could not be reaped.
 
 **Update bridge** (Windows `UpdateBridge`):
 
@@ -368,9 +368,9 @@ module.exports = require('./core.asar');
 
 ## 9. Error handling
 
-- **Messages:** error codes and Turkish messages follow the Windows family (`PKG-E01` and so on). The menu bar app shows alerts and notifications; Terminal mode writes to stderr.
-- **DNS:** after a failed candidate, the next one is tried. If all fail, only a fixed message is shown (DNS-E02) and "Yeniden bağlan" (Reconnect) is suggested. These stop the selection without trying another provider: HTTP 429 (Discord's rate limit is not worked around with another provider), a canceled check, a candidate that could not start (package integrity, engine start) and a candidate that could not be closed safely (DNS-E03). An engine that stops during the check is reported as ENG-E02. An invalid or repeated `--dns` option gives DNS-E01.
-- **Lost engine:** the menu shows that the connection was lost, and "Yeniden bağlan" sets everything up again from scratch. In Terminal mode the session ends and the reason is shown.
+- **Messages:** error codes and messages follow the Windows family (`PKG-E01` and so on). The menu bar app shows alerts and notifications; Terminal mode writes to stderr.
+- **DNS:** after a failed candidate, the next one is tried. If all fail, only a fixed message is shown (DNS-E02) and "Reconnect" is suggested. These stop the selection without trying another provider: HTTP 429 (Discord's rate limit is not worked around with another provider), a canceled check, a candidate that could not start (package integrity, engine start) and a candidate that could not be closed safely (DNS-E03). An engine that stops during the check is reported as ENG-E02. An invalid or repeated `--dns` option gives DNS-E01.
+- **Lost engine:** the menu shows that the connection was lost, and "Reconnect" sets everything up again from scratch. In Terminal mode the session ends and the reason is shown.
 - **Reconnecting** deliberately differs from Windows. If the previous session ended keeping only its profile changes (SES-E01), a new session starts and undoes them first; Windows refuses until the app restarts. If the previous session did not close in time, ended with another error or could not reap its engine (DNS-E03), no new engine starts.
 - **Orphaned engine:** an engine left behind by a crash is found at the next launch by this bundle's engine path, the user ID and its parent process (launchd, process ID 1), and stopped.
 - **Profile conflict:** a value the user changed is never overwritten. The operation stops, the recovery journal is kept and the user is told.
@@ -401,10 +401,10 @@ module.exports = require('./core.asar');
 | 2026-10-15 | Connectivity checks and DNS selection | Automatic selection chose the first candidate (Cloudflare with the IP certificate). The Gateway API, the update server and the WebSocket HELLO worked through the gate; all three providers reached the Gateway API. |
 | 2026-10-15 | Update bridge | The legacy feed, the new updater's manifest and a HEAD request for a download went through the bridge, the gate and the engine; all 35 manifest addresses were rewritten. The new updater's manifest request without the `arch` parameter gets 400. The very first manifest request got no answer within 30 seconds (cause unknown; the bridge then answers 502), and every later attempt passed within 2 seconds. |
 | 2026-10-15 | Terminal mode, Discord 0.0.415, Terminal with Full Disk Access | Discord opened from the Dock connected through the wrapper and was fully usable; the gate allowed only Discord domains and refused no owner. The real profile had the expected layout, and the attachment download hook was installed on both launches. A 28.6 MB attachment was downloaded from within Discord through the save dialog. T (the HTTPS checks and the Gateway HELLO) passed. Q undid the profile changes and deleted the journal, without SES-E01. A opened Discord with its arguments, it connected through the gate, and Q undid the changes again. As on Windows, the gate refused Spotify (`api.spotify.com`, `dealer.spotify.com`) and `dc-telemetry.net`. |
-| 2026-10-15 | Menu bar app, ad-hoc signed bundle in `/Applications` | The Full Disk Access alert appeared on first launch and led to System Settings; Terminal's grant did not carry over to the app. After the grant, the app connected by itself, and start at login turned itself on after the first connection (`SMAppService` works with an ad-hoc signature). Discord opened from the menu connected through the gate. "Bağlantıyı kontrol et" passed. Reopening the app reached the running instance, which showed its status. "Çıkış" undid the changes and deleted the journal, and no process was left. After a `kill -9` of the app, the next launch undid the previous session's changes, stopped the orphaned engine and connected again. Voice chat worked in Discord opened from the Dock (reported by the user; voice UDP goes direct). At registration, launchd ran the login item once (`RunAtLoad`); that second process said DiscordAccess was already running and exited with code 0, which is harmless. |
+| 2026-10-15 | Menu bar app, ad-hoc signed bundle in `/Applications` | The Full Disk Access alert appeared on first launch and led to System Settings; Terminal's grant did not carry over to the app. After the grant, the app connected by itself, and start at login turned itself on after the first connection (`SMAppService` works with an ad-hoc signature). Discord opened from the menu connected through the gate. "Check connection" passed. Reopening the app reached the running instance, which showed its status. "Quit" undid the changes and deleted the journal, and no process was left. After a `kill -9` of the app, the next launch undid the previous session's changes, stopped the orphaned engine and connected again. Voice chat worked in Discord opened from the Dock (reported by the user; voice UDP goes direct). At registration, launchd ran the login item once (`RunAtLoad`); that second process said DiscordAccess was already running and exited with code 0, which is harmless. |
 | 2026-10-15 | Downloaded release package (quarantined) | After "Open Anyway", macOS ran the app under App Translocation; the quarantined embedded engine started, and the connection came up. |
 
-Not verified live: a real login launch (`--startup`) and "Girişte Discord'u da aç"; `--restore` with a real journal; signing with a certificate; macOS 13–26.
+Not verified live: a real login launch (`--startup`) and "Also open Discord at login"; `--restore` with a real journal; signing with a certificate; macOS 13–26.
 
 ## 11. Stages and status
 

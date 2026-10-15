@@ -34,7 +34,7 @@ import Testing
                 counter.add("connect")
                 state.stateChanged(true)
             },
-            readyMessage: { "Bağlantı hazır." },
+            readyMessage: { "Connection ready." },
             openDiscord: {
                 counter.add("open")
                 return "opened-fixture"
@@ -64,9 +64,9 @@ import Testing
     @Test func connectingDoesNotOpenDiscordWithoutA() {
         let state = ConsoleSession.State()
         let counter = Counter()
-        let result = Self.run(Self.operations(state, counter), state) { if $0 == "Bağlantı hazır." { state.command("Q") } }
+        let result = Self.run(Self.operations(state, counter), state) { if $0 == "Connection ready." { state.command("Q") } }
         #expect(result.code == 0 && counter["open"] == 0 && counter["disconnect"] == 1)
-        #expect(result.lines == ["Bağlantı hazır.", "Bağlantı kapatıldı."])
+        #expect(result.lines == ["Connection ready.", "Connection closed."])
     }
 
     @Test func anATypedWhileConnectingOpensDiscordOnceReady() {
@@ -109,7 +109,7 @@ import Testing
         }
         let result = Self.run(session, state) { if $0 == "opened-fixture" { state.command("Q") } }
         #expect(result.code == 0 && counter["open"] == 2 && counter["disconnect"] == 1)
-        #expect(result.lines.contains("Discord açılamadı: İşlem tamamlanamadı (PrivateFailure)."))
+        #expect(result.lines.contains("Could not open Discord: The operation could not finish (PrivateFailure)."))
         #expect(result.lines.allSatisfy { !$0.contains("SYNTHETIC_PRIVATE_PATH") })
     }
 
@@ -128,10 +128,10 @@ import Testing
             links.append(link)
             return "/fixture/folder/sample.txt"
         }
-        let result = Self.run(session, state) { if $0.hasPrefix("Kaydedildi:") { state.command("Q") } }
+        let result = Self.run(session, state) { if $0.hasPrefix("Saved:") { state.command("Q") } }
         #expect(result.code == 0 && counter["open"] == 1 && links.all == ["fixture-link"])
-        #expect(result.lines.contains("Discord ek dosyasının bağlantısını yapıştırıp Enter'a basın. Q: kapat."))
-        #expect(result.lines.contains("Kaydedildi: sample.txt | /fixture/folder"))
+        #expect(result.lines.contains("Paste the Discord attachment link and press Enter. Q: quit."))
+        #expect(result.lines.contains("Saved: sample.txt | /fixture/folder"))
     }
 
     @Test func aFailedDownloadShowsItsFixedMessage() {
@@ -140,8 +140,8 @@ import Testing
         session.download = { _ in throw AttachmentDownloadFailure(message: AttachmentDownloader.invalidLink) }
         state.command("d")
         state.command("not-a-link")
-        let result = Self.run(session, state) { if $0.hasPrefix("Dosya indirilemedi:") { state.command("q") } }
-        #expect(result.code == 0 && result.lines.contains("Dosya indirilemedi: " + AttachmentDownloader.invalidLink))
+        let result = Self.run(session, state) { if $0.hasPrefix("Could not download the file:") { state.command("q") } }
+        #expect(result.code == 0 && result.lines.contains("Could not download the file: " + AttachmentDownloader.invalidLink))
     }
 
     @Test func aClosedInputEndsTheLinkPrompt() {
@@ -149,7 +149,7 @@ import Testing
         let session = Self.operations(state, Counter())
         state.command("D")
         state.command(nil)
-        let result = Self.run(session, state) { if $0 == "Dosya bağlantısı alınamadı; komut girişi kapalı." { state.requestStop(0) } }
+        let result = Self.run(session, state) { if $0 == "No file link was received; command input is closed." { state.requestStop(0) } }
         #expect(result.code == 0 && state.inputClosed)
     }
 
@@ -172,7 +172,7 @@ import Testing
             DispatchQueue.global().asyncAfter(deadline: .now() + 0.06) { release.signal() }
         }
         let result = Self.run(session, state)
-        #expect(result.code == 0 && cleaned.all == [true] && result.lines.last == "Bağlantı kapatıldı.")
+        #expect(result.code == 0 && cleaned.all == [true] && result.lines.last == "Connection closed.")
     }
 
     @Test func aPendingOpenCannotHoldShutdownBeyondItsTime() {
@@ -192,7 +192,7 @@ import Testing
         let result = Self.run(session, state, timeout: 0.05)
         release.signal()
         #expect(result.code == 130 && Date().timeIntervalSince(started) < 1)
-        #expect(result.lines.contains("Discord açılışının kapanış süresi doldu.") && !result.lines.contains("Bağlantı kapatıldı."))
+        #expect(result.lines.contains("Opening Discord did not finish in time.") && !result.lines.contains("Connection closed."))
     }
 
     @Test func aDisconnectThatHangsEndsWithTheTimeoutCode() {
@@ -203,7 +203,7 @@ import Testing
         state.command("Q")
         let result = Self.run(session, state, timeout: 0.05)
         release.signal()
-        #expect(result.code == 130 && result.lines.contains("Kapanış süresi doldu; bağlantı motoru program kapanırken durdurulacak."))
+        #expect(result.code == 130 && result.lines.contains("Shutdown timed out; the connection engine will be stopped when the program exits."))
     }
 
     @Test func aDownloadEndedByDisconnectingIsCleanedUpQuietly() {
@@ -222,7 +222,7 @@ import Testing
         }
         session.disconnect = { release.signal() }
         let result = Self.run(session, state)
-        #expect(result.code == 0 && !result.lines.contains { $0.hasPrefix("İndirme temizliği") })
+        #expect(result.code == 0 && !result.lines.contains { $0.hasPrefix("Download cleanup") })
 
         let failing = ConsoleSession.State()
         var other = Self.operations(failing, Counter())
@@ -235,11 +235,11 @@ import Testing
         other.download = { _ in
             failing.command("Q")
             next.wait()
-            throw AttachmentDownloadFailure(message: "Dosya kaydedilemedi. İndirilenler klasörüne erişimi kontrol edin.")
+            throw AttachmentDownloadFailure(message: "The file could not be saved. Check access to the Downloads folder.")
         }
         other.disconnect = { next.signal() }
         let cleanup = Self.run(other, failing)
-        #expect(cleanup.code == 1 && cleanup.lines.contains("İndirme temizliği: Dosya kaydedilemedi. İndirilenler klasörüne erişimi kontrol edin."))
+        #expect(cleanup.code == 1 && cleanup.lines.contains("Download cleanup: The file could not be saved. Check access to the Downloads folder."))
     }
 
     @Test func tShowsTheDiagnosisAndAnythingElseTheHelp() {
@@ -262,11 +262,11 @@ import Testing
         }
         let result = Self.run(session, state) { line in
             if line == "diagnosis-fixture" { state.command("t") }
-            if line.hasPrefix("Tanılama tamamlanamadı:") { state.command("Q") }
+            if line.hasPrefix("Diagnostics could not finish:") { state.command("Q") }
         }
-        #expect(result.code == 0 && result.lines.first == "Bağlantı hazır." && result.lines[1] == ConsoleSession.help)
+        #expect(result.code == 0 && result.lines.first == "Connection ready." && result.lines[1] == ConsoleSession.help)
         #expect(result.lines.contains("diagnosis-fixture") && failing.all == [true])
-        #expect(result.lines.contains("Tanılama tamamlanamadı: " + ConnectivityFailure(endpoint: .gateway, reason: .http, httpStatus: 503).message))
+        #expect(result.lines.contains("Diagnostics could not finish: " + ConnectivityFailure(endpoint: .gateway, reason: .http, httpStatus: 503).message))
     }
 
     @Test func aFailedConnectionIsReportedAndStillDisconnected() {
@@ -276,7 +276,7 @@ import Testing
         session.connect = { throw KitError.discordRunning() }
         let result = Self.run(session, state)
         #expect(result.code == 1 && counter["disconnect"] == 1)
-        #expect(result.lines == ["Bağlantı kurulamadı: " + KitError.discordRunning().description, "Bağlantı kapatıldı."])
+        #expect(result.lines == ["Could not connect: " + KitError.discordRunning().description, "Connection closed."])
     }
 
     @Test func anInterruptWhileConnectingStopsWithItsCode() {
@@ -294,7 +294,7 @@ import Testing
             canceled.signal()
         }
         let result = Self.run(session, state)
-        #expect(result.code == 130 && counter["disconnect"] == 1 && result.lines == ["Bağlantı kapatıldı."])
+        #expect(result.code == 130 && counter["disconnect"] == 1 && result.lines == ["Connection closed."])
     }
 
     @Test func theConnectionEndingEndsTheSession() {
@@ -315,7 +315,7 @@ import Testing
         session.disconnect = { throw KitError.sessionRestoreDeferred() }
         state.command("Q")
         let result = Self.run(session, state)
-        #expect(result.code == 1 && result.lines == ["Oturum temizliği: " + KitError.sessionRestoreDeferred().description, "Bağlantı kapatıldı."])
+        #expect(result.code == 1 && result.lines == ["Session cleanup: " + KitError.sessionRestoreDeferred().description, "Connection closed."])
     }
 
     @Test func commandsAreTrimmedBoundedAndStopAfterQ() {
@@ -328,7 +328,7 @@ import Testing
         var queued: [String] = []
         while let command = state.nextCommand() { queued.append(command) }
         #expect(queued.count == ConsoleSession.maxQueued && queued.first == "c0")
-        for word in ["çıkış", "ÇIKIŞ", "cikis", "Q"] {
+        for word in ["quit", "QUIT", "exit", "Q"] {
             let stopping = ConsoleSession.State()
             stopping.command(word)
             stopping.command("A")
@@ -352,7 +352,7 @@ import Testing
         var ends: [Int32] = [0, 0]
         try #require(pipe(&ends) == 0)
         _ = fcntl(ends[1], F_SETNOSIGPIPE, 1)
-        let input = Array("a\r\nçıkış\n".utf8) + [UInt8](repeating: 120, count: 40_000) + Array("\nb\n\nc".utf8)
+        let input = Array("a\r\ncafé 🙂\n".utf8) + [UInt8](repeating: 120, count: 40_000) + Array("\nb\n\nc".utf8)
         let writer = Thread {
             input.withUnsafeBytes { buffer in
                 var offset = 0
@@ -371,7 +371,7 @@ import Testing
             return true
         }
         close(ends[0])
-        #expect(lines == ["a", "çıkış", "b", "", "c", nil])
+        #expect(lines == ["a", "café 🙂", "b", "", "c", nil])
 
         try #require(pipe(&ends) == 0)
         _ = fcntl(ends[1], F_SETNOSIGPIPE, 1)
@@ -387,12 +387,12 @@ import Testing
     }
 
     @Test func failuresShowFixedText() {
-        #expect(ConsoleSession.message(KitError.engineStopped()) == "[ENG-E02] Bağlantı motoru durdu.")
-        #expect(ConsoleSession.message(CancellationError()) == "İşlem iptal edildi.")
+        #expect(ConsoleSession.message(KitError.engineStopped()) == "[ENG-E02] The connection engine stopped.")
+        #expect(ConsoleSession.message(CancellationError()) == "The operation was canceled.")
         #expect(ConsoleSession.message(AttachmentDownloadFailure(message: "fixed")) == "fixed")
         #expect(ConsoleSession.message(GatewayHelloFailure(opened: false, reason: .timeout)) == GatewayHelloFailure(opened: false, reason: .timeout).message)
-        #expect(ConsoleSession.message(PrivateFailure()) == "İşlem tamamlanamadı (PrivateFailure).")
+        #expect(ConsoleSession.message(PrivateFailure()) == "The operation could not finish (PrivateFailure).")
         // Foundation's errors show as NSError: their kind, never their text.
-        #expect(ConsoleSession.message(CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: "/private/secret"])) == "İşlem tamamlanamadı (NSError).")
+        #expect(ConsoleSession.message(CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: "/private/secret"])) == "The operation could not finish (NSError).")
     }
 }

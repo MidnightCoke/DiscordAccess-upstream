@@ -205,7 +205,7 @@ public final class ResidentLifecycle {
         let connected = self.connected!
         lock.unlock()
         do {
-            changed(false, "Bağlanıyor...")
+            changed(false, "Connecting...")
             try checkRunning()
             // Disconnecting cancels a connection under way before it waits for it (`SessionController.disconnect`).
             try operations.connect()
@@ -221,7 +221,7 @@ public final class ResidentLifecycle {
             ready = true
             lock.unlock()
             prepared.complete(.success(()))
-            changed(true, "Bağlantı hazır.")
+            changed(true, "Connection ready.")
             try launchStartup()
             connected.complete(.success(()))
         } catch {
@@ -229,7 +229,7 @@ public final class ResidentLifecycle {
             lock.lock()
             let active = ready && !stopping
             lock.unlock()
-            changed(active, active ? "Bağlantı hazır; Discord açılamadı." : "Bağlantı kurulamadı.")
+            changed(active, active ? "Connection ready; Discord could not be opened." : "Could not connect.")
             connected.complete(.failure(error))
         }
     }
@@ -272,7 +272,7 @@ public final class ResidentLifecycle {
             if startupRequested { startupConsumed = true }
             let running = operations.running()
             lock.unlock()
-            return running ? "Discord zaten açık." : try operations.openDiscord()
+            return running ? "Discord is already open." : try operations.openDiscord()
         }
         // The request completes before its slot clears, so no second open can start in between.
         lock.lock()
@@ -295,7 +295,7 @@ public final class ResidentLifecycle {
             completion.complete(.success(false))
             return
         }
-        changed(false, failure == nil ? "Bağlantı kapatıldı." : "Kurtarma kaydı korundu; Discord ayarları tamamen geri alınamadı.")
+        changed(false, failure == nil ? "Connection closed." : "The recovery record was kept; Discord's settings could not be fully restored.")
         completion.complete(failure.map { .failure($0) } ?? .success(true))
     }
 

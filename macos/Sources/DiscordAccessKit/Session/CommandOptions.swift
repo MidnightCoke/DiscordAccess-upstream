@@ -14,7 +14,7 @@ public struct CommandOptions: Equatable {
         public let message: String
     }
 
-    public static let unknownOption = "Tanınmayan seçenek. Kullanım için --help yazın."
+    public static let unknownOption = "Unknown option. Run with --help for usage."
 
     public var mode: Mode
     public var dns: DnsOptions
@@ -45,43 +45,43 @@ public struct CommandOptions: Equatable {
             } else if argument == "--discord-path" || argument.hasPrefix("--discord-path=") {
                 let value: String
                 if argument == "--discord-path" {
-                    guard index < arguments.count else { throw Invalid(message: "--discord-path için Discord.app yolunu belirtin.") }
+                    guard index < arguments.count else { throw Invalid(message: "Give the path of Discord.app after --discord-path.") }
                     value = arguments[index]
                     index += 1
                 } else {
                     value = String(argument.dropFirst("--discord-path=".count))
                 }
                 guard discordPath == nil, value.hasPrefix("/") else {
-                    throw Invalid(message: "--discord-path bir kez ve Discord.app'in tam yoluyla (/ ile başlayan) verilmelidir.")
+                    throw Invalid(message: "--discord-path must be given once, with the full path of Discord.app (starting with /).")
                 }
                 discordPath = value
             } else if argument.lowercased().hasPrefix("--dns") {
                 dnsArguments.append(argument)
             } else if argument == "--restore" || argument == "--verify-package" {
-                throw Invalid(message: argument + " tek başına kullanılmalıdır; başka seçenekle birleştirmeyin.")
+                throw Invalid(message: argument + " must be used on its own; do not combine it with other options.")
             } else {
                 throw Invalid(message: unknownOption)
             }
         }
-        guard !(console && startup) else { throw Invalid(message: "--startup yalnız menü çubuğu uygulamasıyla kullanılır; --console ile birleştirmeyin.") }
+        guard !(console && startup) else { throw Invalid(message: "--startup is only for the menu bar app; do not combine it with --console.") }
         return CommandOptions(mode: console ? .console : .resident(startup: startup), dns: try DnsOptions.parse(dnsArguments), discordPath: discordPath)
     }
 
     public static let help = [
-        "DiscordAccess (macOS) — menü çubuğu ve komut satırı",
-        "DiscordAccess                      Menü çubuğunda bağlantıyı hazır tutar.",
-        "DiscordAccess --console            Bağlantıyı Terminal'de açar (A / Q / T / D).",
-        "DiscordAccess --restore            Discord kapalıyken geçici Discord ayarlarını geri alır.",
-        "DiscordAccess --verify-package     Motoru başlatmadan paketi doğrular.",
-        "--discord-path=/Applications/Discord.app   Özel Discord.app yolu.",
-        "--dns=auto                         Discord erişimiyle otomatik DNS seçimi (varsayılan).",
-        "--dns=cloudflare                   Sabit Cloudflare DoH.",
-        "--dns=cloudflare-ip                Cloudflare DoH; sertifika 1.1.1.1 adresiyle doğrulanır.",
-        "--dns=google                       Sabit Google DoH; yalnız bu sağlayıcı kullanılır.",
-        "--dns-record-fragment              Seçilen DoH bağlantısında TLS kayıt parçalamayı açar.",
-        "--startup                          Oturum açılışındaki başlatma içindir; elle açılış değildir.",
-        "A + Enter: Discord aç. Q + Enter / Ctrl+C: bağlantıyı kapat. T: tanılama. D: dosya indir.",
-        "D ile indirilen dosyalar İndirilenler/DiscordAccess altında kaydedilir. Boş Enter bağlantıyı kapatmaz.",
-        "Terminal'den açıldığında Discord'un veri klasörü için Tam Disk Erişimi terminal uygulamasına verilmelidir.",
+        "DiscordAccess (macOS) — menu bar and command line",
+        "DiscordAccess                      Keeps the connection ready in the menu bar.",
+        "DiscordAccess --console            Opens the connection in Terminal (A / Q / T / D).",
+        "DiscordAccess --restore            Undoes the temporary Discord settings while Discord is closed.",
+        "DiscordAccess --verify-package     Verifies the package without starting the engine.",
+        "--discord-path=/Applications/Discord.app   A custom Discord.app path.",
+        "--dns=auto                         Automatic DNS selection tested against Discord (default).",
+        "--dns=cloudflare                   Fixed Cloudflare DoH.",
+        "--dns=cloudflare-ip                Cloudflare DoH; the certificate is verified with the address 1.1.1.1.",
+        "--dns=google                       Fixed Google DoH; only this provider is used.",
+        "--dns-record-fragment              Turns on TLS record fragmentation for the selected DoH connection.",
+        "--startup                          For the launch at login; not for manual launches.",
+        "A + Enter: open Discord. Q + Enter / Ctrl+C: close the connection. T: diagnostics. D: download a file.",
+        "Files downloaded with D are saved under Downloads/DiscordAccess. An empty Enter does not close the connection.",
+        "When run from Terminal, the terminal app needs Full Disk Access for Discord's data folder.",
     ]
 }

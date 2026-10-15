@@ -284,7 +284,7 @@ public final class UpdateBridge {
     private func report(_ failure: BridgeFailure, stage: BridgeStage, status: Int?, started: Bool, client: Int32) {
         guard !isClosed else { return }
         if let log, budget.admit(failure: true) {
-            log("Güncelleme köprüsü isteği tamamlanamadı: " + BridgeResponse.describe(stage: stage, failure: failure, status: status))
+            log("Update bridge request did not finish: " + BridgeResponse.describe(stage: stage, failure: failure, status: status))
         }
         guard !started, let answer = try? BridgeResponse.header(status: failure == .invalidData ? 400 : 502, contentType: "text/plain", length: 0,
                                                                   location: nil) else { return }

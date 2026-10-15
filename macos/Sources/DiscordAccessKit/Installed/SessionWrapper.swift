@@ -10,7 +10,7 @@ public struct SessionWrapper: Equatable, Sendable {
     static let marker = "// DiscordAccess macOS session wrapper v1\n"
     static let officialEntry = "module.exports = require('./core.asar');"
     /// SHA-256 of `bridge/attachment-download.cjs`, the hook both platforms share.
-    static let hookSHA256 = "c458c69b0946e6032f009a8653dd65d38fe7d7134a9a98dde9e81b05b133c2bd"
+    static let hookSHA256 = "a8f3e76feb620871f777437d0e2c0b9aa7afa0742d6e225aaa62fba74d8ab979"
     static let maxHookBytes = 65536
 
     let bytes: [UInt8]

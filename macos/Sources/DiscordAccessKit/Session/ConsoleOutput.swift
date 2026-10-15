@@ -105,7 +105,7 @@ private final class Sink {
             let skipped = dropped
             dropped = 0
             condition.unlock()
-            if skipped > 0 { write("Yoğun kayıt nedeniyle " + String(skipped) + " tanılama satırı atlandı.") }
+            if skipped > 0 { write("Skipped " + String(skipped) + " diagnostic lines because of heavy logging.") }
             write(item)
         }
     }

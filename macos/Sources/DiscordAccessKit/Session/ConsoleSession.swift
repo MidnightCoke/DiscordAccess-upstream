@@ -4,7 +4,7 @@ import Foundation
 /// Q, an interrupt or the connection's end, and always disconnects within the shutdown time. Each operation runs on its
 /// own thread, so the terminal can always stop.
 public enum ConsoleSession {
-    public static let help = "A: Discord aç | Q: kapat | T: tanılama | D: dosya indir"
+    public static let help = "A: open Discord | Q: quit | T: diagnostics | D: download a file"
     static let maxQueued = 64
     static let maxCommandLength = 8192
 
@@ -72,7 +72,7 @@ public enum ConsoleSession {
             }
         }
 
-        /// A line typed in the terminal; nil when the input ended. Q (or "çıkış") stops the session at once; other lines
+        /// A line typed in the terminal; nil when the input ended. Q (or "quit" or "exit") stops the session at once; other lines
         /// wait in order, 64 at most, each up to 8192 characters.
         public func command(_ text: String?) {
             guard !stopRequested, !ended else { return }
@@ -82,7 +82,7 @@ public enum ConsoleSession {
             }
             let command = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !command.isEmpty else { return }
-            if ["Q", "ÇIKIŞ", "CIKIS"].contains(command.uppercased()) {
+            if ["Q", "QUIT", "EXIT"].contains(command.uppercased()) {
                 requestStop(0)
             } else if command.utf16.count <= ConsoleSession.maxCommandLength {
                 update {
@@ -153,7 +153,7 @@ public enum ConsoleSession {
                                 do {
                                     show(try diagnosis.value())
                                 } catch {
-                                    show("Tanılama tamamlanamadı: " + message(error))
+                                    show("Diagnostics could not finish: " + message(error))
                                 }
                             }
                         default:
@@ -164,7 +164,7 @@ public enum ConsoleSession {
             }
             if state.stopRequested { result = state.exitCode }
         } catch {
-            show("Bağlantı kurulamadı: " + message(error))
+            show("Could not connect: " + message(error))
             result = 1
         }
         let deadline = Date().addingTimeInterval(shutdownTimeout)
@@ -174,11 +174,11 @@ public enum ConsoleSession {
             do {
                 try disconnecting.value()
             } catch {
-                show("Oturum temizliği: " + message(error))
+                show("Session cleanup: " + message(error))
                 if result == 0 { result = 1 }
             }
         } else {
-            show("Kapanış süresi doldu; bağlantı motoru program kapanırken durdurulacak.")
+            show("Shutdown timed out; the connection engine will be stopped when the program exits.")
             timedOut = true
         }
         // Disconnecting ends a download; its partial file is removed before the program exits, within the same time.
@@ -188,11 +188,11 @@ public enum ConsoleSession {
                     _ = try pendingDownload.value()
                 } catch is CancellationError {
                 } catch {
-                    show("İndirme temizliği: " + message(error))
+                    show("Download cleanup: " + message(error))
                     if result == 0 { result = 1 }
                 }
             } else {
-                show("İndirmenin kapanış süresi doldu; yarım kalan dosya temizliği tamamlanamadı.")
+                show("The download did not stop in time; its partial file could not be cleaned up.")
                 timedOut = true
             }
         }
@@ -202,16 +202,16 @@ public enum ConsoleSession {
                     _ = try pendingOpen.value()
                 } catch is CancellationError {
                 } catch {
-                    show("Discord açılış temizliği: " + message(error))
+                    show("Discord launch cleanup: " + message(error))
                     if result == 0 { result = 1 }
                 }
             } else {
-                show("Discord açılışının kapanış süresi doldu.")
+                show("Opening Discord did not finish in time.")
                 timedOut = true
             }
         }
         if timedOut { return 130 }
-        show("Bağlantı kapatıldı.")
+        show("Connection closed.")
         return result
     }
 
@@ -223,8 +223,8 @@ public enum ConsoleSession {
         case let error as ConnectivityFailure: return error.message
         case let error as GatewayHelloFailure: return error.message
         case let error as AttachmentDownloadFailure: return error.message
-        case is CancellationError: return "İşlem iptal edildi."
-        default: return "İşlem tamamlanamadı (" + String(describing: type(of: error)) + ")."
+        case is CancellationError: return "The operation was canceled."
+        default: return "The operation could not finish (" + String(describing: type(of: error)) + ")."
         }
     }
 
@@ -243,7 +243,7 @@ public enum ConsoleSession {
                 let text = try opening.value()
                 if !text.trimmingCharacters(in: .whitespaces).isEmpty { show(text) }
             } catch {
-                show("Discord açılamadı: " + message(error))
+                show("Could not open Discord: " + message(error))
             }
         }
         if opening.isCompleted { pendingOpen = nil }
@@ -252,11 +252,11 @@ public enum ConsoleSession {
     /// D asks for the link on the next line; an A typed meanwhile still opens Discord (Windows `Download`).
     private static func download(_ session: Operations, _ state: State, _ show: (String) -> Void, _ pendingDownload: inout Pending<String>?,
                                  _ pendingOpen: inout Pending<String>?) {
-        show("Discord ek dosyasının bağlantısını yapıştırıp Enter'a basın. Q: kapat.")
+        show("Paste the Discord attachment link and press Enter. Q: quit.")
         while !state.stopRequested && !state.ended {
             guard let link = state.nextCommand() else {
                 if state.inputClosed {
-                    show("Dosya bağlantısı alınamadı; komut girişi kapalı.")
+                    show("No file link was received; command input is closed.")
                     return
                 }
                 state.wait()
@@ -271,9 +271,9 @@ public enum ConsoleSession {
             if wait(for: downloading, state) {
                 do {
                     let saved = try downloading.value() as NSString
-                    show("Kaydedildi: " + saved.lastPathComponent + " | " + saved.deletingLastPathComponent)
+                    show("Saved: " + saved.lastPathComponent + " | " + saved.deletingLastPathComponent)
                 } catch {
-                    show("Dosya indirilemedi: " + message(error))
+                    show("Could not download the file: " + message(error))
                 }
             }
             if downloading.isCompleted { pendingDownload = nil }

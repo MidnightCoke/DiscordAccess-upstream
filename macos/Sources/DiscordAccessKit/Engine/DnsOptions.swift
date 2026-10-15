@@ -22,7 +22,7 @@ public struct DnsOptions: Equatable, Sendable, CustomStringConvertible {
 
     /// For logs (Windows `Description`).
     public var description: String {
-        guard let provider else { return "Otomatik seçim DoH | DNS TLS kayıt parçalama: " + (recordFragment ? "açık" : "kapalı") }
+        guard let provider else { return "Automatic DoH selection | DNS TLS record fragmentation: " + (recordFragment ? "on" : "off") }
         return DnsProvider(provider, recordFragment: recordFragment).description
     }
 
@@ -60,9 +60,9 @@ extension DnsProvider: CustomStringConvertible {
         let label: String
         switch name {
         case .google: label = "Google"
-        case .cloudflareIP: label = "Cloudflare (IP sertifikası)"
+        case .cloudflareIP: label = "Cloudflare (IP certificate)"
         case .cloudflare: label = "Cloudflare"
         }
-        return label + " DoH | DNS TLS kayıt parçalama: " + (recordFragment ? "açık" : "kapalı")
+        return label + " DoH | DNS TLS record fragmentation: " + (recordFragment ? "on" : "off")
     }
 }

@@ -8,7 +8,7 @@ import Testing
 /// Vectors from Windows `UpdateBridge.RunOfflineTests`.
 @Suite struct UpdateBridgeTests {
     typealias Collected = ProxyGateTests.Collected
-    static let failurePrefix = "Güncelleme köprüsü isteği tamamlanamadı: "
+    static let failurePrefix = "Update bridge request did not finish: "
 
     /// Stands in for Discord's servers: a request is answered by the script registered under its last path component and
     /// recorded. Answers are given on the protocol's own thread, as URLSession expects.

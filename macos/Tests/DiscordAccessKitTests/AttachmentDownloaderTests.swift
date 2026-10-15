@@ -9,8 +9,8 @@ import Testing
     typealias Upstream = UpdateBridgeTests.FixtureUpstream
     static let link = "https://cdn.discordapp.com/attachments/123/456/fixture%20name.txt?ex=synthetic&is=test&hm=a%2Bb%2Fc"
     /// The message of a download that broke off, timed out or could not connect.
-    static let interrupted = AttachmentDownloadFailure(message: "Dosya indirilemedi. Bağlantı veya disk erişimi kesilmiş ya da süre dolmuş olabilir. " +
-        "Discord'dan yeni bağlantıyı kopyalayıp tekrar deneyin.")
+    static let interrupted = AttachmentDownloadFailure(message: "The file could not be downloaded. The connection or disk access may have been lost, or the " +
+        "time ran out. Copy a new link from Discord and try again.")
 
     /// A link whose file name selects `script`.
     static func link(_ script: Upstream.Script, host: String = "cdn.discordapp.com") -> String {
@@ -56,7 +56,7 @@ import Testing
         #expect(try name("https://cdn.discordapp.com/attachments/1/2/a%7Cb%3Fc%2Ad.txt") == "a_b_c_d.txt")
         #expect(try name("https://cdn.discordapp.com/attachments/1/2/.hidden") == "_hidden")
         #expect(try name("https://cdn.discordapp.com/attachments/1/2/name.%20.") == "name")
-        #expect(try name("https://cdn.discordapp.com/attachments/1/2/%20") == "Discord-dosyasi")
+        #expect(try name("https://cdn.discordapp.com/attachments/1/2/%20") == "Discord-file")
         #expect(try name("https://cdn.discordapp.com/attachments/1/2/" + String(repeating: "a", count: 200) + ".txt") == String(repeating: "a", count: 160))
     }
 
@@ -68,7 +68,7 @@ import Testing
         let wide = String(repeating: "%E6%96%87", count: 160) + ".txt"
         #expect(try name(wide) == "_" + String(repeating: "文", count: 84))
         #expect(try name(String(repeating: "%E6%96%87", count: 100) + ".pdf") == "_" + String(repeating: "文", count: 83) + ".pdf")
-        #expect(try name("a" + String(repeating: "%CC%81", count: 300) + ".txt") == "Discord-dosyasi.txt")
+        #expect(try name("a" + String(repeating: "%CC%81", count: 300) + ".txt") == "Discord-file.txt")
         #expect(try name(String(repeating: "%E6%96%87", count: 85)) == String(repeating: "文", count: 85))
         let directory = try TemporaryDirectory()
         for encoded in [wide, String(repeating: "%E6%96%87", count: 100) + ".pdf", String(repeating: "%C3%A9", count: 160)] {
@@ -115,22 +115,22 @@ import Testing
         var next = Self.link(Upstream.Script(chunks: [Array("far".utf8)]))
         for _ in 0..<4 { next = Self.link(Upstream.Script(status: 307, headers: ["Location": next])) }
         let other = try TemporaryDirectory()
-        #expect(throws: AttachmentDownloadFailure(message: "İndirme sunucusu çok fazla yönlendirme döndürdü.")) { try Self.download(next, root: other.path) }
+        #expect(throws: AttachmentDownloadFailure(message: "The download server returned too many redirects.")) { try Self.download(next, root: other.path) }
         Self.expectNothingLeft(other.path)
 
         let outside = Self.link(Upstream.Script(status: 302, headers: ["Location": "https://evil.example/attachments/1/2/f"]))
         #expect(throws: AttachmentDownloadFailure(message: AttachmentDownloader.invalidLink)) { try Self.download(outside, root: other.path) }
         let missing = Self.link(Upstream.Script(status: 301))
-        #expect(throws: AttachmentDownloadFailure(message: "Dosya indirme yönlendirmesi doğrulanamadı.")) { try Self.download(missing, root: other.path) }
+        #expect(throws: AttachmentDownloadFailure(message: "The download redirect could not be verified.")) { try Self.download(missing, root: other.path) }
         Self.expectNothingLeft(other.path)
     }
 
     @Test func reportsRefusalsWithFixedMessages() throws {
         let directory = try TemporaryDirectory()
         let limited = Self.link(Upstream.Script(status: 429, headers: ["Retry-After": "7"]))
-        #expect(throws: AttachmentDownloadFailure(message: "İndirme sunucusu istek sınırı uyguluyor (HTTP 429). Yaklaşık 7 saniye bekleyip yeniden deneyin. " +
-            "Otomatik tekrar yapılmadı.")) { try Self.download(limited, root: directory.path) }
-        #expect(throws: AttachmentDownloadFailure(message: "Dosya indirilemedi (HTTP 403). Discord'dan yeni dosya bağlantısını kopyalayın.")) {
+        #expect(throws: AttachmentDownloadFailure(message: "The download server is rate limiting requests (HTTP 429). Wait about 7 seconds and try again. " +
+            "No automatic retry was made.")) { try Self.download(limited, root: directory.path) }
+        #expect(throws: AttachmentDownloadFailure(message: "The file could not be downloaded (HTTP 403). Copy a new file link from Discord.")) {
             try Self.download(Self.link(Upstream.Script(status: 403)), root: directory.path)
         }
         #expect(throws: Self.interrupted) { try Self.download(Self.link(Upstream.Script(refusal: .cannotConnectToHost)), root: directory.path) }
@@ -140,9 +140,9 @@ import Testing
     @Test func refusesAFileOfAnotherSize() throws {
         let directory = try TemporaryDirectory()
         let short = Self.link(Upstream.Script(headers: ["Content-Length": "10"], chunks: [Array("12345".utf8)]))
-        #expect(throws: AttachmentDownloadFailure(message: "Dosya eksik geldi. İndirme tamamlanmadı.")) { try Self.download(short, root: directory.path) }
+        #expect(throws: AttachmentDownloadFailure(message: "The file arrived incomplete. The download did not finish.")) { try Self.download(short, root: directory.path) }
         let long = Self.link(Upstream.Script(headers: ["Content-Length": "3"], chunks: [Array("12345".utf8)]))
-        #expect(throws: AttachmentDownloadFailure(message: "Dosya boyutu sunucu yanıtıyla eşleşmedi. İndirme tamamlanmadı.")) {
+        #expect(throws: AttachmentDownloadFailure(message: "The file size did not match the server's response. The download did not finish.")) {
             try Self.download(long, root: directory.path)
         }
         let broken = Self.link(Upstream.Script(chunks: [Array("part".utf8)], failure: .networkConnectionLost))

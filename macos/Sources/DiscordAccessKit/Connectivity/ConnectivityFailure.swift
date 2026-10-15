@@ -33,27 +33,27 @@ public struct ConnectivityFailure: Error, Equatable, CustomStringConvertible {
 
     /// Windows `MessageFor`, word for word.
     public var message: String {
-        let label = endpoint == .gateway ? "Discord Gateway API" : "Discord güncelleme sunucusu"
+        let label = endpoint == .gateway ? "Discord Gateway API" : "Discord update server"
         var detail: String
         switch reason {
-        case .http: detail = httpStatus == 0 ? "HTTP hata yanıtı" : "HTTP " + String(httpStatus)
-        case .dns: detail = "DNS çözümleme başarısız"
-        case .tls: detail = "TLS bağlantısı veya sertifika doğrulaması başarısız"
-        case .connect: detail = "ağ veya yerel proxy bağlantısı kurulamadı"
-        case .timeout: detail = "zaman aşımı"
-        case .invalidResponse: detail = "beklenen yanıt biçimi doğrulanamadı"
-        case .responseTooLarge: detail = "yanıt boyut sınırını aşıyor"
-        case .incompleteResponse: detail = "yanıt aktarımı tamamlanamadı"
-        case .canceled: detail = "işlem iptal edildi"
-        case .other: detail = "erişim doğrulanamadı"
+        case .http: detail = httpStatus == 0 ? "HTTP error response" : "HTTP " + String(httpStatus)
+        case .dns: detail = "DNS resolution failed"
+        case .tls: detail = "TLS connection or certificate validation failed"
+        case .connect: detail = "could not connect to the network or the local proxy"
+        case .timeout: detail = "timed out"
+        case .invalidResponse: detail = "the expected response format could not be verified"
+        case .responseTooLarge: detail = "the response exceeds the size limit"
+        case .incompleteResponse: detail = "the response transfer did not finish"
+        case .canceled: detail = "the operation was canceled"
+        case .other: detail = "access could not be verified"
         }
         switch responseKind {
         case .none: break
-        case .json: detail += "; yanıt türü JSON"
-        case .html: detail += "; yanıt türü HTML"
-        case .other: detail += "; yanıt türü diğer"
+        case .json: detail += "; response type JSON"
+        case .html: detail += "; response type HTML"
+        case .other: detail += "; response type other"
         }
-        return label + " kontrolü başarısız (" + detail + ")."
+        return label + " check failed (" + detail + ")."
     }
 
     /// The type of a response from its `Content-Type` (Windows `ContentKind`).

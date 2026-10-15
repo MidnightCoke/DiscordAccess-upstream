@@ -92,11 +92,11 @@ function install(electron, options) {
     log(code, metrics);
     try {
       const recovery = code === 'NO_WINDOW'
-        ? 'İndirme için uygun Discord penceresi bulunamadı. Kurulu Discord\u0027un ana penceresini açıp dosyaya yeniden tıklayın.'
+        ? 'No suitable Discord window was found for the download. Open the main window of the installed Discord and click the file again.'
         : code === 'TIMEOUT' || code === 'BUSY'
-        ? 'Bekleyen indirme tamamlanamadı. Önce Discord\u0027u tamamen kapatın; DiscordAccess tepsisinden Çıkış seçip bağlantıyı ve Discord\u0027u yeniden açın.'
-        : 'Dosya Discord içinde indirilemedi. Ayrıntılar DiscordAccess indirme kayıtlarındadır. Komut satırı indirmesi için OKU-BENI.txt içindeki --console ve D adımlarını izleyin.';
-      electron.dialog.showErrorBox('Discord dosya indirme',
+        ? 'The pending download could not finish. Quit Discord completely, quit DiscordAccess, then open the connection and Discord again.'
+        : 'The file could not be downloaded inside Discord. Details are in the DiscordAccess download log. For a command-line download, follow the --console and D steps in the DiscordAccess usage notes.';
+      electron.dialog.showErrorBox('Discord file download',
         recovery);
     } catch (_) { }
   }
@@ -183,7 +183,7 @@ function install(electron, options) {
       try {
         // Electron owns the ordinary Save dialog, path and download manager.
         // Never setSavePath, auto-open a file, or change session/global proxies.
-        item.setSaveDialogOptions({ title: 'Discord dosyasını kaydet' });
+        item.setSaveDialogOptions({ title: 'Save Discord file' });
         item.once('done', (_event, state) => {
           const metrics = { elapsed_ms: Date.now() - record.startedAt };
           try { metrics.received_bytes = item.getReceivedBytes(); } catch (_) { }

@@ -25,20 +25,20 @@ import Testing
         #expect(throws: CommandOptions.Invalid(message: CommandOptions.unknownOption)) { try CommandOptions.parse(["--bogus"]) }
         #expect(throws: CommandOptions.Invalid(message: CommandOptions.unknownOption)) { try CommandOptions.parse(["--console", "--console"]) }
         #expect(throws: CommandOptions.Invalid(message: CommandOptions.unknownOption)) { try CommandOptions.parse(["--startup", "--startup"]) }
-        #expect(throws: CommandOptions.Invalid(message: "--startup yalnız menü çubuğu uygulamasıyla kullanılır; --console ile birleştirmeyin.")) {
+        #expect(throws: CommandOptions.Invalid(message: "--startup is only for the menu bar app; do not combine it with --console.")) {
             try CommandOptions.parse(["--startup", "--console"])
         }
         #expect(throws: CommandOptions.Invalid(message: CommandOptions.unknownOption)) { try CommandOptions.parse(["console"]) }
-        #expect(throws: CommandOptions.Invalid(message: "--restore tek başına kullanılmalıdır; başka seçenekle birleştirmeyin.")) {
+        #expect(throws: CommandOptions.Invalid(message: "--restore must be used on its own; do not combine it with other options.")) {
             try CommandOptions.parse(["--restore", "--discord-path=/Applications/Discord.app"])
         }
-        #expect(throws: CommandOptions.Invalid(message: "--verify-package tek başına kullanılmalıdır; başka seçenekle birleştirmeyin.")) {
+        #expect(throws: CommandOptions.Invalid(message: "--verify-package must be used on its own; do not combine it with other options.")) {
             try CommandOptions.parse(["--console", "--verify-package"])
         }
-        let path = CommandOptions.Invalid(message: "--discord-path bir kez ve Discord.app'in tam yoluyla (/ ile başlayan) verilmelidir.")
+        let path = CommandOptions.Invalid(message: "--discord-path must be given once, with the full path of Discord.app (starting with /).")
         #expect(throws: path) { try CommandOptions.parse(["--discord-path=Discord.app"]) }
         #expect(throws: path) { try CommandOptions.parse(["--discord-path=/a/Discord.app", "--discord-path=/b/Discord.app"]) }
-        #expect(throws: CommandOptions.Invalid(message: "--discord-path için Discord.app yolunu belirtin.")) { try CommandOptions.parse(["--discord-path"]) }
+        #expect(throws: CommandOptions.Invalid(message: "Give the path of Discord.app after --discord-path.")) { try CommandOptions.parse(["--discord-path"]) }
         #expect(throws: KitError.invalidDnsOption()) { try CommandOptions.parse(["--dns=quad9"]) }
         #expect(throws: KitError.invalidDnsOption()) { try CommandOptions.parse(["--DNS=google"]) }
         #expect(throws: KitError.invalidDnsOption()) { try CommandOptions.parse(["--dns=google", "--dns=cloudflare"]) }
@@ -46,9 +46,9 @@ import Testing
 
     @Test func showsWhatTheMenuOffers() {
         let phases: [MenuState.Phase] = [.connecting, .ready, .failed, .closed, .closing]
-        #expect(phases.map { MenuState($0).status } == ["Bağlantı hazırlanıyor...", "Bağlantı hazır", "Bağlantı kurulamadı", "Bağlantı kapalı", "Kapatılıyor..."])
+        #expect(phases.map { MenuState($0).status } == ["Connecting...", "Connection ready", "Could not connect", "Disconnected", "Closing..."])
         #expect(phases.filter { MenuState($0).canOpenDiscord } == [.ready] && phases.filter { MenuState($0).canCheck } == [.ready])
         #expect(phases.filter { MenuState($0).canReconnect } == [.failed, .closed] && phases.filter { !MenuState($0).canQuit } == [.closing])
-        #expect(MenuState(.ready).tooltip == "DiscordAccess — bağlantı hazır" && MenuState(.closing).tooltip == "DiscordAccess — kapatılıyor...")
+        #expect(MenuState(.ready).tooltip == "DiscordAccess — Connection ready" && MenuState(.closing).tooltip == "DiscordAccess — Closing...")
     }
 }

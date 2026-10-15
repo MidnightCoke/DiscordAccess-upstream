@@ -151,7 +151,7 @@ import Testing
         let fixture = Fixture()
         let existing = ResidentLifecycle(operations: Self.operations(fixture, running: true))
         try Self.value(existing.connect(startup: true))
-        #expect(try Self.value(existing.open()) == "Discord zaten açık." && fixture["open"] == 0)
+        #expect(try Self.value(existing.open()) == "Discord is already open." && fixture["open"] == 0)
         #expect(try Self.value(existing.shutdown()))
     }
 
@@ -165,7 +165,7 @@ import Testing
         #expect(fixture["open"] == 0 && !failed.isReady)
         #expect(throws: FixtureFailure.self) { try Self.value(failed.open()) }
         #expect(try Self.value(failed.shutdown()) && fixture["disconnect"] == 1)
-        #expect(messages.all == ["Bağlanıyor...", "Bağlantı kurulamadı.", "Bağlantı kapatıldı."])
+        #expect(messages.all == ["Connecting...", "Could not connect.", "Connection closed."])
     }
 
     /// Disconnecting cancels a connection under way (as `SessionController.disconnect` does); everything waiting ends.
@@ -219,7 +219,7 @@ import Testing
         let conflicted = ResidentLifecycle(operations: operations, changed: { _, message in messages.append(message) })
         try Self.value(conflicted.connect())
         #expect(throws: KitError.sessionRestoreDeferred()) { try Self.value(conflicted.shutdown()) }
-        #expect(conflicted.isStopping && messages.all.last == "Kurtarma kaydı korundu; Discord ayarları tamamen geri alınamadı.")
+        #expect(conflicted.isStopping && messages.all.last == "The recovery record was kept; Discord's settings could not be fully restored.")
     }
 
     @Test func aHangingDisconnectEndsWithinItsTime() throws {
