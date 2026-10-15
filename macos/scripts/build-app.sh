@@ -1,5 +1,6 @@
 #!/bin/bash
-# Builds DiscordAccess.app under macos/build/apps/<time>/ (design 6, stage 2d).
+# Builds DiscordAccess.app under macos/build/apps.noindex/<time>/ (design 6, stage 2d); Spotlight and the app list skip
+# a folder named .noindex, so build copies are not offered beside the installed app.
 #
 # The pinned engine (macos/build/engine/sing-box, from build-engine.py) goes in unchanged: re-signing it would change the
 # SHA-256 and cdhash the app pins, and a personal certificate would make them differ on every Mac. The app's signature
@@ -28,7 +29,7 @@ swift build --package-path "$macos" -c release --product DiscordAccess
 binary="$(swift build --package-path "$macos" -c release --show-bin-path)/DiscordAccess"
 [ -x "$binary" ] || fail "Derlenen uygulama bulunamadı: $binary."
 
-output="$macos/build/apps/$(date -u +%Y%m%d-%H%M%S)"
+output="$macos/build/apps.noindex/$(date -u +%Y%m%d-%H%M%S)"
 app="$output/DiscordAccess.app"
 [ ! -e "$output" ] || fail "Çıktı klasörü zaten var: $output. Bir saniye sonra yeniden deneyin."
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources" "$app/Contents/Library/LaunchAgents"

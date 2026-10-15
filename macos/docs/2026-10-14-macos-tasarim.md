@@ -115,7 +115,7 @@ macos/
   Tests/wrapper.test.cjs       üretilen sarmalayıcının Node testi (sahte Electron)
   Resources/                 Info.plist, simge, giriş öğesi tanımı
   scripts/build-engine.py    sabit Go, kaynak ve yamalarla macOS motoru; hash doğrulaması
-  scripts/build-app.sh       .app paketini build/apps/<zaman>/ altına kurar; motoru ve kancayı gömer; kişisel imza ya da ad-hoc
+  scripts/build-app.sh       .app paketini build/apps.noindex/<zaman>/ altına kurar (Spotlight listelemez); motoru ve kancayı gömer
   docs/                      bu tasarım, kullanım ve güven sınırları
 ```
 
@@ -438,6 +438,15 @@ module.exports = require('./core.asar');
   - Paket kimliği `io.github.alpertknn.DiscordAccess`.
 - **Yeniden bağlanma:** Windows'tan bilerek ayrılır. Önceki oturum yalnız profil değişikliklerini koruyarak bittiyse (SES-E01) yeni oturum başlar ve önce onları geri alır; Windows ise uygulama yeniden başlatılana kadar reddeder. Önceki oturum zamanında kapanmadıysa, başka bir hatayla bittiyse ya da motorunu toplayamadıysa (DNS-E03) yeni motor başlatılmaz.
 - **2d durumu:** `build-app.sh` paketi kurar: `Contents/Helpers/sing-box`, `Contents/Resources/attachment-download.cjs` ve `Contents/Library/LaunchAgents/io.github.alpertknn.DiscordAccess.agent.plist`. Paket `DISCORDACCESS_SIGN_IDENTITY` ile imzalanır, verilmezse ad-hoc. İmza `--strict --deep` ile doğrulanır ve paket kendi motorunu ve kancasını `--verify-package` ile denetler. Önceki derlemeler silinmez.
+- **Aşama 2 canlı doğrulama** (2026-10-15, bu Mac; ad-hoc imzalı paket `/Applications`'ta). Geçenler:
+  - İlk açılışta Tam Disk Erişimi uyarısı çıktı ve Sistem Ayarları'na yönlendirdi. Terminal'e verilen izin uygulamaya geçmedi.
+  - İzinden sonra uygulama kendiliğinden bağlandı.
+  - İlk bağlantıdan sonra oturum açılışında başlatma kendiliğinden açıldı; `SMAppService` ad-hoc imzada çalıştı.
+  - Menüden açılan Discord kapıdan bağlandı.
+  - "Bağlantıyı kontrol et": HTTPS denetimi ve Gateway HELLO geçti.
+  - Yeniden açılış çalışan örneğe gitti ve durumu bildirdi.
+  - Çıkış'ta profil değişiklikleri geri alındı, günlük silindi; geride süreç kalmadı.
+  - Yapılmayanlar: gerçek oturum açılışı (`--startup`) ve "Girişte Discord'u da aç", sertifikalı imza.
 - `macos/docs/` altına kullanım ve güven sınırları belgeleri yazılır.
 - Çıkış: canlı doğrulama listesi bu Mac'te tamamlanır ve sonuçlar ayrı raporlanır.
 
