@@ -18,6 +18,18 @@ GitHub'daki **Code > Download ZIP** ile Releases bölümündeki **Source code** 
 
 İndirilen ZIP'in SHA-256 değerini `Get-FileHash .\DiscordAccess-v4.22.zip -Algorithm SHA256` ile hesaplayıp aynı Release'teki `SHA256SUMS.txt` ile karşılaştırabilirsiniz. Hash dosyası kod imzası sağlamaz.
 
+## macOS ön sürümü (Apple Silicon)
+
+[macos-v0.1 Release sayfasından](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.1) **DiscordAccess-macos-v0.1.zip** dosyasını indirin.
+
+- Yalnız Apple Silicon Mac'lerde çalışır ve yalnız macOS 27'de denendi.
+- Uygulamayı Uygulamalar klasörüne taşıyın.
+- Uygulama Apple tarafından imzalanmamıştır. İlk açılıştan sonra System Settings > Privacy & Security'deki **Open Anyway** ile bir kez onaylayın.
+- Discord'un veri klasörü için Tam Disk Erişimi gerekir; uygulama ilk açılışta yönlendirir.
+- Menü çubuğunda çalışır. Discord'u kendi simgesinden açarsınız; mevcut hesabınız kullanılır.
+
+Kurulum ve kullanım: [macos/docs/OKU-BENI.md](macos/docs/OKU-BENI.md). Güven sınırları: [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md). `DiscordAccess-macos-v0.1-engine-source.zip` Mac motorunun karşılık gelen kaynaklarıdır; hazır paketi yeniden dağıtıyorsanız onu da sunun.
+
 ## Önceki sürümden geçiş
 
 1. Eski DiscordAccess'te **Windows ile başlat** açıksa önce kapatın. Bu adım, eski klasöre işaret eden başlangıç kaydını kaldırır.
