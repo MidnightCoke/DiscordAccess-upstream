@@ -1,6 +1,6 @@
 # DiscordAccess for macOS — usage
 
-These notes cover the **macos-v0.1** pre-release. It runs only on Apple Silicon (arm64) Macs and has been tested only on macOS 27. The app's interface is in English; macos-v0.1 shows the same items in Turkish. Design details: [DESIGN.md](https://github.com/alpertknn/DiscordAccess/blob/main/macos/docs/DESIGN.md).
+These notes cover the **macos-v0.2** pre-release. It runs only on Apple Silicon (arm64) Macs and has been tested only on macOS 27. The app's interface is in English; macos-v0.1 shows the same items in Turkish. Design details: [DESIGN.md](https://github.com/alpertknn/DiscordAccess/blob/main/macos/docs/DESIGN.md).
 
 ## Requirements
 
@@ -10,7 +10,7 @@ These notes cover the **macos-v0.1** pre-release. It runs only on Apple Silicon 
 
 ## Installing the release package
 
-1. On the [Releases](https://github.com/alpertknn/DiscordAccess/releases) page, download `DiscordAccess-macos-v0.1.zip` from the **macos-v0.1** release and open it. `DiscordAccess-macos-v0.1-engine-source.zip` is the engine's source package; you do not need it to run the app.
+1. On the [Releases](https://github.com/alpertknn/DiscordAccess/releases) page, download `DiscordAccess-macos-v0.2.zip` from the **macos-v0.2** release and open it. `DiscordAccess-macos-v0.2-engine-source.zip` is the engine's source package; you do not need it to run the app.
 2. Drag `DiscordAccess.app` into the Applications folder in Finder.
 3. The app is not signed or notarized by Apple, so on first launch macOS says that Apple could not verify that "DiscordAccess" is free of malware:
    - Click **Done**.
@@ -22,7 +22,7 @@ These notes cover the **macos-v0.1** pre-release. It runs only on Apple Silicon 
 
 The package's `LICENSES.txt` holds the license notices and `SOURCE.txt` identifies the source package. In the macos-v0.1 package these files are named `LISANSLAR.txt` and `KAYNAK.txt`, and these notes are included in Turkish as `OKU-BENI.md`. You can compare the SHA-256 of a downloaded file with the release's `SHA256SUMS.txt`:
 ```bash
-shasum -a 256 DiscordAccess-macos-v0.1.zip
+shasum -a 256 DiscordAccess-macos-v0.2.zip
 ```
 A hash file is not a code signature.
 

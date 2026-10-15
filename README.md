@@ -1,6 +1,6 @@
 # DiscordAccess
 
-A connection helper for the official Discord Stable desktop app you already have installed. It lets Discord reach its servers through a local, Discord-only proxy and a hash-pinned DoH engine. On Windows it runs as a system tray app; on macOS it runs as a native menu bar app (pre-release). The app's interface is in Turkish.
+A connection helper for the official Discord Stable desktop app you already have installed. It lets Discord reach its servers through a local, Discord-only proxy and a hash-pinned DoH engine. On Windows it runs as a system tray app; on macOS it runs as a native menu bar app (pre-release). The Windows app's interface is in Turkish; the macOS app's interface is in English.
 
 **v4.22** (Windows) fixes Windows startup setup that failed because of desktop or Downloads folder permissions: it now uses a safe personal copy of the package. It keeps existing file permissions and respects a user's choice to turn startup off.
 
@@ -22,7 +22,7 @@ You can compute the SHA-256 of the downloaded ZIP with `Get-FileHash .\DiscordAc
 
 ## macOS pre-release (Apple Silicon)
 
-Download **DiscordAccess-macos-v0.1.zip** from the [macos-v0.1 release page](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.1).
+Download **DiscordAccess-macos-v0.2.zip** from the [macos-v0.2 release page](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.2).
 
 - Runs only on Apple Silicon Macs and has been tested only on macOS 27.
 - Move the app to the Applications folder.
@@ -30,7 +30,7 @@ Download **DiscordAccess-macos-v0.1.zip** from the [macos-v0.1 release page](htt
 - It needs Full Disk Access for Discord's data folder; the app guides you on first launch.
 - It runs in the menu bar. You open Discord from its own icon; your existing account is used.
 
-Setup and usage: [macos/README.md](macos/README.md). Trust boundaries: [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md). Design: [macos/docs/DESIGN.md](macos/docs/DESIGN.md). `DiscordAccess-macos-v0.1-engine-source.zip` contains the corresponding source for the Mac engine; if you redistribute the ready-made package, provide it as well.
+Setup and usage: [macos/README.md](macos/README.md). Trust boundaries: [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md). Design: [macos/docs/DESIGN.md](macos/docs/DESIGN.md). `DiscordAccess-macos-v0.2-engine-source.zip` contains the corresponding source for the Mac engine; if you redistribute the ready-made package, provide it as well.
 
 ## Upgrading from a previous version (Windows)
 

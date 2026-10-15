@@ -2,6 +2,14 @@
 
 This file is a short summary of the verified source history. Full source versions are kept in Git tags; package and verification details are in the corresponding release notes. Real-account use, voice/streaming, tray interaction and Windows restarts are evaluated separately from synthetic tests.
 
+## macos-v0.2 (macOS pre-release)
+
+- The interface is in English: the menu, notifications, alerts, error messages, Terminal mode and help.
+- The attachment download hook's messages inside Discord are in English and fit both platforms.
+- The notes in the package are now `README.md`, `LICENSES.txt` and `SOURCE.txt`.
+- In Terminal mode, `quit` and `exit` stop the session as `Q` does. A download without a usable name is saved as `Discord-file`.
+- The engine, the gate policy, the update bridge and the profile changes are unchanged; the engine keeps the same SHA-256 and cdhash.
+
 ## macos-v0.1 (macOS pre-release)
 
 - Native Swift version for Apple Silicon: a menu bar app and a `--console` Terminal mode. It uses the existing official Discord and account; you open Discord from its own icon.

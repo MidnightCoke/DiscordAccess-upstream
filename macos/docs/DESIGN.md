@@ -1,6 +1,6 @@
 # DiscordAccess for macOS — design
 
-This document explains how the macOS version works and why. It describes the code released as **macos-v0.1**. The code is the source of truth; code comments cite sections of this document, for example "design 8". Usage is in the [macOS README](../README.md), and a short summary of the trust boundaries is in [SECURITY-NOTES.md](SECURITY-NOTES.md).
+This document explains how the macOS version works and why. It describes the code released as **macos-v0.2**. The code is the source of truth; code comments cite sections of this document, for example "design 8". Usage is in the [macOS README](../README.md), and a short summary of the trust boundaries is in [SECURITY-NOTES.md](SECURITY-NOTES.md).
 
 ## 1. Purpose
 
@@ -379,7 +379,7 @@ module.exports = require('./core.asar');
 
 ## 10. Testing and verification
 
-- **Swift tests** (`swift test --package-path macos`; 280 tests at macos-v0.1):
+- **Swift tests** (`swift test --package-path macos`; 280 tests at macos-v0.2):
   - the engine configuration;
   - the gate policy, with vectors derived from the Windows fixtures;
   - the bridge's path mapping and rewriting;
@@ -404,6 +404,8 @@ module.exports = require('./core.asar');
 | 2026-10-15 | Menu bar app, ad-hoc signed bundle in `/Applications` | The Full Disk Access alert appeared on first launch and led to System Settings; Terminal's grant did not carry over to the app. After the grant, the app connected by itself, and start at login turned itself on after the first connection (`SMAppService` works with an ad-hoc signature). Discord opened from the menu connected through the gate. "Check connection" passed. Reopening the app reached the running instance, which showed its status. "Quit" undid the changes and deleted the journal, and no process was left. After a `kill -9` of the app, the next launch undid the previous session's changes, stopped the orphaned engine and connected again. Voice chat worked in Discord opened from the Dock (reported by the user; voice UDP goes direct). At registration, launchd ran the login item once (`RunAtLoad`); that second process said DiscordAccess was already running and exited with code 0, which is harmless. |
 | 2026-10-15 | Downloaded release package (quarantined) | After "Open Anyway", macOS ran the app under App Translocation; the quarantined embedded engine started, and the connection came up. |
 
+The live checks above ran with macos-v0.1. macos-v0.2 changes only the interface text, the hook's messages and the package's file names.
+
 Not verified live: a real login launch (`--startup`) and "Also open Discord at login"; `--restore` with a real journal; signing with a certificate; macOS 13–26.
 
 ## 11. Stages and status
@@ -421,7 +423,7 @@ Not verified live: a real login launch (`--startup`) and "Also open Discord at l
 | 2a–2c | `ResidentLifecycle`, the AppKit menu bar app and its notifications, `StartupRegistration`, `ResidentPreferences`; bundle id `io.github.alpertknn.DiscordAccess` | Done, verified live |
 | 2d | `build-app.sh`: the bundle with the embedded engine, hook and launch agent; signed with `DISCORDACCESS_SIGN_IDENTITY` or ad hoc; verified with `codesign --strict --deep` and `--verify-package` | Done |
 | 2e | Usage and trust boundary documents | Done |
-| 3 | Release | `macos-v0.1` pre-release published (2026-10-15) |
+| 3 | Release | Pre-releases `macos-v0.1` and `macos-v0.2` (English interface) published (2026-10-15) |
 
 From stage 1e on, each stage was written directly in the repository together with its tests, and an independent critical review checked the security-relevant code.
 

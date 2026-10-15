@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are considered for the latest published release. For Windows, that is v4.22; earlier versions no longer receive new fixes. For macOS, the latest release is the `macos-v0.1` pre-release. Old tags preserve source history and are not a recommendation for a safe or current binary download.
+Security fixes are considered for the latest published release. For Windows, that is v4.22; earlier versions no longer receive new fixes. For macOS, the latest release is the `macos-v0.2` pre-release. Old tags preserve source history and are not a recommendation for a safe or current binary download.
 
 For normal usage problems, use the [Issues](https://github.com/alpertknn/DiscordAccess/issues) templates. Do not share details of a security vulnerability in a public issue, PR, comment or log attachment.
 
