@@ -1,6 +1,6 @@
 # DiscordAccess for macOS — usage
 
-These notes cover the **macos-v0.2** pre-release. It runs only on Apple Silicon (arm64) Macs and has been tested only on macOS 27. The app's interface is in English; macos-v0.1 shows the same items in Turkish. Design details: [DESIGN.md](https://github.com/alpertknn/DiscordAccess/blob/main/macos/docs/DESIGN.md).
+These notes cover the **macos-v0.3** pre-release for Apple Silicon (arm64). The app was built on macOS 27; no test suite or live Discord session was run for this release build. The app's interface is in English. Design details: [DESIGN.md](https://github.com/alpertknn/DiscordAccess/blob/main/macos/docs/DESIGN.md).
 
 ## Requirements
 
@@ -10,21 +10,18 @@ These notes cover the **macos-v0.2** pre-release. It runs only on Apple Silicon 
 
 ## Installing the release package
 
-1. On the [Releases](https://github.com/alpertknn/DiscordAccess/releases) page, download `DiscordAccess-macos-v0.2.zip` from the **macos-v0.2** release and open it. `DiscordAccess-macos-v0.2-engine-source.zip` is the engine's source package; you do not need it to run the app.
-2. Drag `DiscordAccess.app` into the Applications folder in Finder. If an earlier version is installed, quit it first with the last item of its menu bar menu, then replace it.
-3. The app is not signed or notarized by Apple, so on first launch macOS says that Apple could not verify that "DiscordAccess" is free of malware:
-   - Click **Done**.
-   - Open System Settings > Privacy & Security. In the **Security** section at the bottom, click **Open Anyway** for DiscordAccess and enter your password.
-   - Open the app again and choose **Open Anyway** in the final dialog.
+1. Quit Discord and any earlier DiscordAccess. The old app's **Quit** item is at the bottom of its menu bar menu.
+2. Download `DiscordAccess-macos-v0.3-installer.zip` from the [macos-v0.3 combined release](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.3) and extract it. Open `DiscordAccess-macos-v0.3-Installer.pkg` and complete Installer's steps. It installs `/Applications/DiscordAccess.app`; no drag or manual copy is needed.
+3. Open **DiscordAccess** from Applications. It runs in the menu bar and has no Dock window. The installer and app are not signed with an Apple Developer ID or notarized. If macOS blocks either one, try opening it once, then use **Open Anyway** for that item under System Settings > Privacy & Security. macOS may ask for your password and a second confirmation. A later download may require approval again.
+4. Follow "First launch" below to grant Full Disk Access to the installed app. Gatekeeper approval does not grant this data permission.
 
-   You only need to approve it once.
-4. Then follow "First launch" below.
+The ZIP includes `LICENSES.txt` and `SOURCE.txt`. The engine's SHA-256 and cdhash are unchanged from macos-v0.2, so the verified `DiscordAccess-macos-v0.2-engine-source.zip` in this release is its corresponding source package. Keep that package and the notices with the installer if you redistribute it. Compare the downloaded ZIP with the release's `SHA256SUMS.txt`:
 
-The package's `LICENSES.txt` holds the license notices and `SOURCE.txt` identifies the source package. In the macos-v0.1 package these files are named `LISANSLAR.txt` and `KAYNAK.txt`, and these notes are included in Turkish as `OKU-BENI.md`. You can compare the SHA-256 of a downloaded file with the release's `SHA256SUMS.txt`:
 ```bash
-shasum -a 256 DiscordAccess-macos-v0.2.zip
+shasum -a 256 DiscordAccess-macos-v0.3-installer.zip
 ```
-A hash file is not a code signature.
+
+A checksum is not a code signature.
 
 ## Building from source
 
@@ -49,11 +46,12 @@ A hash file is not a code signature.
 
 1. Quit Discord completely (Discord > Quit Discord, or Cmd+Q).
 2. Open DiscordAccess from Applications. Its icon appears in the menu bar, not in the Dock.
-3. macOS protects Discord's data folder from other apps and shows no permission prompt for it. On first launch an alert titled "Full Disk Access required" appears:
-   - Click "Open System Settings" and turn on DiscordAccess under Full Disk Access.
-   - Then restart the app.
+3. macOS protects Discord's data folder from other apps and shows no automatic permission prompt for it. On first launch an alert titled "Full Disk Access required" appears:
+   - Click **Open Full Disk Access**, or open System Settings > Privacy & Security > Full Disk Access yourself.
+   - If DiscordAccess is absent, click **+**, choose `/Applications/DiscordAccess.app`, click **Open**, and turn on its switch. If a previous DiscordAccess entry is present but access still fails, remove that entry with **−** and add this installed copy again.
+   - Quit DiscordAccess and open it again from Applications.
    - Discord's settings are never changed without this permission.
-   - Each new version or build needs this permission again, because the app is ad-hoc signed. If DiscordAccess is already listed and turned on but the alert still appears, select it, remove it with "−", add `/Applications/DiscordAccess.app` with "+", then quit DiscordAccess and open it again.
+   - Because the app is signed ad hoc, a future build may need this permission again. The app and installer cannot add or enable their own Full Disk Access entry.
 4. Wait for the "Connection ready" notification. Open Discord from its own icon (Dock, Launchpad, Spotlight) or with "Open Discord" in the menu. Your existing installation and account are used; no copy is made.
 5. When you are done, quit Discord first, then choose "Quit" in the menu. If you quit while Discord is still open, Discord is not closed: the recovery record of the temporary settings is kept, and the settings are undone at the next launch or with `--restore`.
 
@@ -111,6 +109,7 @@ When run from Terminal, macOS asks the terminal app for Full Disk Access. While 
 
 - **[DSC-E05]:** Discord is open. Quit Discord with Cmd+Q and choose "Reconnect".
 - **[PRF-E04]:** Full Disk Access is missing. Follow the first-launch steps.
+- **[PRF-E03]:** The installed Discord version's startup module was not found in a supported layout or was incomplete. The older macos-v0.2 app checked only numbered modules under `app-<version>/modules`; v0.3 also recognizes the flat `<version>/modules/discord_desktop_core` layout. This layout mismatch could explain the earlier error, but the affected Mac's Discord profile was not inspected, so its exact cause is unconfirmed. Open official Discord, let its initial installation or update finish, quit it with Cmd+Q, then choose **Reconnect**. If the error persists, report the code and Discord version. Full Disk Access or Open Anyway cannot create a missing module.
 - **[SES-E01]:** The connection closed while Discord was open. Quit Discord and open DiscordAccess again, or run `--restore`.
 - **[SYS-E03]:** The app is not in a trusted location. Move it to Applications and open it from there.
 

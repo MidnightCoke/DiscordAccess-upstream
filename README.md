@@ -8,7 +8,7 @@ A connection helper for the official Discord Stable desktop app you already have
 
 ## Download the Windows package
 
-Download **DiscordAccess-v4.22.zip** from the [v4.22 release page](https://github.com/alpertknn/DiscordAccess/releases/tag/v4.22). The supported package is the latest published release.
+Download **DiscordAccess-v4.22.zip** from the [latest combined release](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.3). This is the unchanged Windows v4.22 package from the [original v4.22 release and source tag](https://github.com/alpertknn/DiscordAccess/releases/tag/v4.22); the new tag adds macOS changes and does not rebuild the Windows executable.
 
 `DiscordAccess-v4.22-engine-source.zip` contains the engine's corresponding source and rebuild materials; you do not need it to run the program. If you redistribute the ready-made package, also provide this source package and the license notices. Old release tags are kept for source history; do not redistribute earlier binary packages that had incomplete notices.
 
@@ -22,15 +22,16 @@ You can compute the SHA-256 of the downloaded ZIP with `Get-FileHash .\DiscordAc
 
 ## macOS pre-release (Apple Silicon)
 
-Download **DiscordAccess-macos-v0.2.zip** from the [macos-v0.2 release page](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.2).
+Download **DiscordAccess-macos-v0.3-installer.zip** from the [latest combined release](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.3). Extract it and open `DiscordAccess-macos-v0.3-Installer.pkg`.
 
-- Runs only on Apple Silicon Macs and has been tested only on macOS 27.
-- Move the app to the Applications folder.
-- The app is not signed by Apple. After the first launch attempt, approve it once with **Open Anyway** in System Settings > Privacy & Security.
-- It needs Full Disk Access for Discord's data folder; the app guides you on first launch.
+- Runs only on Apple Silicon Macs. The v0.3 build was made on macOS 27; no test suite or live Discord session was run for this release build.
+- The installer places the app in `/Applications`. Quit any older running DiscordAccess before installation.
+- The installer is unsigned, and the app is signed ad hoc and not notarized. If macOS blocks the installer or app, approve that item with **Open Anyway** in System Settings > Privacy & Security after the first opening attempt.
+- Grant the installed app Full Disk Access under System Settings > Privacy & Security > Full Disk Access. If a previous entry remains but access fails, remove it and add `/Applications/DiscordAccess.app` again. The installer cannot grant this permission.
+- v0.3 recognizes both numbered and legacy flat Discord startup-module layouts. This may resolve PRF-E03; the cause on the affected Mac was not confirmed by inspecting its Discord profile.
 - It runs in the menu bar. You open Discord from its own icon; your existing account is used.
 
-Setup and usage: [macos/README.md](macos/README.md). Trust boundaries: [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md). Design: [macos/docs/DESIGN.md](macos/docs/DESIGN.md). `DiscordAccess-macos-v0.2-engine-source.zip` contains the corresponding source for the Mac engine; if you redistribute the ready-made package, provide it as well.
+Setup and usage: [macos/README.md](macos/README.md). Trust boundaries: [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md). Design: [macos/docs/DESIGN.md](macos/docs/DESIGN.md). The engine and its pin are unchanged from macos-v0.2; `DiscordAccess-macos-v0.2-engine-source.zip` in the combined release contains its corresponding source. If you redistribute the installer, provide that source package and the included license notices as well.
 
 ## Upgrading from a previous version (Windows)
 

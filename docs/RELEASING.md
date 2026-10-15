@@ -46,7 +46,7 @@ python scripts/Package-Release.py --repo . --version 4.22 --commit $releaseCommi
 
 If `--source-companion` was used in the initial preparation, add the same input to the source validation command. Both commands check that the existing outputs match the expected bytes and do not modify files. Record the `existing_output_verified: true` result together with a zero exit code. If the output path does not exist yet, `--validate-only` only computes the expected hashes; this does not mean the prepared release files were verified. The packagers use the already-built `DiscordAccess.exe` as it is; they do not run the engine or the app.
 
-Only these four files are attached to the Release:
+The Windows-only v4.22 release has these four files:
 
 - `DiscordAccess-v4.22.zip`
 - `DiscordAccess-v4.22-engine-source.zip`
@@ -58,6 +58,8 @@ The local `$receipt`, test reports, raw logs and the cache folder are not releas
 ## GitHub release and old downloads
 
 With the four verified files, prepare a draft Release whose target is the exact source commit. The release notes must state the scope of the version, upgrade steps, the engine pin, the completed verification and the remaining live tests. Do not move an existing tag; use a new version tag. After the file names and hashes are checked, publish the draft and mark it as the latest release.
+
+For a combined release, identify the source tag that produced each binary separately. The macos-v0.3 tag contains the macOS startup-layout fix, and its release carries an Installer package for `/Applications`; the Windows v4.22 binary and its corresponding engine source remain unchanged from the original v4.22 release. The macOS engine is unchanged from macos-v0.2, so its verified v0.2 engine source companion remains paired with the new installer. Include license notices with the installer ZIP. Avoid collisions between the Windows and macOS manifests or checksum files by giving them platform-specific asset names, then publish a checksum inventory for the combined assets. State clearly if a test suite or live Discord session was not run for a release build. Full Disk Access must still be granted by the user in System Settings after installation.
 
 Withdraw old ready-made binary downloads with incomplete license/source notices, or correct them with complete and verified distribution materials. The v4.16–v4.20 tags and source history are kept; the existence of an old tag does not mean that binary package is supported. For past security boundaries or installation instructions, rely on the current README/SECURITY policy.
 
@@ -79,6 +81,6 @@ gh api repos/alpertknn/DiscordAccess/branches/main/protection
 
 The file is only a declaration of intent; a successful API response and the remote setting read back are the proof of protection. The policy must require a PR, approval from at least one other accepted reviewer, enforcement for admins, resolved conversations, and blocking of force-pushes and branch deletion. You cannot meet this requirement by approving your own PR. Because GitHub Actions is disabled, do not make nonexistent Actions checks required status checks.
 
-3. Check the repository About/topics, the latest Release, the four download files, the source/license links and the issue forms in the public view. The automatic merged-branch deletion setting does not delete history or release tags.
+3. Check the repository About/topics, the latest Release, every listed download file, the source/license links and the issue forms in the public view. The automatic merged-branch deletion setting does not delete history or release tags.
 
 Do not report an API rejection or a missing check as a success. If remote settings cannot be applied yet, record which step is pending in a maintenance record separate from the release notes.

@@ -2,6 +2,13 @@
 
 This file is a short summary of the verified source history. Full source versions are kept in Git tags; package and verification details are in the corresponding release notes. Real-account use, voice/streaming, tray interaction and Windows restarts are evaluated separately from synthetic tests.
 
+## macos-v0.3 (macOS pre-release; combined download release)
+
+- Recognize both Discord desktop-core startup layouts: numbered modules under `app-<version>/modules` and the legacy flat module under `<version>/modules`. Validate the installed version before changing its files and recover existing macOS session records.
+- Install the macOS app in `/Applications` with an Installer package inside the download ZIP. Explain the separate Gatekeeper and Full Disk Access steps, including how to replace a stale permission entry for an earlier build.
+- Keep the macOS engine's pinned SHA-256 and cdhash unchanged. The corresponding macOS engine source companion remains the verified `macos-v0.2` package.
+- Include the unchanged Windows v4.22 downloads in the combined release; the Windows executable was built for the original `v4.22` tag. No test suite or live Discord session was run for the macOS v0.3 release build.
+
 ## macos-v0.2 (macOS pre-release)
 
 - The interface is in English: the menu, notifications, alerts, error messages, Terminal mode and help.
