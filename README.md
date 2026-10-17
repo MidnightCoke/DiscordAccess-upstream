@@ -10,11 +10,22 @@ A connection helper for the official Discord Stable desktop app you already have
 
 `DiscordAccess.exe` prepares the connection; you open Discord from your own desktop or Start menu shortcut. The shortcut's real Discord target is kept; only the session's local proxy arguments are added. No separate Discord or profile copy is created; your existing account is used. No open CMD window is needed.
 
+## Which file to download
+
+Every ready-to-run package is on the [latest release page](https://github.com/alpertknn/DiscordAccess/releases/latest). You need one file, the one for your computer:
+
+| Your computer | Download this | Then |
+| --- | --- | --- |
+| Windows 10/11 x64 with .NET Framework 4.8 | **DiscordAccess-v4.22.zip** | Extract the whole ZIP into a short, permanent folder and open `DiscordAccess.exe`. |
+| Mac with Apple Silicon (M1 or later), macOS 13 or newer | **DiscordAccess-macos-v0.3-installer.zip** | Extract it and open `DiscordAccess-macos-v0.3-Installer.pkg`. |
+
+Everything else on the release page is optional. `SHA256SUMS.txt` only checks the two downloads, and GitHub's automatic **Source code (zip)** and **Source code (tar.gz)** entries contain only the source code, not the program. The engine source packages are published with the releases that introduced each engine, [v4.22](https://github.com/alpertknn/DiscordAccess/releases/tag/v4.22) for Windows and [macos-v0.2](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.2) for macOS; you do not need them to run the program.
+
 ## Download the Windows package
 
 Download **DiscordAccess-v4.22.zip** from the [latest combined release](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.3). This is the unchanged Windows v4.22 package from the [original v4.22 release and source tag](https://github.com/alpertknn/DiscordAccess/releases/tag/v4.22); the new tag adds macOS changes and does not rebuild the Windows executable.
 
-`DiscordAccess-v4.22-engine-source.zip` contains the engine's corresponding source and rebuild materials; you do not need it to run the program. If you redistribute the ready-made package, also provide this source package and the license notices. Old release tags are kept for source history; do not redistribute earlier binary packages that had incomplete notices.
+`DiscordAccess-v4.22-engine-source.zip`, published with the [v4.22 release](https://github.com/alpertknn/DiscordAccess/releases/tag/v4.22), contains the engine's corresponding source and rebuild materials; you do not need it to run the program. If you redistribute the ready-made package, also provide this source package and the license notices. Old release tags are kept for source history; do not redistribute earlier binary packages that had incomplete notices.
 
 Extract the whole ZIP into a short, permanent local folder. `DiscordAccess.exe` and `engine/sing-box.exe` must stay in the same package. Open `DiscordAccess.exe`; the ready-made package needs no build step. `Baslat.cmd` has been removed.
 
@@ -35,7 +46,7 @@ Download **DiscordAccess-macos-v0.3-installer.zip** from the [latest combined re
 - v0.3 recognizes both numbered and legacy flat Discord startup-module layouts. This may resolve PRF-E03; the cause on the affected Mac was not confirmed by inspecting its Discord profile.
 - It runs in the menu bar. You open Discord from its own icon; your existing account is used.
 
-Setup and usage: [macos/README.md](macos/README.md). Trust boundaries: [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md). Design: [macos/docs/DESIGN.md](macos/docs/DESIGN.md). The engine and its pin are unchanged from macos-v0.2; `DiscordAccess-macos-v0.2-engine-source.zip` in the combined release contains its corresponding source. If you redistribute the installer, provide that source package and the included license notices as well.
+Setup and usage: [macos/README.md](macos/README.md). Trust boundaries: [macos/docs/SECURITY-NOTES.md](macos/docs/SECURITY-NOTES.md). Design: [macos/docs/DESIGN.md](macos/docs/DESIGN.md). The engine and its pin are unchanged from macos-v0.2; `DiscordAccess-macos-v0.2-engine-source.zip`, published with the [macos-v0.2 release](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.2), contains its corresponding source. If you redistribute the installer, provide that source package and the included license notices as well.
 
 ## Upgrading from a previous version (Windows)
 

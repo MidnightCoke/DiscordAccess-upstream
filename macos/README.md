@@ -11,11 +11,11 @@ These notes cover the **macos-v0.3** pre-release for Apple Silicon (arm64). The 
 ## Installing the release package
 
 1. Quit Discord and any earlier DiscordAccess. The old app's **Quit** item is at the bottom of its menu bar menu.
-2. Download `DiscordAccess-macos-v0.3-installer.zip` from the [macos-v0.3 combined release](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.3) and extract it. Open `DiscordAccess-macos-v0.3-Installer.pkg` and complete Installer's steps. It installs `/Applications/DiscordAccess.app`; no drag or manual copy is needed.
+2. Download `DiscordAccess-macos-v0.3-installer.zip` from the [macos-v0.3 combined release](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.3) and extract it. It is the only file you need from that page: the checksum file is optional, and GitHub's automatic Source code entries do not contain the app. Open `DiscordAccess-macos-v0.3-Installer.pkg` and complete Installer's steps. It installs `/Applications/DiscordAccess.app`; no drag or manual copy is needed.
 3. Open **DiscordAccess** from Applications. It runs in the menu bar and has no Dock window. The installer and app are not signed with an Apple Developer ID or notarized. If macOS blocks either one, try opening it once, then use **Open Anyway** for that item under System Settings > Privacy & Security. macOS may ask for your password and a second confirmation. A later download may require approval again.
 4. Follow "First launch" below to grant Full Disk Access to the installed app. Gatekeeper approval does not grant this data permission.
 
-The ZIP includes `LICENSES.txt` and `SOURCE.txt`. The engine's SHA-256 and cdhash are unchanged from macos-v0.2, so the verified `DiscordAccess-macos-v0.2-engine-source.zip` in this release is its corresponding source package. Keep that package and the notices with the installer if you redistribute it. Compare the downloaded ZIP with the release's `SHA256SUMS.txt`:
+The ZIP includes `LICENSES.txt` and `SOURCE.txt`. The engine's SHA-256 and cdhash are unchanged from macos-v0.2, so the verified `DiscordAccess-macos-v0.2-engine-source.zip`, published with the [macos-v0.2 release](https://github.com/alpertknn/DiscordAccess/releases/tag/macos-v0.2), is its corresponding source package. Keep that package and the notices with the installer if you redistribute it. Compare the downloaded ZIP with the release's `SHA256SUMS.txt`:
 
 ```bash
 shasum -a 256 DiscordAccess-macos-v0.3-installer.zip
