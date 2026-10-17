@@ -42,6 +42,12 @@ A checksum is not a code signature.
    ditto macos/build/apps.noindex/<time>/DiscordAccess.app /Applications/DiscordAccess.app
    ```
 
+### App and menu bar artwork
+
+`Sources/DiscordAccess/BrandIcon.swift` draws the DA monogram with native AppKit vector paths. The menu bar uses a template image so macOS supplies the light or dark appearance; the mark dims while the connection is not ready. The app bundle uses a white monogram on Blurple (`#5865F2`).
+
+`build-app.sh` compiles `scripts/render-icons.swift` with the same drawing source and generates `AppIcon.icns` at all standard sizes before signing. No image library or downloaded artwork is needed. `Design/monogram.svg` is the editable SVG counterpart; `Design/preview.html` shows the artwork at small sizes. Keep the SVG geometry in sync when changing the native drawing.
+
 ## First launch
 
 1. Quit Discord completely (Discord > Quit Discord, or Cmd+Q).
