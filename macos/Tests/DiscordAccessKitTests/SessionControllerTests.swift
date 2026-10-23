@@ -52,6 +52,8 @@ import Testing
         var locateFailure: Error?
         /// Whether the stand-in Discord quits when asked.
         var quitEnds = true
+        /// The main processes of the stand-in bundle, when they differ from whether any Discord runs.
+        var mainProcesses: (() -> [pid_t])?
         static let updated = "0.0.418"
         static let core = "/modules/discord_desktop_core-1/discord_desktop_core/"
 
@@ -81,6 +83,7 @@ import Testing
                 },
                 launch: { [discord] _, arguments in discord.launches.append(arguments) },
                 anyRunning: { [discord] in discord.read() },
+                mainProcesses: { [unowned self] _ in mainProcesses?() ?? (discord.read() ? [1] : []) },
                 quit: { [unowned self] installation in
                     discord.quits.append(installation.version)
                     if quitEnds { discord.set(false) }
@@ -308,7 +311,7 @@ import Testing
         #expect(launch.count == 3 && launch[0].hasPrefix("--proxy-server=http://127.0.0.1:") && launch[2] == "--disable-quic")
         #expect(session.discord.quits.all == [Session.updated] && controller.isActive)
         #expect(SafeFileTests.text(session.updatedEntry)?.hasPrefix(SessionWrapper.marker) == true)
-        #expect(session.lines.all.contains("Discord was updated to " + Session.updated + "; it is reopened through the connection."))
+        #expect(session.lines.all.contains("Discord was updated to " + Session.updated + "; the session follows it."))
         #expect(session.lines.all.contains("Sent the request to open the official Discord."))
         try controller.disconnect()
         #expect(SafeFileTests.text(session.updatedEntry) == DiscordProfileChangesTests.official && SafeFileTests.text(session.fixture.journal) == nil)
@@ -352,6 +355,72 @@ import Testing
         session.discord.set(false)
         #expect(try controller.openDiscord() == "Sent the request to open the official Discord.")
         #expect(SafeFileTests.text(session.updatedEntry)?.hasPrefix(SessionWrapper.marker) == true)
+    }
+
+    /// Open Discord chosen while the follow-up still verifies the bundle moves the session itself; the Discord it opened
+    /// came through the session and is not quit.
+    @Test(.enabled(if: TestEngine.isAvailable))
+    func leavesADiscordThatOpenDiscordMovedTheSessionFor() throws {
+        let session = try Session()
+        let controller = session.controller()
+        defer { try? controller.disconnect() }
+        try controller.connect()
+        try session.update(keepOld: false)
+        var clicked = false
+        session.onLocate = {
+            guard !clicked else { return }
+            clicked = true
+            let opened = try? controller.openDiscord()
+            #expect(opened == "Sent the request to open the official Discord.")
+            session.discord.set(true)
+        }
+        try session.swapBundle()
+
+        #expect(waitFor { session.lines.all.contains("Open Discord already applied the update.") ? true : nil } == true)
+        #expect(session.discord.quits.all.isEmpty && session.discord.launches.all.count == 1 && controller.isActive)
+        #expect(SafeFileTests.text(session.updatedEntry)?.hasPrefix(SessionWrapper.marker) == true)
+    }
+
+    /// A Discord that runs when the update would be adopted (opened from its icon, or another copy) keeps the profile
+    /// as it is; Open Discord follows the update once it is closed.
+    @Test(.enabled(if: TestEngine.isAvailable))
+    func leavesTheProfileWhileADiscordRunsWithoutTheSession() throws {
+        let session = try Session()
+        let controller = session.controller()
+        defer { try? controller.disconnect() }
+        try controller.connect()
+        try session.update(keepOld: false)
+        // No main process of the bundle came back, but some Discord runs.
+        session.mainProcesses = { [] }
+        session.discord.set(true)
+        try session.swapBundle()
+
+        let notice = "Discord is open without the connection; quit it (Cmd+Q), then choose Open Discord."
+        #expect(waitFor { session.lines.all.contains(notice) ? true : nil } == true)
+        #expect(session.discord.quits.all.isEmpty && session.discord.launches.all.isEmpty && controller.isActive)
+        #expect(SafeFileTests.text(session.updatedEntry) == DiscordProfileChangesTests.official)
+        session.discord.set(false)
+        #expect(try controller.openDiscord() == "Sent the request to open the official Discord.")
+        #expect(SafeFileTests.text(session.updatedEntry)?.hasPrefix(SessionWrapper.marker) == true)
+    }
+
+    /// Disconnecting during a follow-up ends its waits early; that is not reported as Discord failing to quit.
+    @Test(.enabled(if: TestEngine.isAvailable))
+    func disconnectingEndsAFollowUpQuietly() throws {
+        let session = try Session()
+        let controller = session.controller()
+        try controller.connect()
+        try session.update(keepOld: false)
+        // The reopened Discord never quits; no other Discord runs, so disconnecting restores the profile.
+        session.mainProcesses = { [1] }
+        try session.swapBundle()
+        #expect(waitFor { session.discord.quits.all.isEmpty ? nil : true } == true)
+
+        try controller.disconnect()
+        usleep(800_000)
+        #expect(!session.lines.all.contains { $0.hasPrefix("The updated Discord did not quit") || $0.hasPrefix("Discord.app changed") })
+        #expect(session.discord.launches.all.isEmpty && SafeFileTests.text(session.updatedEntry) == DiscordProfileChangesTests.official)
+        #expect(try SafeFileTests.text(session.fixture.journal) == nil && session.fixture.settings()["NEW_UPDATE_ENDPOINT"] == nil)
     }
 
     /// A Discord.app that changes without a new version, or cannot be verified, is left as it is; the watch ends with

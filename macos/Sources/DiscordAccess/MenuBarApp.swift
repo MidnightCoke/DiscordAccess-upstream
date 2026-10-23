@@ -71,11 +71,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.item = item
         // A termination signal (or an interrupt in the terminal of a development build) quits as Quit does. Not from the
         // dispatch handler itself: `terminate` then waits for the reply inside that main-queue callout, and the reply,
-        // another main-queue block, never runs. From the run loop, as a menu click arrives, it does.
+        // another main-queue block, never runs. From the run loop, as a menu click arrives, it does; in the common
+        // modes, so an alert or an open menu does not hold it.
         signals = [SIGTERM, SIGINT, SIGHUP].map { number in
             signal(number, SIG_IGN)
             let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
-            source.setEventHandler { RunLoop.main.perform { NSApp.terminate(nil) } }
+            source.setEventHandler { RunLoop.main.perform(inModes: [.common]) { NSApp.terminate(nil) } }
             source.resume()
             return source
         }
