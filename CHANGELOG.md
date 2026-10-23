@@ -2,6 +2,10 @@
 
 This file is a short summary of the verified source history. Full source versions are kept in Git tags; package and verification details are in the corresponding release notes. Real-account use, voice/streaming, tray interaction and Windows restarts are evaluated separately from synthetic tests.
 
+## Unreleased (macOS)
+
+- Keep the connection when Discord updates itself during a session: Discord.app is watched, and the Discord that ShipIt reopens without the proxy is quit, moved to the new version's profile and opened again through the connection. Open Discord after a manual quit follows the update as before.
+
 ## macos-v0.3 (macOS pre-release; combined download release)
 
 - Recognize both Discord desktop-core startup layouts: numbered modules under `app-<version>/modules` and the legacy flat module under `<version>/modules`. Validate the installed version before changing its files and recover existing macOS session records.

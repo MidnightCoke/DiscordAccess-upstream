@@ -16,6 +16,8 @@ import Testing
         private var answers: [Bool] = []
         private var current = false
         let launches = Collected<[String]>()
+        /// The versions asked to quit.
+        let quits = Collected<String>()
 
         /// Later reads return `running`.
         func set(_ running: Bool) {
@@ -48,6 +50,8 @@ import Testing
         var onRunning: (() -> Void)?
         var onLocate: (() -> Void)?
         var locateFailure: Error?
+        /// Whether the stand-in Discord quits when asked.
+        var quitEnds = true
         static let updated = "0.0.418"
         static let core = "/modules/discord_desktop_core-1/discord_desktop_core/"
 
@@ -76,8 +80,14 @@ import Testing
                     return self?.discord.read() ?? false
                 },
                 launch: { [discord] _, arguments in discord.launches.append(arguments) },
-                anyRunning: { [discord] in discord.read() })
-            return SessionController(settings: settings, system: system, log: lines.append, changed: { [states] _, message in states.append(message) })
+                anyRunning: { [discord] in discord.read() },
+                quit: { [unowned self] installation in
+                    discord.quits.append(installation.version)
+                    if quitEnds { discord.set(false) }
+                })
+            let controller = SessionController(settings: settings, system: system, log: lines.append, changed: { [states] _, message in states.append(message) })
+            controller.updateWaits = (verify: 2, relaunch: 0.5, quit: 0.5)
+            return controller
         }
 
         var updatedEntry: String { fixture.profile + "/app-" + Self.updated + Self.core + "index.js" }
@@ -90,6 +100,14 @@ import Testing
             try SafeFileTests.write(updatedEntry, DiscordProfileChangesTests.official)
             try SafeFileTests.write(folder + "/core.asar", "archive")
             installation = DiscordInstallation(bundle: installation.bundle, version: Self.updated)
+        }
+
+        /// ShipIt installs the host update: a new bundle takes the old one's place in one step.
+        func swapBundle() throws {
+            let bundle = installation.bundle
+            let incoming = bundle + ".incoming-" + UUID().uuidString
+            try FileManager.default.createDirectory(atPath: incoming, withIntermediateDirectories: false)
+            guard renamex_np(incoming, bundle, UInt32(RENAME_SWAP)) == 0 else { throw lastPOSIXError() }
         }
 
         /// Discord's own entries and settings are as they were before the session.
@@ -272,6 +290,116 @@ import Testing
         #expect(!controller.isActive && Self.gone(pid) && session.discord.launches.all.isEmpty)
         #expect(session.states.all.last == "Discord was updated, but the connection could not follow it; connect again.")
         #expect(session.untouched && SafeFileTests.text(session.updatedEntry) == DiscordProfileChangesTests.official)
+    }
+
+    /// ShipIt reopens an updated Discord without the session; the session asks it to quit, moves to the new version and
+    /// opens Discord through the connection, on its own.
+    @Test(.enabled(if: TestEngine.isAvailable))
+    func reopensADiscordThatUpdatedAndRelaunchedItself() throws {
+        let session = try Session()
+        let controller = session.controller()
+        defer { try? controller.disconnect() }
+        try controller.connect()
+        try session.update(keepOld: false)
+        session.discord.set(true)
+        try session.swapBundle()
+
+        let launch = try #require(waitFor { session.discord.launches.all.first })
+        #expect(launch.count == 3 && launch[0].hasPrefix("--proxy-server=http://127.0.0.1:") && launch[2] == "--disable-quic")
+        #expect(session.discord.quits.all == [Session.updated] && controller.isActive)
+        #expect(SafeFileTests.text(session.updatedEntry)?.hasPrefix(SessionWrapper.marker) == true)
+        #expect(session.lines.all.contains("Discord was updated to " + Session.updated + "; it is reopened through the connection."))
+        #expect(session.lines.all.contains("Sent the request to open the official Discord."))
+        try controller.disconnect()
+        #expect(SafeFileTests.text(session.updatedEntry) == DiscordProfileChangesTests.official && SafeFileTests.text(session.fixture.journal) == nil)
+        #expect(session.fixture.leftovers.isEmpty)
+    }
+
+    /// An updated Discord that does not come back is only adopted: nothing is opened uninvited, and Open Discord works.
+    @Test(.enabled(if: TestEngine.isAvailable))
+    func adoptsAnUpdatedDiscordThatDoesNotReturn() throws {
+        let session = try Session()
+        let controller = session.controller()
+        defer { try? controller.disconnect() }
+        try controller.connect()
+        try session.update(keepOld: false)
+        try session.swapBundle()
+
+        #expect(waitFor { SafeFileTests.text(session.updatedEntry)?.hasPrefix(SessionWrapper.marker) == true ? true : nil } == true)
+        #expect(session.discord.quits.all.isEmpty && session.discord.launches.all.isEmpty && controller.isActive)
+        #expect(try controller.openDiscord() == "Sent the request to open the official Discord.")
+        #expect(session.discord.launches.all.count == 1)
+        // Open Discord found the session already moved and did not move it again.
+        #expect(session.lines.all.filter { $0.hasSuffix("; the session now applies to that version.") }.count == 1)
+    }
+
+    /// An updated Discord that will not quit is left alone and reported; Open Discord still follows the update later.
+    @Test(.enabled(if: TestEngine.isAvailable))
+    func leavesAnUpdatedDiscordThatWillNotQuit() throws {
+        let session = try Session()
+        session.quitEnds = false
+        let controller = session.controller()
+        defer { try? controller.disconnect() }
+        try controller.connect()
+        try session.update(keepOld: false)
+        session.discord.set(true)
+        try session.swapBundle()
+
+        let notice = "The updated Discord did not quit; quit it yourself (Cmd+Q), then choose Open Discord."
+        #expect(waitFor { session.lines.all.contains(notice) ? true : nil } == true)
+        #expect(session.discord.quits.all == [Session.updated] && session.discord.launches.all.isEmpty && controller.isActive)
+        #expect(SafeFileTests.text(session.updatedEntry) == DiscordProfileChangesTests.official)
+        session.discord.set(false)
+        #expect(try controller.openDiscord() == "Sent the request to open the official Discord.")
+        #expect(SafeFileTests.text(session.updatedEntry)?.hasPrefix(SessionWrapper.marker) == true)
+    }
+
+    /// A Discord.app that changes without a new version, or cannot be verified, is left as it is; the watch ends with
+    /// the session.
+    @Test(.enabled(if: TestEngine.isAvailable))
+    func ignoresABundleChangeWithoutANewVersion() throws {
+        let session = try Session()
+        let controller = session.controller()
+        defer { try? controller.disconnect() }
+        try controller.connect()
+        try session.swapBundle()
+        let unchanged = "Discord.app changed; the version is still " + DiscordProfileChangesTests.version + "."
+        #expect(waitFor { session.lines.all.contains(unchanged) ? true : nil } == true)
+
+        session.locateFailure = KitError.discordUnverified(session.installation.bundle)
+        try session.swapBundle()
+        let unverified = "Discord.app changed but could not be verified; the session keeps version " + DiscordProfileChangesTests.version + "."
+        #expect(waitFor { session.lines.all.contains(unverified) ? true : nil } == true, "\(session.lines.all.suffix(6))")
+        #expect(session.discord.quits.all.isEmpty && session.discord.launches.all.isEmpty && controller.isActive)
+
+        try controller.disconnect()
+        let count = session.lines.all.count
+        try session.swapBundle()
+        usleep(300_000)
+        #expect(session.lines.all.count == count && session.untouched)
+    }
+
+    /// Quitting asks the bundle's main process only; its helpers (and any other Discord) are left alone. Engine copies
+    /// stand in for Discord's executables: they wait for a configuration on stdin that never comes.
+    @Test(.enabled(if: TestEngine.isAvailable))
+    func quitsOnlyTheMainProcessOfTheBundle() throws {
+        let main = try TestEngine.runnableCopy(named: "quit-probe.app/Contents/MacOS/Discord")
+        let helper = try TestEngine.runnableCopy(named: "quit-probe.app/Contents/Frameworks/Discord Helper.app/Contents/MacOS/Discord Helper")
+        let installation = DiscordInstallation(bundle: String(main.dropLast("/Contents/MacOS/Discord".count)), version: DiscordProfileChangesTests.version)
+        let arguments = ["run", "-c", "stdin", "--disable-color"]
+        let mainProcess = try startChild(main, arguments, input: Pipe())
+        let helperProcess = try startChild(helper, arguments, input: Pipe())
+        defer {
+            for process in [mainProcess, helperProcess] {
+                process.terminate()
+                process.waitUntilExit()
+            }
+        }
+        #expect(waitFor { ProcessInspector.record(for: mainProcess.processIdentifier)?.path == main ? true : nil } == true)
+
+        try SessionController.System().quit(installation)
+        #expect(waitFor { mainProcess.isRunning ? nil : true } == true)
+        #expect(helperProcess.isRunning)
     }
 
     /// Only an update in place is followed; a Discord.app that is gone or no longer verifies is refused.
