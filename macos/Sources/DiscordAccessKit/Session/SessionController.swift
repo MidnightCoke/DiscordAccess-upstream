@@ -207,7 +207,11 @@ public final class SessionController {
     /// that does not return is only adopted, never opened uninvited; one that does not quit is left alone. The waits run
     /// without `operations`, so disconnecting is not held up; the session is checked again before anything changes.
     private func followUpdate() {
-        DispatchQueue.global().async { [weak self] in self?.followUpdateCore() }
+        // Its own thread, as the lifecycle runs its operations: the waits can block for over a minute, too long for a
+        // thread of the global pool.
+        let thread = Thread { [weak self] in self?.followUpdateCore() }
+        thread.name = "DiscordAccess update follow-up"
+        thread.start()
     }
 
     private func followUpdateCore() {
