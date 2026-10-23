@@ -16,7 +16,7 @@ enum TestEngine {
         let folder = packageRoot.appendingPathComponent("build/test-engines/" + digest.prefix(16)).path
         let copy = folder + "/" + name
         if !FileManager.default.fileExists(atPath: copy) {
-            try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(atPath: (copy as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
             // An interrupted copy never takes the final name, and a copy made meanwhile by another run is kept.
             let partial = copy + ".partial-" + UUID().uuidString
             try FileManager.default.copyItem(atPath: path, toPath: partial)
@@ -144,10 +144,11 @@ func reap(_ pid: pid_t) {
     while waitpid(pid, &status, 0) == -1 && errno == EINTR {}
 }
 
-func startChild(_ executable: String, _ arguments: [String]) throws -> Process {
+func startChild(_ executable: String, _ arguments: [String], input: Pipe? = nil) throws -> Process {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: executable)
     process.arguments = arguments
+    if let input { process.standardInput = input }
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
     try process.run()

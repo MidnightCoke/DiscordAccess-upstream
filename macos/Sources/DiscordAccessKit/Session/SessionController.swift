@@ -10,9 +10,11 @@ import Foundation
 /// 4. The update bridge starts in front of the gate.
 /// 5. Discord must still be closed; the profile gets the session wrapper and its update settings point at the bridge.
 ///
-/// An engine that exits, or a gate or bridge that closes itself, ends the session as disconnecting does. Disconnecting
-/// undoes the profile changes if Discord is closed (within a second); otherwise their journal stays for the next start or
-/// `--restore` (SES-E01). Operations run one at a time; disconnecting first ends a check or download under way.
+/// An engine that exits, or a gate or bridge that closes itself, ends the session as disconnecting does. Discord.app is
+/// watched meanwhile: Discord's self-update reopens Discord without the session, and the session follows it
+/// (`followUpdate`). Disconnecting undoes the profile changes if Discord is closed (within a second); otherwise their
+/// journal stays for the next start or `--restore` (SES-E01). Operations run one at a time; disconnecting first ends a
+/// check or download under way.
 public final class SessionController {
     public struct Settings {
         /// The engine (`sing-box`) and the attachment download hook both platforms share.
@@ -45,11 +47,26 @@ public final class SessionController {
         }
         /// Whether any Discord runs, before an installation is known.
         var anyRunning: () throws -> Bool = { try !DiscordInstallation.runningProcesses(bundle: nil).isEmpty }
+        /// This user's main processes of `installation` (`Contents/MacOS/Discord`): the Discord ShipIt reopened, not a
+        /// helper still exiting or another Discord.app.
+        var mainProcesses: (DiscordInstallation) throws -> [pid_t] = { try System.mainProcesses(of: $0) }
+        /// Asks Discord to quit: SIGTERM to its main processes, which Electron takes as Quit (Cmd+Q).
+        var quit: (DiscordInstallation) throws -> Void = { installation in
+            for pid in try System.mainProcesses(of: installation) { kill(pid, SIGTERM) }
+        }
+
+        static func mainProcesses(of installation: DiscordInstallation) throws -> [pid_t] {
+            let main = installation.bundle + "/Contents/MacOS/Discord"
+            return try installation.runningProcesses().filter { ProcessInspector.record(for: $0)?.path == main }
+        }
     }
 
     public static let readyMessage = "Connection ready. Open Discord from its own icon (Dock, Launchpad, Spotlight) or with A + Enter."
     /// How long disconnecting waits for Discord to close before it leaves the profile changes to their journal.
     static let exitWait: TimeInterval = 1
+    /// How long following an update waits for the swapped Discord.app to verify, for ShipIt to reopen Discord, and for
+    /// that Discord to quit (tests shorten them).
+    var updateWaits = (verify: TimeInterval(60), relaunch: TimeInterval(10), quit: TimeInterval(15))
 
     private let settings: Settings
     private let system: System
@@ -66,6 +83,7 @@ public final class SessionController {
     /// The wrapper written at connect; an updated Discord gets the same one.
     private var wrapper: SessionWrapper?
     private var engineWatch: DispatchSourceProcess?
+    private var bundleWatch: DispatchSourceFileSystemObject?
     private let flags = NSLock()
     private var activeFlag = false
     private var unreapedFlag = false
@@ -170,19 +188,130 @@ public final class SessionController {
         guard let current = try? system.locate(installation.bundle) else { throw KitError.discordChanged() }
         operations.lock()
         defer { operations.unlock() }
-        guard active, connection === observed, self.installation == installation else { throw KitError.sessionNotReady() }
+        // The session may have followed an update meanwhile (`followUpdate`); the version it applies to now counts.
+        guard active, connection === observed, let prepared = self.installation else { throw KitError.sessionNotReady() }
         try lifetime.check()
         if try system.running(current) { return "Discord is already open; it was not opened again." }
-        if current != installation { try adopt(current) }
-        try system.launch(current, ["--proxy-server=" + proxy(observed), "--proxy-bypass-list=127.0.0.1;localhost", "--disable-quic"])
+        if current != prepared {
+            // A session that moved during the signature check makes this version stale; another click locates the new one.
+            guard prepared == installation else { throw KitError.sessionNotReady() }
+            try adopt(current)
+        }
+        try system.launch(current, proxyArguments(observed))
         return "Sent the request to open the official Discord."
     }
 
+    /// Discord's self-update (ShipIt) replaces Discord.app and reopens Discord without the session: no proxy argument,
+    /// and no wrapper in the new version's profile. Once the swapped bundle verifies with a new version, that Discord is
+    /// asked to quit, the profile changes move to the new version and Discord is opened as Open Discord does. A Discord
+    /// that does not return is only adopted, never opened uninvited; one that does not quit is left alone. The waits run
+    /// without `operations`, so disconnecting is not held up; the session is checked again before anything changes.
+    private func followUpdate() {
+        // Its own thread, as the lifecycle runs its operations: the waits can block for over a minute, too long for a
+        // thread of the global pool.
+        let thread = Thread { [weak self] in self?.followUpdateCore() }
+        thread.name = "DiscordAccess update follow-up"
+        thread.start()
+    }
+
+    private func followUpdateCore() {
+        operations.lock()
+        guard active, let observed = connection, let installation else {
+            operations.unlock()
+            return
+        }
+        operations.unlock()
+        // ShipIt is still swapping the bundle when the watch fires; the signature check fails until it is complete.
+        guard let current = wait(updateWaits.verify, every: 2, for: { try? system.locate(installation.bundle) }) else {
+            finish(installation.bundle, "Discord.app changed but could not be verified; the session keeps version " + installation.version + ".")
+            return
+        }
+        guard current.version != installation.version else {
+            finish(current.bundle, "Discord.app changed; the version is still " + current.version + ".")
+            return
+        }
+        log("Discord was updated to " + current.version + "; the session follows it.")
+        // ShipIt reopens Discord right after the swap; that Discord runs without the session.
+        // ponytail: fixed relaunch wait; a Discord that ShipIt reopens later runs without the session until Open Discord.
+        var reopen = false
+        if wait(updateWaits.relaunch, for: { (try? system.mainProcesses(current))?.isEmpty == false ? () : nil }) != nil {
+            // Unless Open Discord moved the session meanwhile: that Discord came through it.
+            operations.lock()
+            let applied = self.installation == current
+            operations.unlock()
+            if applied {
+                finish(current.bundle, "Open Discord already applied the update.")
+                return
+            }
+            do {
+                try system.quit(current)
+            } catch {
+                finish(current.bundle, ConsoleSession.message(error))
+                return
+            }
+            guard wait(updateWaits.quit, for: { (try? system.mainProcesses(current))?.isEmpty == true ? () : nil }) != nil else {
+                finish(current.bundle, "The updated Discord did not quit; quit it yourself (Cmd+Q), then choose Open Discord.")
+                return
+            }
+            reopen = true
+        }
+        operations.lock()
+        defer { operations.unlock() }
+        guard active, connection === observed else { return }
+        do {
+            // Open Discord may have moved the session meanwhile.
+            if self.installation != current { try adopt(current) }
+            if reopen, try !system.running(current) {
+                try system.launch(current, proxyArguments(observed))
+                log("Sent the request to open the official Discord.")
+            }
+        } catch let error as KitError where error == KitError.discordRunning() {
+            // A Discord opened meanwhile (its own icon) keeps the profile as it is.
+            log("Discord is open without the connection; quit it (Cmd+Q), then choose Open Discord.")
+        } catch {
+            log(ConsoleSession.message(error))
+        }
+        if active { watchBundle(current.bundle) }
+    }
+
+    /// Ends a follow-up that changed nothing: the watch comes back first, then the reason is logged, so the line means
+    /// the watch is back. A canceled session (disconnecting) gets neither; its waits ended early, not by their time.
+    private func finish(_ bundle: String, _ message: String) {
+        guard !lifetime.isCanceled else { return }
+        rearm(bundle)
+        log(message)
+    }
+
+    /// Watches the bundle again once the follow-up is over, unless the session ended meanwhile.
+    private func rearm(_ bundle: String) {
+        operations.lock()
+        defer { operations.unlock() }
+        if active { watchBundle(bundle) }
+    }
+
+    /// Polls `probe` every `interval` seconds for `seconds` at most; nil when it never answered, or once the session was
+    /// canceled. Each `running` probe reads every process of the user, so the poll is no faster than it needs to be.
+    private func wait<Value>(_ seconds: TimeInterval, every interval: TimeInterval = 0.25, for probe: () -> Value?) -> Value? {
+        let deadline = Date().addingTimeInterval(seconds)
+        while !lifetime.isCanceled {
+            if let value = probe() { return value }
+            guard Date() < deadline else { return nil }
+            usleep(useconds_t(interval * 1_000_000))
+        }
+        return nil
+    }
+
+    private func proxyArguments(_ connection: DnsConnection) -> [String] {
+        ["--proxy-server=" + proxy(connection), "--proxy-bypass-list=127.0.0.1;localhost", "--disable-quic"]
+    }
+
     /// Moves the profile changes to the version Discord updated itself to (its old `app-<version>` folder is usually
-    /// gone by then). Must be called with `operations` held and Discord closed. A move that fails ends the session, so a
-    /// half-moved profile never looks ready; connecting again starts clean.
+    /// gone by then). Must be called with `operations` held; Discord must be closed (DSC-E05 otherwise, and nothing
+    /// changes). A move that fails ends the session, so a half-moved profile never looks ready; connecting again starts
+    /// clean.
     private func adopt(_ updated: DiscordInstallation) throws {
         guard let bridge, let wrapper else { throw KitError.sessionNotReady() }
+        guard try !system.running(updated) else { throw KitError.discordRunning() }
         do {
             try changes?.restore()
             changes = nil
@@ -288,6 +417,28 @@ public final class SessionController {
         self.changes = changes
         try changes.configure(legacy: bridge.legacyEndpoint, modern: bridge.newEndpoint)
         guard connection.engine.isRunning, connection.gate.isAccepting else { throw KitError.engineStopped() }
+        watchBundle(installation.bundle)
+    }
+
+    /// Discord's self-update replaces Discord.app (ShipIt) and reopens Discord without the session; the swap is noticed
+    /// here, once, and `followUpdate` watches again when it is done. Must be called with `operations` held.
+    private func watchBundle(_ path: String) {
+        bundleWatch?.cancel()
+        bundleWatch = nil
+        let descriptor = open(path, O_EVTONLY | O_CLOEXEC)
+        guard descriptor >= 0 else {
+            log("Discord.app cannot be watched; after Discord updates itself, quit it and choose Open Discord.")
+            return
+        }
+        // A swap renames or deletes the bundle; writes inside it (a Finder .DS_Store) are not an update.
+        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: [.delete, .rename, .revoke], queue: .global())
+        source.setEventHandler { [weak self, weak source] in
+            source?.cancel()
+            self?.followUpdate()
+        }
+        source.setCancelHandler { close(descriptor) }
+        bundleWatch = source
+        source.resume()
     }
 
     private func proxy(_ connection: DnsConnection) -> String {
@@ -331,6 +482,8 @@ public final class SessionController {
         lifetime.cancel()
         engineWatch?.cancel()
         engineWatch = nil
+        bundleWatch?.cancel()
+        bundleWatch = nil
         var deferred = false
         if let changes, let installation {
             if admission?.anyAdmittedRunning == true || !waitForExit(installation) {

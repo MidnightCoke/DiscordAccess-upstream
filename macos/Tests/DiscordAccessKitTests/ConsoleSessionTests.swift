@@ -169,7 +169,11 @@ import Testing
             throw CancellationError()
         }
         session.disconnect = {
-            DispatchQueue.global().asyncAfter(deadline: .now() + 0.06) { release.signal() }
+            // Its own thread: under the full suite the global queue's pool can be busy for longer than the shutdown time.
+            Thread {
+                usleep(60_000)
+                release.signal()
+            }.start()
         }
         let result = Self.run(session, state)
         #expect(result.code == 0 && cleaned.all == [true] && result.lines.last == "Connection closed.")
